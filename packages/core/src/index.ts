@@ -35,3 +35,11 @@ export {
   type ApplyResult,
   type Resolution,
 } from "./apply/index.ts";
+export {
+  checkStatements,
+  type CheckInput,
+  type CheckResult,
+  type ReasonCue,
+  type StatementCheck,
+  type StatementVerdict,
+} from "./statements/index.ts";

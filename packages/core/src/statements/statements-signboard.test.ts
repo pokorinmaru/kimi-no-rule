@@ -151,3 +151,24 @@ describe("signboard: inputs", () => {
     expect(signboardCorrect).toEqual(before.world);
   });
 });
+
+describe("signboard: sentences the child's words did not touch (指示書 第5.7節)", () => {
+  it("the given 6 is not decided yet when only the ratio was touched", () => {
+    expect(verdicts(check(correctReading))).toEqual(["undetermined", "holds", "holds"]);
+  });
+
+  it("the given 6 holds once the child's words touch it", () => {
+    expect(verdicts(check(correctReading, [phrase("q_ani")]))).toEqual(["holds", "holds", "holds"]);
+  });
+
+  it("a number given up to make the world hold is shown as not holding even when untouched", () => {
+    expect(verdicts(check(proceduralReading))[0]).toBe("fails");
+  });
+});
+
+describe("signboard: a number with words on the relation is checked", () => {
+  it("is not number_only when a phrase touches the ratio", () => {
+    const res = check([op.answer("q_otouto", num(8))], [phrase("r_ratio")]);
+    expect(res.kind).toBe("checked");
+  });
+});
