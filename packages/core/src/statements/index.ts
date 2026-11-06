@@ -59,7 +59,8 @@ function constraintsOf(correct: WorldScene, ids: readonly string[]): string[] {
   const asked = correct.question.target_id;
   return ids.filter(
     (id) =>
-      id !== asked &&
+      // An asked relation stays: its direction and kind are checked, never its amount (Q21).
+      (id !== asked || correct.question.target_type === "relation_amount") &&
       (correct.quantities.some((x) => x.id === id && x.value !== null) ||
         correct.relations.some((r) => r.id === id) ||
         correct.events.some((e) => e.id === id)),
@@ -115,6 +116,20 @@ export function checkStatements(input: CheckInput): CheckResult {
 
   const checkOne = (id: string): Verdict => {
     if (released.has(id)) return "fails";
+    if (id === correct.question.target_id && correct.question.target_type === "relation_amount") {
+      // What is asked: compare only which counts it joins and whether it is a multiple or a difference (Q21).
+      const right = correct.relations.find((r) => r.id === id);
+      const mine = world.relations.find((r) => r.id === id);
+      if (right === undefined || mine === undefined) return "undetermined";
+      const kind = (op: string): string =>
+        op === "times" || op === "fraction_of" || op === "per" ? "multiple" : op;
+      const same =
+        kind(mine.operator) === kind(right.operator) &&
+        mine.subject === right.subject &&
+        mine.reference === right.reference &&
+        JSON.stringify(mine.reference_list) === JSON.stringify(right.reference_list);
+      return same ? "holds" : "fails";
+    }
     if (!solvable) return "undetermined";
     const given = correct.quantities.find((x) => x.id === id);
     if (given !== undefined && given.value !== null) {

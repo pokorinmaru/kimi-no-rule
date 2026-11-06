@@ -161,3 +161,23 @@ describe("found in review: an asked relation amount", () => {
     expect(res.failures.map((f) => f.code)).not.toContain("candidate_same_as_correct");
   });
 });
+
+describe("an asked 'how many times' problem can be used (Q21)", () => {
+  it("meets the conditions: the swapped reading makes the sentence of the relation fail", () => {
+    const w = pairWorld(5, [rel("r_1", "times", "q_b", "q_a", null)]);
+    w.quantities = w.quantities.map((q) => (q.id === "q_b" ? { ...q, value: num(15) } : q));
+    w.question = { target_type: "relation_amount", target_id: "r_1" };
+    const res = problemConditions(record(w, [stmt(0, ["q_a", "q_b", "r_1"]), stmt(1, ["r_1"], true)]));
+    expect(res).toEqual({ ok: true, failures: [] });
+  });
+});
+
+describe("an asked difference keeps more and less apart (Q21)", () => {
+  it("meets the conditions: reading more as less makes the sentence of the relation fail", () => {
+    const w = pairWorld(5, [rel("r_1", "more_by", "q_b", "q_a", null)]);
+    w.quantities = w.quantities.map((q) => (q.id === "q_b" ? { ...q, value: num(8) } : q));
+    w.question = { target_type: "relation_amount", target_id: "r_1" };
+    const res = problemConditions(record(w, [stmt(0, ["q_a", "q_b", "r_1"]), stmt(1, ["r_1"], true)]));
+    expect(res.failures.map((f) => f.code)).not.toContain("candidate_all_statements_hold");
+  });
+});
