@@ -154,6 +154,16 @@ describe("pre-write-guard: shell commands", () => {
     expect(isAllowed(sh("Bash", `cat "${design}/brief.md" | head -5`))).toBe(true);
   });
 
+  it("allows reading the design folder with stream redirections that write nothing", () => {
+    expect(isAllowed(sh("Bash", `ls "${design}/" ; ls x 2>&1`))).toBe(true);
+    expect(isAllowed(sh("Bash", `cat "${design}/brief.md" 2>/dev/null | wc -l`))).toBe(true);
+    expect(isAllowed(sh("PowerShell", `Get-Content "${design}\\brief.md" 2>$null`))).toBe(true);
+  });
+
+  it("still denies redirecting design content into a file", () => {
+    expect(isDenied(sh("Bash", `cat "${design}/brief.md" > notes.md 2>&1`))).toBe(true);
+  });
+
   it("denies personal data in a command", () => {
     expect(isDenied(sh("Bash", `echo ${PII.mobile} >> a.txt`))).toBe(true);
   });

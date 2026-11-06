@@ -35,7 +35,9 @@ function shellWritesDesign(command, dir) {
       i = cmd.indexOf(form, i + form.length);
     }
   }
-  if (hits.length === 0 || !SHELL_WRITE.test(command)) return false;
+  // Redirections that only merge or discard streams write no file.
+  const writes = command.replace(/\d?>&\d/g, " ").replace(/\d?>\s*(\/dev\/null|\$null|nul)(?![\w/])/gi, " ");
+  if (hits.length === 0 || !SHELL_WRITE.test(writes)) return false;
   return !hits.every((rest) => rest.startsWith("handoff.md"));
 }
 
