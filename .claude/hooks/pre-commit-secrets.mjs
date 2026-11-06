@@ -42,7 +42,11 @@ function parseCommits(command) {
         badOption ??= t;
         if (OPTION_WITH_VALUE.has(t)) i++;
       } else {
-        if (t === "commit") commits.push({ dirs, badOption });
+        if (t === "commit") {
+          // Skipping git's own pre-commit hook (the backstop) is not allowed.
+          const skip = tokens.slice(i + 1).find((a) => a === "--no-verify" || /^-[a-zA-Z]*n[a-zA-Z]*$/.test(a));
+          commits.push({ dirs, badOption: badOption ?? skip });
+        }
         break; // the subcommand decides; stop at it
       }
     }
@@ -81,10 +85,14 @@ function classify(line) {
   return undefined;
 }
 
-/** @param {string[]} args @param {string} cwd */
+/**
+ * Run git; a failure (error, non-zero exit, output over the buffer) throws so the scan fails closed.
+ * @param {string[]} args @param {string} cwd
+ */
 function git(args, cwd) {
   const r = spawnSync("git", args, { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-  return r.status === 0 ? r.stdout : "";
+  if (r.error || r.status !== 0) throw new Error(`git ${args[0]} failed: ${r.error ? String(r.error) : r.stderr}`);
+  return r.stdout;
 }
 
 /** Added lines from a unified diff, as [file, line]. @param {string} diff */
@@ -158,6 +166,9 @@ async function claudeHookMode() {
   const input = await readInput();
   const ti = /** @type {Record<string, unknown>} */ (input["tool_input"] ?? {});
   const command = String(ti["command"] ?? "");
+  if (/\bgit\b/.test(command) && /hooks-?path/i.test(command)) {
+    deny("git のフックの場所（core.hooksPath）を変える・消すコマンドは止めています。.githooks/pre-commit がシークレット検査の最後の砦です。");
+  }
   const commits = parseCommits(command);
   if (commits.length === 0) return;
 

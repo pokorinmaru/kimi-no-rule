@@ -101,6 +101,14 @@ describe("pre-commit-secrets", () => {
     expect(isDenied(bash(dir, "env GIT_INDEX_FILE=/tmp/i git commit -m x"))).toBe(true);
   });
 
+  it("denies skipping git's own hooks", () => {
+    const dir = repo({ "src/a.ts": "export const a = 1;\n" }, true);
+    expect(isDenied(bash(dir, 'git commit --no-verify -m "x"'))).toBe(true);
+    expect(isDenied(bash(dir, 'git commit -nm "x"'))).toBe(true);
+    expect(isDenied(bash(dir, "git config core.hooksPath /dev/null && git commit -m x"))).toBe(true);
+    expect(isDenied(bash(dir, "git config --unset core.hookspath"))).toBe(true);
+  });
+
   it("denies when the repository cannot be read (fail closed)", () => {
     const notRepo = tempDir("norepo");
     expect(isDenied(bash(notRepo, 'git commit -m "x"'))).toBe(true);
