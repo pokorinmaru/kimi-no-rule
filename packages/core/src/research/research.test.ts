@@ -323,9 +323,10 @@ describe("revisePool", () => {
     );
     expect(rev.merged).toHaveLength(2);
     expect(ids(rev.state)).toEqual(["c_correct", "c_known_whole"]);
-    expect(rev.state.weights.c_correct).toBeCloseTo(2 / 5, CLOSE);
-    expect(rev.state.weights.c_known_whole).toBeCloseTo(2 / 5, CLOSE);
-    expect(rev.state.weights.other).toBeCloseTo(1 / 5, CLOSE);
+    // Q28 (review fix): duplicates are dropped before the first weights, so each distinct reading and other start alike.
+    expect(rev.state.weights.c_correct).toBeCloseTo(1 / 3, CLOSE);
+    expect(rev.state.weights.c_known_whole).toBeCloseTo(1 / 3, CLOSE);
+    expect(rev.state.weights.other).toBeCloseTo(1 / 3, CLOSE);
   });
 
   it("does not merge readings the bank tells apart", () => {
@@ -486,7 +487,7 @@ describe("kohaiReading", () => {
     const s = stateOf([entry(KNOWN())], { c_known_whole: 0.7, other: 0.3 });
     for (const sessionMisreadId of [null, "c_swap"]) {
       const k = kohaiReading({ state: s, record: bank("p_signboard"), sessionMisreadId, taught });
-      expect(k).toEqual({ hypothesis: taught, source: "taught", sessionMisreadId });
+      expect(k).toEqual({ hypothesis: taught, source: "taught", sessionMisreadId, changesWorld: false }); // "asked" is the whole here: the taught reading is right
     }
   });
 
@@ -515,7 +516,7 @@ describe("kohaiReading", () => {
   it("mirrors the heaviest hypothesis when it changes the world, and fixes it for the session", () => {
     const s = stateOf([entry(common("c_correct")), entry(KNOWN())], { c_correct: 0.2, c_known_whole: 0.6, other: 0.2 });
     const k = kohaiReading({ state: s, record: bank("p_bank_tulip"), sessionMisreadId: null, taught: null });
-    expect(k).toEqual({ hypothesis: KNOWN(), source: "mirror", sessionMisreadId: "c_known_whole" });
+    expect(k).toEqual({ hypothesis: KNOWN(), source: "mirror", sessionMisreadId: "c_known_whole", changesWorld: true });
   });
 
   it("on a tie, the earlier hypothesis in the pool is the top", () => {
@@ -537,19 +538,19 @@ describe("kohaiReading", () => {
   it("keeps the session misreading: mirror while it is still the top", () => {
     const s = stateOf([entry(common("c_correct")), entry(KNOWN())], { c_correct: 0.2, c_known_whole: 0.6, other: 0.2 });
     const k = kohaiReading({ state: s, record: bank("p_bank_tulip"), sessionMisreadId: "c_known_whole", taught: null });
-    expect(k).toEqual({ hypothesis: KNOWN(), source: "mirror", sessionMisreadId: "c_known_whole" });
+    expect(k).toEqual({ hypothesis: KNOWN(), source: "mirror", sessionMisreadId: "c_known_whole", changesWorld: true });
   });
 
   it("keeps the session misreading: competitor when another hypothesis is now the top", () => {
     const s = stateOf([entry(common("c_swap")), entry(KNOWN())], { c_swap: 0.6, c_known_whole: 0.2, other: 0.2 });
     const k = kohaiReading({ state: s, record: bank("p_bank_tulip"), sessionMisreadId: "c_known_whole", taught: null });
-    expect(k).toEqual({ hypothesis: KNOWN(), source: "competitor", sessionMisreadId: "c_known_whole" });
+    expect(k).toEqual({ hypothesis: KNOWN(), source: "competitor", sessionMisreadId: "c_known_whole", changesWorld: true });
   });
 
   it("finds the session misreading among the common ones when it is not in the pool", () => {
     const s = stateOf([entry(KNOWN())], { c_known_whole: 0.8, other: 0.2 });
     const k = kohaiReading({ state: s, record: bank("p_bank_tulip"), sessionMisreadId: "c_invert", taught: null });
-    expect(k).toEqual({ hypothesis: common("c_invert"), source: "competitor", sessionMisreadId: "c_invert" });
+    expect(k).toEqual({ hypothesis: common("c_invert"), source: "competitor", sessionMisreadId: "c_invert", changesWorld: true });
   });
 
   it("uses only one kind of misreading in a session (property)", () => {
@@ -681,5 +682,53 @@ describe("a simulated child who takes the known number as the whole", () => {
     const known = s.pool.find((e) => e.hypothesis.id === "c_known_whole") as PoolEntry;
     expect(known.splitObservations).toBe(2);
     expect(readingCard(known.hypothesis)).toBe("後輩の読み方：わかっている数の人を、1とみる");
+  });
+});
+
+describe("review fixes (Q28)", () => {
+  const sign = () => FRACTION_BANK.find((r) => r.world.problem_id === "p_signboard") as ProblemRecord;
+  const read = (h: Hypothesis, r: ProblemRecord) => ({ record: r, childWorld: runRule(h, r), referencePlaced: true, afterFix: false, wordbookOpenedBefore: false });
+  const swap = COMMON_FRACTION_READINGS.find((h) => h.id === "c_swap") as Hypothesis;
+  const correct = COMMON_FRACTION_READINGS.find((h) => h.id === CORRECT_READING_ID) as Hypothesis;
+
+  it("adding the same reading under a new id does not raise its weight", () => {
+    let s = observe(initialState(), read(swap, sign()));
+    s = revisePool(s, [{ kind: "add", hypothesis: swap }, { kind: "add", hypothesis: correct }], FRACTION_BANK).state;
+    const tulip = FRACTION_BANK.find((r) => r.world.problem_id === "p_bank_tulip") as ProblemRecord;
+    s = observe(s, read(swap, tulip));
+    const before = s.weights.c_swap as number;
+    const clone = { ...swap, id: "h_clone" };
+    const rev = revisePool(s, [{ kind: "add", hypothesis: clone }], FRACTION_BANK);
+    expect(rev.merged).toEqual([{ kept: "c_swap", dropped: "h_clone" }]);
+    expect(rev.state.weights.c_swap).toBeCloseTo(before, 10);
+  });
+
+  it("the last hypothesis of a pool cannot be deleted", () => {
+    let s = observe(initialState(), read(swap, sign()));
+    s = revisePool(s, [{ kind: "add", hypothesis: swap }], FRACTION_BANK).state;
+    const rev = revisePool(s, [{ kind: "delete", id: "c_swap" }], FRACTION_BANK);
+    expect(rev.rejected).toEqual([{ index: 0, reason: "pool_empty" }]);
+    expect(rev.state.pool.map((e) => e.hypothesis.id)).toEqual(["c_swap"]);
+  });
+
+  it("a session misreading written by Claude and later deleted from the pool is kept by the flow", () => {
+    const mine = { ...swap, id: "h_mine" };
+    const k = kohaiReading({ state: initialState(), record: sign(), sessionMisreadId: "h_mine", sessionMisread: mine, taught: null });
+    expect(k.hypothesis).toEqual(mine);
+    expect(k.sessionMisreadId).toBe("h_mine");
+  });
+
+  it("the card names the clause that acted on the problem, and none when the world does not change", () => {
+    const h = hyp("h_two", [clause(p("ratio_kind_is", "gt1"), act.swap()), clause(ALWAYS, act.chooseBy("known_value"))]);
+    expect(readingCard(h, sign())).toBe("後輩の読み方：わかっている数の人を、1とみる");
+    expect(readingCard(correct, sign())).toBeNull();
+  });
+
+  it("a word Claude wrote is quoted on the card only when it carries no number or operation", () => {
+    for (const word of ["3倍", "わる", "three", "四分の三", "a\nb", "とても長い言葉のかたまりです"]) {
+      const card = readingCard(always("h_w", act.chooseByWord("before_word", word)));
+      expect(card, word).toBe("後輩の読み方：ある言葉の前の人を、1とみる");
+    }
+    expect(readingCard(always("h_w", act.chooseByWord("before_word", "の")))).toBe("後輩の読み方：「の」の前の人を、1とみる");
   });
 });

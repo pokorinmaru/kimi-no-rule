@@ -6,7 +6,7 @@ import type { ProblemRecord } from "../schema/problem-record.ts";
 import type { WorldScene } from "../schema/world-scene.ts";
 import { hypothesis as hypothesisSchema } from "../schema/reading-rule.ts";
 import { predict } from "../rules/predict.ts";
-import { runRule, type Hypothesis } from "../rules/run.ts";
+import { firedClauses, runRule, type Hypothesis } from "../rules/run.ts";
 import { sameReading } from "../rules/same-reading.ts";
 import { groupHypotheses } from "../rules/score.ts";
 import {
@@ -62,7 +62,7 @@ export type PoolEdit =
 
 export interface Revision {
   state: ResearchState;
-  rejected: { index: number; reason: "invalid" | "duplicate_id" | "unknown_id" | "run_failed" | "pool_full" }[];
+  rejected: { index: number; reason: "invalid" | "duplicate_id" | "unknown_id" | "run_failed" | "pool_full" | "pool_empty" }[];
   /** Hypotheses folded into another that builds the same worlds on every given problem. */
   merged: { kept: string; dropped: string }[];
 }
@@ -79,6 +79,8 @@ export interface KohaiReading {
   source: "taught" | "mirror" | "competitor";
   /** The one misreading the junior uses in this session (fixed once chosen). */
   sessionMisreadId: string | null;
+  /** Whether the reading builds a world other than the correct one on this problem. */
+  changesWorld: boolean;
 }
 
 export function initialState(): ResearchState {
@@ -152,11 +154,14 @@ export function revisePool(state: ResearchState, edits: readonly PoolEdit[], pro
   let pool = [...state.pool];
   let weights: Weights = { ...state.weights };
   const scored = state.readings.slice(state.unscored);
+  const written = new Set<string>();
 
   edits.forEach((edit, index) => {
     if (edit.kind === "delete") {
       const at = pool.findIndex((e) => e.hypothesis.id === edit.id);
       if (at < 0) return void rejected.push({ index, reason: "unknown_id" });
+      // A pool is never emptied once it has hypotheses: the scored readings would lose their start.
+      if (pool.length === 1) return void rejected.push({ index, reason: "pool_empty" });
       pool.splice(at, 1);
       weights = mergeHypotheses(weights, OTHER, edit.id);
       return;
@@ -170,6 +175,7 @@ export function revisePool(state: ResearchState, edits: readonly PoolEdit[], pro
       if (at >= 0) return void rejected.push({ index, reason: "duplicate_id" });
       if (pool.length >= POOL_MAX) return void rejected.push({ index, reason: "pool_full" });
       pool.push({ hypothesis: h, status: "hypothesis", splitObservations: 0 });
+      written.add(h.id);
       if (!firstFill) weights = addHypothesis(weights, h.id);
       return;
     }
@@ -180,14 +186,10 @@ export function revisePool(state: ResearchState, edits: readonly PoolEdit[], pro
     weights = addHypothesis(mergeHypotheses(weights, OTHER, h.id), h.id);
     weights = normalized({ ...weights, [h.id]: (weights[h.id] as number) * factor });
     pool[at] = { hypothesis: h, status: "hypothesis", splitObservations: splits };
+    written.add(h.id);
   });
 
-  // The first hypotheses are written from the readings so far, so those readings do not count for them.
-  if (firstFill && pool.length > 0) {
-    const share = 1 / (pool.length + 1);
-    weights = { [OTHER]: share, ...Object.fromEntries(pool.map((e) => [e.hypothesis.id, share])) };
-  }
-
+  // Rules that build the same worlds on every given problem are one reading: the first in the pool stays.
   const merged: Revision["merged"] = [];
   for (const group of groupHypotheses(
     pool.map((e) => e.hypothesis),
@@ -195,12 +197,21 @@ export function revisePool(state: ResearchState, edits: readonly PoolEdit[], pro
   )) {
     const [keep, ...drop] = group;
     for (const d of drop) {
-      weights = mergeHypotheses(weights, (keep as Hypothesis).id, d.id);
+      // A reading written again under another id earns nothing: its share goes back to other, so weights
+      // move only on observations. Two hypotheses that were already there keep both their shares.
+      if (!firstFill) weights = mergeHypotheses(weights, written.has(d.id) ? OTHER : (keep as Hypothesis).id, d.id);
       merged.push({ kept: (keep as Hypothesis).id, dropped: d.id });
     }
   }
   const droppedIds = new Set(merged.map((m) => m.dropped));
   pool = pool.filter((e) => !droppedIds.has(e.hypothesis.id));
+
+  // The first hypotheses are written from the readings so far, so those readings do not count for them:
+  // each distinct reading and "other" start alike.
+  if (firstFill && pool.length > 0) {
+    const share = 1 / (pool.length + 1);
+    weights = { [OTHER]: share, ...Object.fromEntries(pool.map((e) => [e.hypothesis.id, share])) };
+  }
 
   const { pool: statused, unexpressible } = restated(pool, weights);
   return { state: { ...state, pool: statused, weights, unexpressible }, rejected, merged };
@@ -247,24 +258,30 @@ export function kohaiReading(input: {
   state: ResearchState;
   record: ProblemRecord;
   sessionMisreadId: string | null;
+  /** The session's misreading itself, kept by the flow so a later pool edit cannot lose it. */
+  sessionMisread?: Hypothesis | null;
   taught: Hypothesis | null;
 }): KohaiReading {
   const { state, record, sessionMisreadId, taught } = input;
-  if (taught !== null) return { hypothesis: taught, source: "taught", sessionMisreadId };
+  if (taught !== null) return { hypothesis: taught, source: "taught", sessionMisreadId, changesWorld: !sameReading(runRule(taught, record), record.world, true) };
   const head = top(state);
+  const changes = (h: Hypothesis): boolean => !sameReading(runRule(h, record), record.world, true);
+  const competitor = COMMON_MISREADINGS.find(changes);
+  if (competitor === undefined) throw new Error(`no common misreading changes ${record.world.problem_id}`);
   if (sessionMisreadId !== null) {
     const h =
+      (input.sessionMisread?.id === sessionMisreadId ? input.sessionMisread : undefined) ??
       state.pool.find((e) => e.hypothesis.id === sessionMisreadId)?.hypothesis ??
       COMMON_MISREADINGS.find((x) => x.id === sessionMisreadId);
     if (h === undefined) throw new Error(`unknown misreading ${sessionMisreadId}`);
-    return { hypothesis: h, source: head?.hypothesis.id === h.id ? "mirror" : "competitor", sessionMisreadId };
+    // The session keeps its one misreading; where it changes nothing here, the flow must not show this
+    // problem as a misreading (it would show the correct world first, 原則4) and picks another.
+    return { hypothesis: h, source: head?.hypothesis.id === h.id ? "mirror" : "competitor", sessionMisreadId, changesWorld: changes(h) };
   }
-  if (head !== undefined && !isNoChange(head.hypothesis)) {
-    return { hypothesis: head.hypothesis, source: "mirror", sessionMisreadId: head.hypothesis.id };
+  if (head !== undefined && !isNoChange(head.hypothesis) && changes(head.hypothesis)) {
+    return { hypothesis: head.hypothesis, source: "mirror", sessionMisreadId: head.hypothesis.id, changesWorld: true };
   }
-  const competitor = COMMON_MISREADINGS.find((h) => !sameReading(runRule(h, record), record.world, true));
-  if (competitor === undefined) throw new Error(`no common misreading changes ${record.world.problem_id}`);
-  return { hypothesis: competitor, source: "competitor", sessionMisreadId: competitor.id };
+  return { hypothesis: competitor, source: "competitor", sessionMisreadId: competitor.id, changesWorld: true };
 }
 
 type Action = Hypothesis["clauses"][number]["then"];
@@ -285,7 +302,11 @@ function cardText(a: Action): string | null {
       return null;
     case "choose_reference":
       if (typeof a.by === "string") return BY_TEXT[a.by] as string;
-      return `「${a.by.word}」の${a.by.holder === "before_word" ? "前" : "後ろ"}の人を、1とみる`;
+      // The word was written by Claude: it is shown only when it is a plain word with no number or
+      // operation in it (原則1・11); otherwise the card says "a word" without quoting it.
+      return safeWord(a.by.word)
+        ? `「${a.by.word}」の${a.by.holder === "before_word" ? "前" : "後ろ"}の人を、1とみる`
+        : `ある言葉の${a.by.holder === "before_word" ? "前" : "後ろ"}の人を、1とみる`;
     case "swap_reference":
       return "1とみる人を、入れかえて読む";
     case "set_relation_type_additive":
@@ -305,8 +326,21 @@ function cardText(a: Action): string | null {
   }
 }
 
-export function readingCard(h: Hypothesis): string | null {
-  for (const c of h.clauses) {
+const NUMBER_OR_OPERATION = /[0-9０-９一二三四五六七八九十百千万〇零半倍分割足引掛たすひくかけわる+\-×÷*/=]|one|two|three|four|five|six|seven|eight|nine|ten|half|times|plus|minus|divide|multiply/i;
+
+/** A word the card may quote: short, one line, with no number and no operation in it. */
+export function safeWord(w: string): boolean {
+  return w.length > 0 && w.length <= 8 && !/[\s「」]/.test(w) && !NUMBER_OR_OPERATION.test(w);
+}
+
+/**
+ * The card's one line for the junior's reading. Given the problem, it names the clause that acted there,
+ * and none when the reading builds the correct world; without a problem, the first clause that changes anything.
+ */
+export function readingCard(h: Hypothesis, record?: ProblemRecord): string | null {
+  const acting = record === undefined ? h.clauses : [...new Set(firedClauses(h, record))].sort((x, y) => x - y).map((i) => h.clauses[i] as Hypothesis["clauses"][number]);
+  if (record !== undefined && sameReading(runRule(h, record), record.world, true)) return null;
+  for (const c of acting) {
     const text = cardText(c.then);
     if (text !== null) return `後輩の読み方：${text}`;
   }

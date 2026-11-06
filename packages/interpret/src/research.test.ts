@@ -521,3 +521,29 @@ describe("writeHypotheses: a failing agent client", () => {
     if (outcome.kind === "submitted") expect(outcome.revision.state.pool.length).toBeLessThanOrEqual(POOL_MAX);
   });
 });
+
+describe("writeHypotheses: the child's words never reach the pool (review fix, Q28)", () => {
+  it("a hypothesis that repeats the child's words in its note or cues is refused; the same without them is accepted", async () => {
+    const copied = { ...reading("c_known_whole"), id: "h_copy", note_for_adult: `said ${WORDS_A[0]}` };
+    const cue = { ...reading("c_known_whole"), id: "h_cue", word_cues: [{ kind: "problem_word" as const, word: WORDS_A[1] as string }] };
+    const clean = { ...reading("c_known_whole"), id: "h_clean" };
+    const agent = new FakeAgent([submit([{ kind: "add", hypothesis: copied }]), submit([{ kind: "add", hypothesis: cue }]), submit([{ kind: "add", hypothesis: clean }]), done()]);
+    const outcome = await writeHypotheses(agent, oneReading());
+    const steps = agent.steps.map((s) => toolResults(s.messages).at(-1));
+    expect(isError(steps[1])).toBe(true);
+    expect(contentText(steps[1])).toContain("child's words");
+    expect(isError(steps[2])).toBe(true);
+    expect(outcome.kind).toBe("submitted");
+    expect(JSON.stringify(outcome)).not.toContain("zz-child");
+  });
+
+  it("a rule that names a word the problem texts do not have is refused", async () => {
+    const odd = { ...reading("c_known_whole"), id: "h_odd", clauses: [{ when: { pred: "word_in_statement" as const, args: ["ないことば"] }, then: { action: "swap_reference" as const } }, { when: { pred: "true" as const, args: [] }, then: { action: "no_change" as const } }] };
+    const agent = new FakeAgent([submit([{ kind: "add", hypothesis: odd }]), done()]);
+    const outcome = await writeHypotheses(agent, oneReading());
+    const r = resultsOf(agent)[0];
+    expect(isError(r)).toBe(true);
+    expect(contentText(r)).toContain("not in a problem text");
+    expect(outcome.kind).toBe("agent_failed");
+  });
+});

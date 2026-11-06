@@ -333,3 +333,18 @@ export function runRule(h: Hypothesis, record: ProblemRecord): WorldScene {
   }
   return world;
 }
+
+/** The index of the clause that acts on each relation and event of the problem, in order (for the card). */
+export function firedClauses(h: Hypothesis, record: ProblemRecord): number[] {
+  const ctx = contextOf(record);
+  const out: number[] = [];
+  for (const r of record.world.relations) {
+    const i = h.clauses.findIndex((c) => evalExpr(c.when, ctx, r, true));
+    if (i >= 0) out.push(i);
+  }
+  for (const e of record.world.events) {
+    const i = h.clauses.findIndex((c) => evalExpr(c.when, ctx, e, false));
+    if (i >= 0) out.push(i);
+  }
+  return out;
+}

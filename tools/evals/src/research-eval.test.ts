@@ -37,6 +37,18 @@ describe("the simulated children", () => {
   });
 });
 
+describe("the inexpressible children", () => {
+  it("no enumerated or common rule builds their worlds in the bank's order, nor in the reverse order", () => {
+    const rules = [...enumerateRules(), ...COMMON_FRACTION_READINGS];
+    for (const c of SIM_CHILDREN.filter((x) => x.kind === "inexpressible")) {
+      for (const order of [FRACTION_BANK, [...FRACTION_BANK].reverse()]) {
+        const fits = rules.filter((h) => order.every((r, n) => sameReading(runRule(h, r), c.world(r, n), true)));
+        expect(fits.map((h) => h.id), c.id).toEqual([]);
+      }
+    }
+  });
+});
+
 describe("the eval's pieces", () => {
   it("the random numbers are the same for the same seed", () => {
     const a = rng(7);

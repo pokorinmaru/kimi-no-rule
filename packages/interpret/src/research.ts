@@ -75,7 +75,7 @@ export const RESEARCH_SYSTEM = [
   "Conditions: and/or/not over predicates relation_operator_is, ratio_kind_is, problem_type_is, consistency_is, word_in_statement, word_before_ratio, word_after_holder, reference_is, numbers_compare, ratio_is_unit_fraction, true.",
   "Keep the pool between 2 and 5 hypotheses: add, modify or delete. A reading not in any known list may be written too. Do not write a candidate the child's words contradict; the words are the only way to tell apart readings that build the same world.",
   "Check candidates with score_rule (how many first readings each reproduces) and run_rule, then hand in the edits with submit_pool. If it refuses some, fix them and submit again.",
-  "In cue_kinds name only the kind of word cue you relied on; never repeat the child's words.",
+  "In cue_kinds name only the kind of word cue you relied on. Never copy the child's words into any field: a word a rule names must be a word of a problem text, and a hypothesis that repeats the child's words is refused.",
 ].join("\n");
 
 const jsonInput = (name: string, description: string): Record<string, unknown> => ({
@@ -134,6 +134,49 @@ function summary(w: WorldScene): unknown {
   return { kind: res.kind, values, relations: w.relations.map((r) => ({ id: r.id, operator: r.operator, subject: r.subject, reference: r.reference })) };
 }
 
+const NOTE_MAX = 200;
+const squash = (s: string): string => s.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
+
+/** The words a rule names: condition arguments that are words, the by-word holder, and problem-word cues. */
+function namedWords(h: Hypothesis): string[] {
+  const out: string[] = [];
+  const walk = (e: Hypothesis["clauses"][number]["when"]): void => {
+    if ("op" in e) {
+      if (e.op === "not") walk(e.arg);
+      else e.args.forEach(walk);
+      return;
+    }
+    if (e.pred === "word_in_statement" || e.pred === "word_before_ratio") out.push(...e.args.slice(0, 1));
+    if (e.pred === "word_after_holder") out.push(...e.args.slice(1, 2));
+  };
+  for (const c of h.clauses) {
+    walk(c.when);
+    if (c.then.action === "choose_reference" && typeof c.then.by !== "string") out.push(c.then.by.word);
+  }
+  for (const w of h.word_cues) if (typeof w !== "string") out.push(w.word);
+  return out;
+}
+
+/**
+ * Why a hypothesis would carry the child's words into the stored pool, if it would (指示書 第6.7節 入力:
+ * only the kind of cue is kept). Every string it holds must be free of the session's words, the words it
+ * names must come from the problem texts, and the note for adults is short.
+ */
+export function leakOf(h: Hypothesis, words: readonly string[], problemTexts: readonly string[]): string[] {
+  const why: string[] = [];
+  const said = words.map(squash).filter((w) => w.length >= 2);
+  const strings: string[] = [];
+  JSON.stringify(h, (_k, v: unknown) => {
+    if (typeof v === "string") strings.push(v);
+    return v;
+  });
+  if (strings.some((s) => said.some((w) => squash(s).includes(w)))) why.push("it repeats the child's words");
+  const texts = problemTexts.map(squash);
+  for (const w of namedWords(h)) if (w === "" || !texts.some((t) => t.includes(squash(w)))) why.push(`the word ${JSON.stringify(w)} is not in a problem text`);
+  if (h.note_for_adult.length > NOTE_MAX) why.push(`note_for_adult is longer than ${NOTE_MAX}`);
+  return why;
+}
+
 /** What the agent is told: the problems and the child's first worlds, the words, and the current pool. */
 function prompt(input: ResearchInput): string {
   const readings = input.readings.map((r, i) => ({
@@ -160,6 +203,8 @@ export async function writeHypotheses(
     if (r === undefined) throw new Error(`unknown problem ${id}`);
     return r;
   };
+  const words = input.readings.flatMap((r) => r.words);
+  const texts = [...problems.values()].map((r) => r.world.problem_text);
   let accepted: { revision: Revision; cueKinds: z.infer<typeof cueKind>[] } | null = null;
   let rejections = 0;
 
@@ -211,6 +256,11 @@ export async function writeHypotheses(
         } catch (e) {
           rejections++;
           throw new Error(`refused: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+        }
+        const leaks = parsed.edits.flatMap((e, index) => (e.kind === "delete" ? [] : leakOf(e.hypothesis, words, texts).map((why) => `edit ${index}: ${why}`)));
+        if (leaks.length > 0) {
+          rejections++;
+          throw new Error(`refused: ${leaks.join("; ")}`);
         }
         const revision = revisePool(input.state, parsed.edits as PoolEdit[], input.bank);
         if (revision.rejected.length > 0) {

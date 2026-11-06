@@ -90,12 +90,13 @@ export const SIM_CHILDREN: readonly SimChild[] = [
     ["もとにするって書いてあると、そのとおり", "先の人がもと、でももとにするのときは書いてあるほう", "もとにするはわかる", "最初の人が1かな", "first is 1, but not with moto"],
   ),
   {
-    id: "s_long_text",
+    id: "s_tired",
     kind: "inexpressible",
     rule: null,
-    // A long problem text is read the other way round: the language has no predicate on length.
-    world: (r) => (r.world.problem_text.length > 42 ? runRule(swap, r) : r.world),
-    words: ["長い問題はむずかしい", "文が長いと逆にしちゃう", "えっと、長いからこっち", "長いのはわからない", "long ones are hard"],
+    // Reads the first two problems as written, then turns every later one round: the language has no
+    // predicate on how far into the session a problem comes.
+    world: (r, n) => (n >= 2 ? runRule(swap, r) : r.world),
+    words: ["さいしょはわかった", "だんだんわからなくなった", "つかれてきて反対にした", "あとのほうはむずかしい", "I got tired"],
   },
   {
     id: "s_alternate",
