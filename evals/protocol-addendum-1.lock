@@ -1,0 +1,7 @@
+8c6836c96fcbf015977640144a68e26490b59ab009eb208dad84aa13eae296ea  evals/PROTOCOL-ADDENDUM-1.md
+d17fcd5148b82c468af105ab15bc008e5f7d70560ca69aeba8422465e648eff2  packages/core/fixtures/problems/provisional.ts
+3c6286c729421800934b7d7d49cd9b8cb98f0c08254fd6067a2cbc56d380e830  tools/baseline-parser/src/index.ts
+62bbca8830936a1979c2392ebf12bddee907f72584cfcf2f19d257e2ce55b14f  tools/evals/src/dataset.ts
+d66d244b72c9dc9b7e690e2a1c59006d36328b02ecb58f2a78788784c6cf3129  tools/evals/src/interpret-eval.ts
+80460216673b407172cb0a913473174c68b8610e3ee7ce8b896223e0c199b94e  tools/evals/src/safety-eval.ts
+23ddf02c486d833961e9394ff8b13ac774f942072a5e27de16c7bec954af60a6  tools/evals/src/stats.ts
