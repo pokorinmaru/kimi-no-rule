@@ -114,6 +114,11 @@ describe("pre-write-guard: writing into the design folder", () => {
     const sneaky = `${parent}/elsewhere/../${path.basename(design)}/brief.md`;
     expect(isDenied(write(sneaky, "x"))).toBe(true);
     expect(isDenied(write(`${design}/HANDOFF.md/../brief.md`, "x"))).toBe(true);
+    // ".." above a drive root stays at the root (as Windows does), it must not drop the drive letter.
+    if (/^[a-zA-Z]:/.test(design)) {
+      const drive = design.slice(0, 2);
+      expect(isDenied(write(`${drive}/../../${design.slice(3).replaceAll("\\", "/")}/brief.md`, "x"))).toBe(true);
+    }
   });
 
   it("allows HANDOFF.md", () => {

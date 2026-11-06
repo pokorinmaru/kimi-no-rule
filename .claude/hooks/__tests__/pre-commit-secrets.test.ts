@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { denyReason, isAllowed, isDenied, runHook, tempDir, writeFiles } from "./helpers.ts";
 
@@ -57,6 +58,23 @@ describe("pre-commit-secrets", () => {
       { CLAUDE_PROJECT_DIR: "" },
     );
     expect(isDenied(r)).toBe(true);
+  });
+
+  it("resolves several -C options cumulatively, as git does", () => {
+    const dir = repo({ "src/config.ts": FAKE.aws }, true);
+    const r = runHook(
+      SCRIPT,
+      { hook_event_name: "PreToolUse", tool_name: "Bash", cwd: tempDir("elsewhere"), tool_input: { command: `git -C "${path.dirname(dir)}" -C ${path.basename(dir)} commit -m x` } },
+      { CLAUDE_PROJECT_DIR: "" },
+    );
+    expect(isDenied(r)).toBe(true);
+  });
+
+  it("denies commits that redirect the repository with --git-dir, --work-tree or GIT_DIR", () => {
+    const dir = repo({ "src/a.ts": "export const a = 1;\n" }, true);
+    expect(isDenied(bash(dir, "git --git-dir=/elsewhere/.git commit -m x"))).toBe(true);
+    expect(isDenied(bash(dir, "git --work-tree /elsewhere commit -m x"))).toBe(true);
+    expect(isDenied(bash(dir, "GIT_DIR=/elsewhere/.git git commit -m x"))).toBe(true);
   });
 
   it("denies when the repository cannot be read (fail closed)", () => {

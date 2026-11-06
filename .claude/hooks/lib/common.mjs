@@ -47,7 +47,10 @@ export function normPath(p) {
   let s = p.replace(/\\/g, "/");
   s = s.replace(/^\/([a-zA-Z])\//, "$1:/");
   if (!/^[a-zA-Z]:\//.test(s) && !s.startsWith("/")) s = path.resolve(s).replace(/\\/g, "/");
-  s = path.posix.normalize(s); // collapse "." and ".." so a\..\design cannot slip past the prefix check
+  // Collapse "." and ".." so a\..\design cannot slip past the prefix check. Keep the drive letter out of
+  // normalisation: ".." above a drive root stays at the root, as on Windows.
+  const drive = /^[a-zA-Z]:/.exec(s)?.[0] ?? "";
+  s = drive + path.posix.normalize(s.slice(drive.length));
   return s.replace(/\/+$/, "").toLowerCase();
 }
 

@@ -10,7 +10,9 @@ import { deny, projectDir, readInput } from "./lib/common.mjs";
 // `git [global options] commit`. Group 1 holds the global options (to find -C <dir>).
 const ARG = String.raw`(?:"[^"]*"|'[^']*'|[^\s;|&]+)`;
 const GIT_COMMIT = new RegExp(String.raw`\bgit((?:\s+(?:-[Cc]\s+${ARG}|--?[\w-]+(?:=${ARG})?))*)\s+commit\b`);
-const DASH_C = new RegExp(String.raw`-C\s+(${ARG})`);
+const DASH_C = new RegExp(String.raw`-C\s+(${ARG})`, "g");
+// Options and variables that point git at another repository: we cannot follow them reliably, so deny.
+const REDIRECT = /(--git-dir\b|--work-tree\b|--namespace\b|\bGIT_DIR=|\bGIT_WORK_TREE=|\bGIT_INDEX_FILE=)/;
 const SKIP_FILE = /(^|\/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|[^/]+\.lock)$/;
 
 /** @type {Array<[string, RegExp]>} */
@@ -66,12 +68,16 @@ async function main() {
   const input = await readInput();
   const ti = /** @type {Record<string, unknown>} */ (input["tool_input"] ?? {});
   const command = String(ti["command"] ?? "");
+  if (/\bgit\b/.test(command) && /\bcommit\b/.test(command) && REDIRECT.test(command)) {
+    deny("git の対象リポジトリを --git-dir / --work-tree / GIT_DIR などで変えたコミットは、シークレット検査ができないため止めました。リポジトリの中で普通に git commit してください。");
+  }
   const m = GIT_COMMIT.exec(command);
   if (!m) return;
 
   const base = typeof input["cwd"] === "string" && input["cwd"] ? input["cwd"] : projectDir(input);
-  const dashC = DASH_C.exec(m[1] ?? "")?.[1]?.replace(/^["']|["']$/g, "");
-  const cwd = dashC ? path.resolve(base, dashC) : base;
+  // Several -C options apply one after another, as in git.
+  let cwd = base;
+  for (const c of (m[1] ?? "").matchAll(DASH_C)) cwd = path.resolve(cwd, (c[1] ?? "").replace(/^["']|["']$/g, ""));
   if (spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).status !== 0) {
     deny(`コミット先のリポジトリを読めないため、シークレット検査ができません（${cwd}）。リポジトリの場所を確かめてください。`);
   }
