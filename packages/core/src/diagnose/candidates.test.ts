@@ -260,3 +260,14 @@ describe("candidates: signboard (指示書 第11節 M1)", () => {
     expect(sameWorld(w, signboardCorrect)).toBe(false);
   });
 });
+
+describe("a relation that says two counts are the same (Q18)", () => {
+  it("is not flipped by swapping its ends, which would give back the same world", () => {
+    const correct = worldW();
+    correct.relations = [
+      { id: "r_1", operator: "same_as", subject: "q_b", reference: "q_a", reference_list: null, amount: null, other_description: null },
+    ];
+    const flips = misreadCandidates(correct).flatMap((c) => c.flips);
+    expect(flips.some((f) => f.element_id === "r_1")).toBe(false);
+  });
+});

@@ -43,3 +43,29 @@ export {
   type StatementCheck,
   type StatementVerdict,
 } from "./statements/index.ts";
+export {
+  gate,
+  isVerified,
+  numbersIn,
+  verifiedCorrectWorld,
+  verifiedDrawWorld,
+  type Action,
+  type GateContext,
+  type GateReason,
+  type GateResult,
+  type Verified,
+} from "./gates/index.ts";
+export { sameWorld } from "./world/same-world.ts";
+export {
+  LAYER_ORDER,
+  diagnose,
+  misreadCandidates,
+  problemConditions,
+  type Candidate,
+  type ConditionFailure,
+  type DiagnoseInput,
+  type Diagnosis,
+  type FlipKind,
+  type Layer,
+  type Outcome,
+} from "./diagnose/index.ts";
