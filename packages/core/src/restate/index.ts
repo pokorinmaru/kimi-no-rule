@@ -131,6 +131,8 @@ function questionText(w: WorldScene, lang: Lang, name: (id: string) => string): 
 export function restate(world: WorldScene, lang: Lang): RestatedSentence[] {
   const rank = eventRank(world);
   const names = new Map(world.quantities.map((q) => [q.id, nameOf(world, q, lang, rank)]));
+  // Two quantities read the same way could not be told apart in the sentences, or read back.
+  if (new Set(names.values()).size !== names.size) throw new Error("two quantities would have the same name");
   const name = (id: string): string => names.get(id) ?? id;
   const out: RestatedSentence[] = [];
   const given = (q: Quantity, after: boolean): void => {
@@ -237,7 +239,20 @@ function parseRelation(s: RestatedSentence, lang: Lang, Q: string, idOf: (name: 
   const total =
     lang === "ja" ? new RegExp(`^${Q}は、(.+)を合わせたもの。$`).exec(s.text) : new RegExp(`^${Q} is (.+) together\\.$`).exec(s.text);
   if (total) {
-    const parts = (total[2] as string).split(lang === "ja" ? "と" : " and ");
+    // Read the parts name by name, so a name that holds the joining word (おとうと) stays whole.
+    const joiner = lang === "ja" ? "と" : " and ";
+    const parts: string[] = [];
+    let rest = total[2] as string;
+    const one = new RegExp(`^${Q}`);
+    for (;;) {
+      const m = one.exec(rest);
+      if (!m) throw new Error(`cannot read the parts of: ${s.text}`);
+      parts.push(m[1] as string);
+      rest = rest.slice((m[1] as string).length);
+      if (rest === "") break;
+      if (!rest.startsWith(joiner)) throw new Error(`cannot read the parts of: ${s.text}`);
+      rest = rest.slice(joiner.length);
+    }
     return { ...base, operator: "total_of", subject: idOf(total[1] as string), reference: null, reference_list: parts.map(idOf), amount: null };
   }
   return { ...base, operator: "other", subject: "", reference: null, amount: null, other_description: s.text };

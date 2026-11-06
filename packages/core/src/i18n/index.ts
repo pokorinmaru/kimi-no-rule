@@ -5,6 +5,8 @@
 import type { Rational } from "../schema/common.ts";
 import type { WorldScene } from "../schema/world-scene.ts";
 import { eq, fromSchema } from "../rational/index.ts";
+import { numbersIn } from "../gates/index.ts";
+import { markRendered } from "../gates/template-mark.ts";
 
 export type Lang = "ja" | "en";
 export type SlotKind = "holder" | "item" | "number" | "transcript";
@@ -40,7 +42,10 @@ export function problemNumber(world: WorldScene, value: Rational): Slot<"number"
     ...world.relations.flatMap((r) => (r.amount === null ? [] : [r.amount])),
     ...world.events.flatMap((e) => (e.amount === null ? [] : [e.amount])),
   ];
-  if (!given.some((g) => eq(fromSchema(g), fromSchema(value)))) throw new Error("not a number of the problem");
+  // Written into the world and also in the problem text: a solved or child's world cannot pass the answer off.
+  const inText = numbersIn(world.problem_text);
+  const same = (a: Rational): boolean => eq(fromSchema(a), fromSchema(value));
+  if (!given.some(same) || !inText.some(same)) throw new Error("not a number of the problem");
   return slot("number", value.den === 1 ? String(value.num) : `${value.num}/${value.den}`);
 }
 
@@ -73,12 +78,16 @@ export const TEMPLATES = {
   },
   "statement.undetermined": {
     slots: [],
-    ja: ["この文は、まだどちらとも言えないね", "この文は、まだ決めきれないね", "この文がどうなるかは、まだわからないね"],
-    en: ["This sentence is not decided yet.", "We cannot tell about this sentence yet.", "This sentence is still open."],
+    ja: ["この文は、まだどちらとも言えないね", "この文は、まだ決まらないね", "この文がどうなるかは、まだわからないね"],
+    en: ["This sentence is not decided yet.", "We cannot tell about this sentence yet.", "We do not know about this sentence yet."],
   },
   "statement.question_differs": {
     slots: [],
-    ja: ["聞いていることが、問題とずれているみたい", "この世界は、問題とは別のことをたずねているね", "問題がたずねていることと、ここがずれているね"],
+    ja: [
+      "この世界は、問題とちがうことを聞いているみたい",
+      "この世界は、問題とは別のことをたずねているね",
+      "問題がたずねていることと、この世界がたずねていることが、ちがうね",
+    ],
     en: ["This world is asking about something else.", "The question here is not the problem's question.", "This world asks a different thing."],
   },
   "answer_only.ask": {
@@ -89,7 +98,7 @@ export const TEMPLATES = {
   "show_by_finger.ask": {
     slots: [],
     ja: ["指で見せてくれる？ もとになるのはだれかな", "指で教えて。どっちが長いと思う？", "指で動かしてみて。もとはだれだろう"],
-    en: ["Show me with your finger: who is the base?", "Point it out: which is longer?", "Move it with your finger: who do we start from?"],
+    en: ['Show me with your finger: who gets the "1"?', "Point it out: which is longer?", 'Move it with your finger: where does the "1" go?'],
   },
   "cue.ask": {
     slots: [],
@@ -127,12 +136,12 @@ export const TEMPLATES = {
   "hint.ratio_reference": {
     slots: [],
     ja: ["この文で、もとになっているのはだれ？", "この文は、だれをもとにしているかな？", "もとにする人を、この文から見つけてみよう"],
-    en: ["In this sentence, who is the base?", "Who does this sentence start from?", "Find the base in this sentence."],
+    en: ['In this sentence, who gets the "1"?', 'Who does this sentence give the "1" to?', 'Find who gets the "1" in this sentence.'],
   },
   "fix.ask": {
     slots: [],
     ja: ["じゃあ、世界を直してみようか", "世界を、自分の読み方に直してみよう", "テープを動かして、世界を直してみよう"],
-    en: ["Then let's fix the world.", "Let's change the world to your reading.", "Move the tapes and fix the world."],
+    en: ["Then let's fix the world.", "Let's make the world match how you read it.", "Move the tapes and fix the world."],
   },
   "kohai.read": {
     slots: [],
@@ -143,12 +152,12 @@ export const TEMPLATES = {
     slots: [],
     ja: [
       "この読み方だと、合わない文があります。どこがおかしいんでしょう",
-      "合わない文が出てきました。先輩、どこがずれていますか",
+      "合わない文が出てきました。先輩、どこがおかしいでしょう",
       "この文が合わないみたいです。どこを直せばいいでしょう",
     ],
     en: [
-      "With this reading, a sentence does not fit. Where did I go off?",
-      "A sentence does not fit. Senpai, where is it off?",
+      "With this reading, a sentence does not fit. Which part is off?",
+      "A sentence does not fit. Senpai, what looks strange?",
       "This sentence does not fit. What should I change?",
     ],
   },
@@ -159,18 +168,18 @@ export const TEMPLATES = {
   },
   "kohai.restate": {
     slots: ["holder"],
-    ja: ["{holder}が「1」、ですね。合っていますか？", "「1」は{holder}、でいいですか？", "{holder}をもとにする、ということですね？"],
-    en: ['{holder} is the "1", right?', 'The "1" goes on {holder}, is that it?', "So we start from {holder}?"],
+    ja: ["{holder}が「1」、ですね。合っていますか？", "「1」は{holder}、でいいですか？", "「1」の札は{holder}、ですね。合っていますか？"],
+    en: ['{holder} is the "1", right?', 'The "1" goes on {holder}, is that it?', 'You put the "1" on {holder}. Is that right?'],
   },
   "kohai.restate_word": {
     slots: ["transcript"],
-    ja: ["手がかりは「{transcript}」、ですね", "「{transcript}」を見たんですね", "決め手は「{transcript}」なんですね"],
-    en: ['Your clue was "{transcript}", right?', 'You looked at "{transcript}".', 'So "{transcript}" was the key word.'],
+    ja: ["手がかりは「{transcript}」、ですね", "「{transcript}」を見たんですね", "手がかりにしたのは「{transcript}」、ですね"],
+    en: ['Your clue was "{transcript}", right?', 'You looked at "{transcript}".', 'You picked "{transcript}" as your clue.'],
   },
   "kohai.result": {
     slots: [],
     ja: ["先輩の読み方で読んだら、どの文も合いました", "教わった読み方にしたら、文がぜんぶそろいました", "その読み方だと、合わない文がなくなりました"],
-    en: ["Reading it your way, every sentence fit.", "With the reading you taught me, all the sentences fit.", "That reading left no sentence that does not fit."],
+    en: ["Reading it your way, every sentence fit.", "With the reading you taught me, all the sentences fit.", "With that reading, the sentences all lined up."],
   },
   "kohai.wordbook": {
     slots: [],
@@ -188,7 +197,7 @@ export const TEMPLATES = {
   "kohai.wait": {
     slots: [],
     ja: ["ゆっくり考えていいですよ。待っています", "考える時間、たっぷりありますよ", "急がなくていいですよ。ぼくは待ってます"],
-    en: ["Take your time. I will wait.", "There is no hurry. I am here.", "Think as long as you like."],
+    en: ["Take your time. I will wait.", "No need to hurry. Take all the time you need.", "Think as long as you like."],
   },
   "kohai.which_first": {
     slots: [],
@@ -198,7 +207,7 @@ export const TEMPLATES = {
   "kohai.check_again": {
     slots: [],
     ja: ["もういちど、文をたしかめてみますか？", "文を、もういちど見てみますか？", "直したところで、文を見直しますか？"],
-    en: ["Shall we check the sentences again?", "Want to look at the sentences once more?", "Now that it is fixed, check the sentences?"],
+    en: ["Shall we check the sentences again?", "Want to look at the sentences once more?", "Now that you changed it, shall we check the sentences?"],
   },
   "kohai.unit": {
     slots: [],
@@ -208,7 +217,7 @@ export const TEMPLATES = {
   "why.ask": {
     slots: [],
     ja: ["どうしてそう考えたの？", "その考え方になったわけを教えて", "そう決めたわけを、聞かせてくれる？"],
-    en: ["Why did you think that?", "What makes you say so?", "Tell me why it works that way."],
+    en: ["Why did you think that?", "What makes you say so?", "Tell me how you got there."],
   },
   "reflect.ask": {
     slots: [],
@@ -223,13 +232,13 @@ export const TEMPLATES = {
   "distress.reply": {
     slots: [],
     ja: [
-      "教えてくれて、ありがとう。おうちの大人や、話しやすい先生にも伝えてみてね",
-      "つらいことを話してくれたね。そばにいる大人にも、聞いてもらおう",
+      "つらいときは、ここでやめていいよ。信じられる大人に話してみてね",
+      "今日はもうやめていいよ。話しやすい大人や先生に、伝えてみてね",
       "自分だけでかかえなくていいよ。信じられる大人に話してみてね",
     ],
     en: [
-      "Thank you for telling me. Please tell a grown-up you trust, too.",
-      "That sounds hard. A grown-up near you can listen, too.",
+      "You can stop here. Talk to a grown-up you trust.",
+      "It is okay to stop for today. You can tell a grown-up you trust.",
       "You do not have to carry this by yourself. Talk to a grown-up you trust.",
     ],
   },
@@ -254,7 +263,8 @@ export function render(
   for (const kind of t.slots) {
     const s = slots[kind];
     if (s === undefined || !made.has(s) || s.kind !== kind) throw new Error(`slot ${kind} is missing or unchecked`);
-    text = text.replaceAll(`{${kind}}`, s.text);
+    // A function, so "$&" and the like in the child's words are kept as they were said.
+    text = text.replaceAll(`{${kind}}`, () => s.text);
   }
-  return { kind: "say", text, echo: t.slots.includes("transcript") };
+  return markRendered({ kind: "say" as const, text, echo: t.slots.includes("transcript") });
 }

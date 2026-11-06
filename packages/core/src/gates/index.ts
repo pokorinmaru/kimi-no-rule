@@ -7,6 +7,7 @@ import { validateWorld } from "../schema/semantic.ts";
 import type { WorldScene } from "../schema/world-scene.ts";
 import { add, div, eq, fromSchema, neg, rat, toSchema, type Rational as Exact } from "../rational/index.ts";
 import { solve } from "../solve/index.ts";
+import { isRendered } from "./template-mark.ts";
 
 // ---------------------------------------------------------------------------------------------
 // Numbers in any notation
@@ -343,7 +344,7 @@ export type GateResult = { ok: true } | { ok: false; reasons: GateReason[] };
 const OPERATION_NAMES: RegExp[] = [
   /足し算|たし算|引き算|ひき算|掛け算|かけ算|割り算|わり算|加法|減法|乗法|除法/g,
   /足[しすせそさ]|引[いきくけこか]|掛け|割[っるりれろら]/g,
-  /(?<![わ㐀-鿿])たし[てた]|(?<![わ㐀-鿿])たす(?!け)|たせば|ひい[てた]|ひく(?!い)|ひけば|(?<![しでみ㐀-鿿])かけ[てたるれ]|(?<![かさまおこあ㐀-鿿])わっ[てた]|(?<![かさまおこあ㐀-鿿])わる(?!い)|われば/g,
+  /(?<!わ)たし[てた]|(?<!わ)たす(?!け)|たせば|ひい[てた]|ひく(?!い)|ひけば|(?<!話し|はなし|呼び|よび|追い|おい)(?<![出見仕働腰声問])かけ[てたるれ]|(?<![かおまさこ変教終回伝替代加触座])わっ[てた]|(?<![かおまさこ変教終回伝替代加触座])わる(?!い)|われば/g,
   /[×÷+*]|\d\s*[-−]\s*\d|\d\s*[xX]\s*\d/g,
   /\b(?:add(?:s|ed|ing|ition)?|plus|subtract(?:s|ed|ing|ion)?|minus|multipl(?:y|ies|ied|ying|ication)|times|divid(?:e|es|ed|ing)|division|sum|product|quotient|difference|take\s+away)\b/gi,
 ];
@@ -412,8 +413,8 @@ export function gate(action: Action, ctx: GateContext): GateResult {
     case "say": {
       const ok = excused(ctx, f, action.echo === true);
       const hidden = f.hidden.filter((v) => !containsAny(ok, v));
-      // The "1" card is the name of a card, not a number (「1」, "1", “1”).
-      const spoken = action.text.replace(/「1」|"1"|“1”|「１」/g, "");
+      // In a fixed sentence the "1" card is the name of a card, not a number; nowhere else.
+      const spoken = isRendered(action) ? action.text.replace(/「1」|"1"|“1”|「１」/g, "") : action.text;
       if (numbersIn(spoken).some((n) => containsAny(hidden, n))) reasons.add("answer_leak");
       if (operationWord(action.text, ctx)) reasons.add("operation_name");
       break;

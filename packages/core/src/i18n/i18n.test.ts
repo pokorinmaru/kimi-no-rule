@@ -77,7 +77,8 @@ describe("every sentence passes the gates when its slots are filled", () => {
 });
 
 describe("words the child should never hear from the app", () => {
-  const JUDGING = /間違|まちが|正解|せいかい|ルール|だめ|ダメ|\bwrong\b|\bcorrect\b|\bmistake|\brule\b|\bbad\b/i;
+  const JUDGING =
+    /間違|まちが|正解|せいかい|ルール|だめ|ダメ|ずれ|ズレ|キーワード|決め手|\bwrong\b|\bcorrect\b|\bmistake|\brule\b|\bbad\b|\bkey ?word\b/i;
   const PRAISE = /ありがと|すごい|えらい|さすが|\bthank|\bgreat\b|\bgood job\b|\bwell done\b|\bawesome\b/i;
 
   it.each(TEMPLATE_KEYS)("%s judges nothing", (key) => {
@@ -86,6 +87,21 @@ describe("words the child should never hear from the app", () => {
 
   it.each(TEMPLATE_KEYS.filter((k) => k.startsWith("kohai.")))("%s neither thanks nor praises", (key) => {
     for (const lang of LANGS) for (const v of TEMPLATES[key][lang]) expect(v).not.toMatch(PRAISE);
+  });
+
+  it("the distress reply lets the child stop, without assuming the child said anything", () => {
+    for (const lang of LANGS) {
+      const variants = TEMPLATES["distress.reply"][lang];
+      expect(variants.some((v) => (lang === "ja" ? /やめていい/ : /\bstop\b/i).test(v))).toBe(true);
+      for (const v of variants) expect(v).not.toMatch(/話してくれ|教えてくれ|telling me|sounds hard|near you|そばにいる/i);
+    }
+  });
+
+  it("the junior's restating sentences add nothing to the child's words", () => {
+    for (const lang of LANGS) {
+      for (const v of TEMPLATES["kohai.restate"][lang]) expect(v).toMatch(/「1」|"1"/);
+      for (const v of TEMPLATES["kohai.restate_word"][lang]) expect(v).not.toMatch(/決め手|key/i);
+    }
   });
 
   it("the distress reply holds no phone number of its own (helplines are shown from a checked list)", () => {
