@@ -169,3 +169,14 @@ describe("bodies are capped and never logged", () => {
     expect((await a.request("/interpret", { method: "POST" })).status).toBe(404);
   });
 });
+
+describe("only this device's pages may call (review fix)", () => {
+  const app = createApp({ client: () => null, agent: () => null });
+  const post = (headers: Record<string, string>) => app.request("/safety", { method: "POST", headers, body: JSON.stringify({ text: "x" }) });
+  it("refuses another origin, a foreign host and a body that is not JSON", async () => {
+    expect((await post({ "content-type": "application/json", origin: "https://evil.example" })).status).toBe(403);
+    expect((await post({ "content-type": "application/json", host: "evil.example" })).status).toBe(403);
+    expect((await post({ "content-type": "text/plain" })).status).toBe(415);
+    expect((await post({ "content-type": "application/json", origin: "http://localhost:5173" })).status).not.toBe(403);
+  });
+});

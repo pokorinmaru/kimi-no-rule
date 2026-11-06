@@ -101,6 +101,7 @@ function safetyBody(x: unknown): { text: string } | null {
 }
 
 const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const LOCAL_HOST = /^(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 async function jsonOf(req: Request): Promise<unknown> {
   try {
@@ -117,6 +118,18 @@ export function createApp(deps: WorkerDeps): Hono {
   const tooLarge = (c: { json: (b: unknown, s: 413) => Response }) => c.json({ error: "too_large" }, 413);
 
   app.use("*", cors({ origin: (o) => (LOCAL_ORIGIN.test(o) ? o : null), allowMethods: ["POST"], allowHeaders: ["content-type"] }));
+  // Only this device's pages may spend the key: a page from elsewhere (Origin), a name that resolves here
+  // from elsewhere (Host, DNS rebinding) and a simple form post (no JSON) are all refused before parsing.
+  app.use("/:route{kohai|research|safety}", async (c, next) => {
+    if (c.req.method === "OPTIONS") return next();
+    const origin = c.req.header("origin");
+    const host = c.req.header("host") ?? new URL(c.req.url).host;
+    const type = (c.req.header("content-type") ?? "").split(";")[0]?.trim().toLowerCase();
+    if (origin !== undefined && !LOCAL_ORIGIN.test(origin)) return c.json({ error: "forbidden" }, 403);
+    if (!LOCAL_HOST.test(host)) return c.json({ error: "forbidden" }, 403);
+    if (c.req.method === "POST" && type !== "application/json") return c.json({ error: "unsupported" }, 415);
+    return next();
+  });
   app.onError((_err, c) => c.json({ error: "failed" }, 500));
   app.notFound((c) => c.json({ error: "not_found" }, 404));
 
