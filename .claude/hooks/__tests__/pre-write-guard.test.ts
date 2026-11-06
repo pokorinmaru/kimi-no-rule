@@ -93,14 +93,29 @@ describe("pre-write-guard: copying from the design folder", () => {
     for (const i of inputs) expect(isDenied(runHook(SCRIPT, { hook_event_name: "PreToolUse", ...i }, env))).toBe(true);
   });
 
-  it("does not apply the copy check outside the project (e.g. Claude Code plan files)", () => {
-    const outside = path.join(tempDir("plans"), "plan.md");
-    expect(isAllowed(write(outside, `plan: ${FAKE_JA}`))).toBe(true);
+  it("exempts only Claude Code plan files from the copy check", () => {
+    const plans = tempDir("plans");
+    const r = runHook(
+      SCRIPT,
+      { hook_event_name: "PreToolUse", tool_name: "Write", tool_input: { file_path: path.join(plans, "plan.md"), content: `plan: ${FAKE_JA}` } },
+      { ...env, KIMI_PLANS_DIR: plans },
+    );
+    expect(isAllowed(r)).toBe(true);
   });
 
-  it("still checks personal data outside the project", () => {
-    const outside = path.join(tempDir("plans"), "plan.md");
-    expect(isDenied(write(outside, `contact ${PII.mobile}`))).toBe(true);
+  it("still checks other files outside the project (no staging copies elsewhere)", () => {
+    const elsewhere = path.join(tempDir("staging"), "copy.md");
+    expect(isDenied(write(elsewhere, FAKE_JA))).toBe(true);
+  });
+
+  it("still checks personal data in plan files", () => {
+    const plans = tempDir("plans");
+    const r = runHook(
+      SCRIPT,
+      { hook_event_name: "PreToolUse", tool_name: "Write", tool_input: { file_path: path.join(plans, "plan.md"), content: `contact ${PII.mobile}` } },
+      { ...env, KIMI_PLANS_DIR: plans },
+    );
+    expect(isDenied(r)).toBe(true);
   });
 
   it("allows ordinary code", () => {

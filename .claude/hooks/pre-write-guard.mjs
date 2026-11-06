@@ -2,9 +2,16 @@
 // PreToolUse (Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell)
 // Denies: text copied from the design folder (10+ consecutive words), personal-data-like strings,
 // and any write into the design folder except HANDOFF.md. See CLAUDE.md "フック".
+import os from "node:os";
 import path from "node:path";
 import { deny, designDir, isInside, normPath, projectDir, readInput } from "./lib/common.mjs";
 import { NGRAM, buildIndex, findCopy, findPersonalData } from "./lib/text.mjs";
+
+/** Claude Code plan-file folder. Overridable for tests via KIMI_PLANS_DIR. */
+function plansDir() {
+  const v = process.env["KIMI_PLANS_DIR"];
+  return v && v.length > 0 ? v : path.join(os.homedir(), ".claude", "plans");
+}
 
 const FILE_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit"]);
 const SHELL_TOOLS = new Set(["Bash", "PowerShell"]);
@@ -85,8 +92,9 @@ async function main() {
   }
 
   if (intoDesign) return; // HANDOFF.md: personal-data check only
-  // The copy rule protects the repository. Files outside it (e.g. Claude Code plan files) are not checked.
-  if (target !== undefined && !isInside(target, projectDir(input))) return;
+  // Claude Code plan files are private working notes, not the repository: only they are exempt from the copy rule.
+  // (Any other path stays checked, so text cannot be staged outside the repo and copied in later.)
+  if (target !== undefined && isInside(target, plansDir())) return;
 
   const index = buildIndex(dir);
   if (!index) return; // design folder absent (e.g. CI): nothing to compare with
