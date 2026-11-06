@@ -71,23 +71,27 @@ describe("signboard: multiply what is given (procedure)", () => {
     expect(res.procedures[0]?.impossible).not.toContain("negative");
   });
 
-  it("puts 9/2 on the target in both worlds", () => {
+  it("judges with 9/2 on the target but never draws that number", () => {
     const res = proceduralReading();
     expect(younger(res.judgeWorld).value).toEqual(num(9, 2));
-    expect(younger(res.drawWorld).value).toEqual(num(9, 2));
+    expect(younger(res.drawWorld).value).toBeNull();
   });
 
   it("carries the ratio between the two brothers as it is, and touches it", () => {
     const res = proceduralReading();
     expect(ratio(res.judgeWorld)).toEqual(ratio(signboardCorrect));
-    expect(res.touched).toEqual(expect.arrayContaining(["q_ani", "q_otouto", "r_ratio"]));
+    expect(res.touched).toEqual(expect.arrayContaining(["q_otouto", "r_ratio"]));
+    // The operands of a procedure are not among the touched fields (指示書 第5.3節).
+    expect(res.touched).not.toContain("q_ani");
   });
 
-  it("the touched ratio, the given 6 and the value 9/2 cannot all hold", () => {
+  it("releases the untouched 6 and leaves a world that cannot happen (指示書 第11節 M1)", () => {
     const res = proceduralReading();
-    expect(res.judge.unsatisfiable).not.toEqual([]);
-    expect(res.judge.unsatisfiable).toContainEqual(["q_ani", "q_otouto", "r_ratio"]);
-    expect(res.judge.released).toEqual([]);
+    expect(res.judge.released).toEqual(["q_ani"]);
+    expect(res.judge.unsatisfiable).toEqual([]);
+    const solved = unique(res.judgeWorld);
+    expect(solved.values.get("q_otouto")).toEqual(rat(9, 2));
+    expect(solved.impossible).toContainEqual({ id: "q_otouto", reason: "non_integer" });
   });
 });
 

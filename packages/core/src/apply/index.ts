@@ -69,17 +69,17 @@ function allIds(w: WorldScene): Set<string> {
   return new Set([...w.holders, ...w.item_kinds, ...w.quantities, ...w.relations, ...w.events].map((x) => x.id));
 }
 
-/** The ids an op names, including the relations a procedure links (指示書 第5.3節). */
+/**
+ * The ids an op touches (指示書 第5.3節): only these fields count. A procedure's operands do not;
+ * the relations it links are added by procedureRelations.
+ */
 function idsNamed(op: AnyOp): string[] {
   const out: string[] = [];
   const o = op as Record<string, unknown>;
-  for (const f of ["target_id", "subject", "reference", "holder", "item_kind", "to_holder", "at_event"]) {
+  for (const f of ["target_id", "subject", "reference", "holder"]) {
     if (typeof o[f] === "string") out.push(o[f]);
   }
   if (Array.isArray(o.reference_list)) out.push(...(o.reference_list as string[]));
-  if (op.op === "state_procedure") {
-    for (const x of op.operands) if ("quantity_id" in x) out.push(x.quantity_id);
-  }
   return out;
 }
 
@@ -102,18 +102,20 @@ function procedureRelations(w: WorldScene, op: Extract<AnyOp, { op: "state_proce
 }
 
 /** The child's starting world (指示書 第5.3節; Q13 for events kept only as time points). */
-function baseWorld(correct: WorldScene, touched: ReadonlySet<string>): WorldScene {
+function baseWorld(correct: WorldScene, touched: ReadonlySet<string>, extraAnchors: ReadonlySet<string>): WorldScene {
   const w = structuredClone(correct);
   const q = w.question;
   const quantities = w.quantities.map((x) =>
     q.target_type === "quantity" && x.id === q.target_id ? { ...x, value: null } : x,
   );
+  // What is asked stays as a place to ask about, without its amount (Q15).
+  const asked = (id: string): boolean => q.target_type !== "quantity" && id === q.target_id;
   const relations = w.relations
-    .filter((r) => touched.has(r.id))
+    .filter((r) => touched.has(r.id) || asked(r.id))
     .map((r) => (q.target_type === "relation_amount" && r.id === q.target_id ? { ...r, amount: null } : r));
-  const anchors = new Set(quantities.flatMap((x) => (x.at_event === null ? [] : [x.at_event])));
+  const anchors = new Set([...extraAnchors, ...quantities.flatMap((x) => (x.at_event === null ? [] : [x.at_event]))]);
   const events = w.events
-    .filter((e) => touched.has(e.id) || anchors.has(e.id))
+    .filter((e) => touched.has(e.id) || anchors.has(e.id) || asked(e.id))
     .map((e) =>
       !touched.has(e.id) || (q.target_type === "event_amount" && e.id === q.target_id) ? { ...e, amount: null } : e,
     );
@@ -256,14 +258,22 @@ export function apply(input: ApplyInput): ApplyResult {
   // 1. What the child touched, in the correct world's ids.
   const touchedBase = new Set<string>();
   const known = (id: string): boolean => !TEMP_LIKE.test(id);
-  for (const op of ops) {
+  // An op that fails the meaning check even against the correct world will be discarded; it touches nothing.
+  const precheck = validateOps(correct, ops);
+  const failing = new Set(
+    precheck.ok ? [] : precheck.errors.flatMap((e) => /^ops\[(\d+)\]/.exec(e.path)?.[1] ?? []).map(Number),
+  );
+  const anchors = new Set<string>();
+  ops.forEach((op, i) => {
+    if (failing.has(i)) return;
     for (const id of idsNamed(op)) if (known(id)) touchedBase.add(id);
     if (op.op === "state_procedure") for (const r of procedureRelations(correct, op)) touchedBase.add(r);
-  }
+    if (op.op === "add_quantity" && op.at_event !== null && known(op.at_event)) anchors.add(op.at_event);
+  });
   for (const p of phrases) if (known(p.element_id)) touchedBase.add(p.element_id);
 
   // 2. The starting world, then 3. the ops in order.
-  let world = baseWorld(correct, touchedBase);
+  let world = baseWorld(correct, touchedBase, anchors);
   const touched = new Set(touchedBase);
   const idMap: Record<string, string> = {};
   const discarded: ApplyResult["discarded"] = [];
@@ -307,18 +317,21 @@ export function apply(input: ApplyInput): ApplyResult {
     if (known(id)) touched.add(id);
   }
 
-  // 4. The judging world leaves the child's answers out; 5. the drawing world adds them.
+  // 4. The judging world leaves the child's answers out.
   const judged = resolve(world, touched, null);
+  // 5. The drawing world adds the answers, and never holds a procedure's value: the child did not say
+  //    that number, so it is only for the order of lengths (指示書 第5.3節, Q12).
   const target = world.question.target_id;
   const answers = stated.map((a) => {
     const onQuestionTarget = a.target_id === target;
     return { ...a, onQuestionTarget, drawn: onQuestionTarget && priorAnswers < MAX_VALUE_UTTERANCES };
   });
   const drawnAnswer = answers.filter((a) => a.drawn).at(-1);
-  let drawStart = judged.world;
+  let drawStart = world;
+  for (const p of procedures) drawStart = setValue(drawStart, p.target_id, null);
   if (drawnAnswer !== undefined) drawStart = setValue(drawStart, target, drawnAnswer.value);
   const drawTouched = drawnAnswer === undefined ? touched : new Set([...touched, target]);
-  const drawn = drawnAnswer === undefined ? judged : resolve(drawStart, drawTouched, target);
+  const drawn = resolve(drawStart, drawTouched, drawnAnswer === undefined ? null : target);
   const drawWorld =
     drawnAnswer !== undefined && drawn.aside.includes(target)
       ? setValue(drawn.world, target, drawnAnswer.value)
@@ -334,7 +347,7 @@ export function apply(input: ApplyInput): ApplyResult {
     removedByCascade: [...removed].sort(byCodeUnit),
     judge: { released: judged.released, unsatisfiable: judged.unsatisfiable },
     draw: {
-      released: [...judged.released, ...(drawn === judged ? [] : drawn.released)],
+      released: drawn.released,
       unsatisfiable: drawn.unsatisfiable,
       answerSetAside: drawn.aside,
     },

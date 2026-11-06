@@ -174,7 +174,9 @@ describe("starting world", () => {
       phrases: [phrase("r_2"), phrase("h_a")],
     });
     expect(res.touched).toEqual(sorted(res.touched));
-    expect(res.touched).toEqual(expect.arrayContaining(["h_a", "h_new1", "k_thing", "r_2"]));
+    expect(res.touched).toEqual(expect.arrayContaining(["h_a", "h_new1", "q_new1", "r_2"]));
+    // item_kind is not one of the touching fields (指示書 第5.3節).
+    expect(res.touched).not.toContain("k_thing");
     expect(res.touched.some((id) => id.startsWith("n_"))).toBe(false);
   });
 
@@ -596,10 +598,11 @@ describe("state_answer: drawn, never judged", () => {
 });
 
 describe("state_procedure", () => {
-  it("puts the result of the operation on the target in both worlds and records it", () => {
+  it("puts the result on the target in the judging world only, and records it", () => {
     const res = run({ ops: [op.procedure("q_b", [{ quantity_id: "q_a" }, num(3)], "add")] });
     expect(quantity(res.judgeWorld, "q_b").value).toEqual(num(8));
-    expect(quantity(res.drawWorld, "q_b").value).toEqual(num(8));
+    // The child did not say 8, so it is never drawn (指示書 第5.3節, Q12).
+    expect(quantity(res.drawWorld, "q_b").value).toBeNull();
     expect(res.procedures).toEqual([{ target_id: "q_b", value: num(8), impossible: [] }]);
   });
 
@@ -909,5 +912,53 @@ describe("properties", () => {
         expect(solved.values.get("q_b")).toEqual(rat(a + d));
       }),
     );
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Found in review: what is asked, discarded ops, and time points (指示書 第5.3節, Q13, Q15)
+// ---------------------------------------------------------------------------------------------
+
+describe("what is asked stays as a place to ask about", () => {
+  it("an asked relation amount the child did not touch is kept without its amount, and other ops apply", () => {
+    const correct = worldW();
+    correct.question = { target_type: "relation_amount", target_id: "r_4" };
+    const res = apply({ correct, ops: [op.setQuantity("q_a", num(4))] });
+    expect(res.discarded).toEqual([]);
+    expect(relation(res.judgeWorld, "r_4").amount).toBeNull();
+    expect(relation(res.drawWorld, "r_4").amount).toBeNull();
+    expect(res.judgeWorld.relations.map((r) => r.id)).toEqual(["r_4"]);
+    expectValidWorld(res.judgeWorld);
+  });
+
+  it("an asked event amount the child did not touch is kept without its amount, and other ops apply", () => {
+    const correct = worldWithoutLaterCount();
+    correct.question = { target_type: "event_amount", target_id: "e_1" };
+    const res = apply({ correct, ops: [op.setQuantity("q_a", num(4))] });
+    expect(res.discarded).toEqual([]);
+    expect(event(res.judgeWorld, "e_1").amount).toBeNull();
+    expectValidWorld(res.judgeWorld);
+  });
+});
+
+describe("a discarded op touches nothing", () => {
+  it("an op with a zero denominator neither brings its relation in nor counts as touched", () => {
+    const res = run({ ops: [op.setRelationAmount("r_1", num(1, 0))] });
+    expect(res.discarded.map((d) => d.index)).toEqual([0]);
+    expect(res.judgeWorld.relations).toEqual([]);
+    expect(res.touched).not.toContain("r_1");
+  });
+});
+
+describe("a quantity added at an untouched event", () => {
+  it("keeps the event only as a time point, without its amount", () => {
+    const res = apply({
+      correct: worldWithoutLaterCount(),
+      ops: [op.addQuantity("n_1", "h_c", "k_thing", "e_1", null)],
+    });
+    expect(res.discarded).toEqual([]);
+    expect(event(res.judgeWorld, "e_1").amount).toBeNull();
+    expect(res.touched).not.toContain("e_1");
+    expectValidWorld(res.judgeWorld);
   });
 });
