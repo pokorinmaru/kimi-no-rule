@@ -654,3 +654,25 @@ describe("purity", () => {
     );
   });
 });
+
+describe("found in review: asked events and sentences of holders only", () => {
+  it("an asked event amount is not a constraint, so a matching world does not leave it undecided", () => {
+    const correct = worldW();
+    correct.question = { target_type: "event_amount", target_id: "e_1" };
+    correct.events = correct.events.map((e) => (e.id === "e_1" ? { ...e, amount: null } : e));
+    correct.quantities = correct.quantities.map((q) => (q.id === "q_c2" ? { ...q, value: num(6) } : q));
+    const c: Case = { correct, statements: [stmt(0, ["e_1", "h_c"]), stmt(1, ["e_1"], [], true)] };
+    expect(verdicts(run(c, [], { phrases: touchAll(c.statements) }))).toEqual(["holds", "holds"]);
+  });
+
+  it("a sentence naming only a holder is not decided until the child's words touch it (指示書 第5.7節)", () => {
+    const c: Case = { correct: worldW(), statements: [stmt(0, ["h_a"])] };
+    expect(verdicts(run(c, []))).toEqual(["undetermined"]);
+    expect(verdicts(run(c, [], { phrases: [phrase("h_a")] }))).toEqual(["holds"]);
+  });
+
+  it("a sentence with no elements at all holds", () => {
+    const c: Case = { correct: worldW(), statements: [stmt(0, [])] };
+    expect(verdicts(run(c, []))).toEqual(["holds"]);
+  });
+});

@@ -2,6 +2,7 @@
 // The values solved here are only for judging; they are never returned (指示書 第5.5節).
 // Pure functions only: the inputs are never changed.
 import type { ApplyResult } from "../apply/index.ts";
+import type { Rational as SchemaRational } from "../schema/common.ts";
 import type { ProblemRecord } from "../schema/problem-record.ts";
 import type { AnyOp } from "../schema/semantic.ts";
 import type { WorldScene } from "../schema/world-scene.ts";
@@ -37,6 +38,10 @@ export type CheckResult = { kind: "number_only" } | { kind: "checked"; statement
 
 type Verdict = "holds" | "fails" | "undetermined";
 
+function setQuantityValue(w: WorldScene, id: string, v: SchemaRational): WorldScene {
+  return { ...w, quantities: w.quantities.map((x) => (x.id === id ? { ...x, value: v } : x)) };
+}
+
 /** A relation id that is not in the world, for adding the correct relation next to the child's. */
 function spareRelationId(w: WorldScene): string {
   const used = new Set(w.relations.map((r) => r.id));
@@ -46,14 +51,18 @@ function spareRelationId(w: WorldScene): string {
   }
 }
 
-/** The constraints a sentence stands for: given numbers, relations and events of the correct world. */
+/**
+ * The constraints a sentence stands for: given numbers, relations and events of the correct world.
+ * What is asked is never one of them (it belongs to the question sentence).
+ */
 function constraintsOf(correct: WorldScene, ids: readonly string[]): string[] {
-  const q = correct.question;
+  const asked = correct.question.target_id;
   return ids.filter(
     (id) =>
-      correct.quantities.some((x) => x.id === id && x.value !== null && !(q.target_type === "quantity" && q.target_id === id)) ||
-      correct.relations.some((r) => r.id === id) ||
-      correct.events.some((e) => e.id === id),
+      id !== asked &&
+      (correct.quantities.some((x) => x.id === id && x.value !== null) ||
+        correct.relations.some((r) => r.id === id) ||
+        correct.events.some((e) => e.id === id)),
   );
 }
 
@@ -102,6 +111,7 @@ export function checkStatements(input: CheckInput): CheckResult {
       : new Map();
   const solvable = res.kind === "unique" || res.kind === "underdetermined";
   const released = new Set(child.draw.released);
+  const procedureValue = new Map(child.procedures.map((p) => [p.target_id, p.value]));
 
   const checkOne = (id: string): Verdict => {
     if (released.has(id)) return "fails";
@@ -116,6 +126,16 @@ export function checkStatements(input: CheckInput): CheckResult {
     if (rel !== undefined) {
       if (!world.relations.some((r) => r.id === id)) return "undetermined";
       const ends = [rel.subject, rel.reference, ...(rel.reference_list ?? [])].filter((x): x is string => x !== null);
+      if (ends.some((e) => procedureValue.has(e))) {
+        // A procedure aims at this relation: put its value on the relation's formula (指示書 第5.3節, Q17).
+        let probe: WorldScene = { ...world, relations: world.relations.filter((r) => r.id !== id) };
+        for (const [qid, v] of procedureValue) probe = setQuantityValue(probe, qid, v);
+        const base = solve(probe);
+        if (base.kind !== "unique" && base.kind !== "underdetermined") return "undetermined";
+        if (ends.some((e) => !base.values.has(e))) return "undetermined";
+        probe = { ...probe, relations: [...probe.relations, { ...rel, id: spareRelationId(probe) }] };
+        return solve(probe).kind === "contradiction" ? "fails" : "holds";
+      }
       if (ends.some((e) => !values.has(e))) return "undetermined";
       // The correct sentence, added to the child's world: it fails exactly when it cannot hold there.
       const probe: WorldScene = { ...world, relations: [...world.relations, { ...rel, id: spareRelationId(world) }] };
@@ -152,7 +172,8 @@ export function checkStatements(input: CheckInput): CheckResult {
       const constraints = constraintsOf(correct, s.element_ids);
       // A sentence none of whose elements the child's words touched is not decided yet (指示書 第5.7節);
       // a constraint the child's world had to give up is still shown as not holding (指示書 第5.3節).
-      const untouched = constraints.length > 0 && !s.element_ids.some((id) => touched.has(id));
+      // A sentence with no elements at all (an opening line) has nothing to decide and holds.
+      const untouched = s.element_ids.length > 0 && !s.element_ids.some((id) => touched.has(id));
       const verdict =
         untouched && !constraints.some((id) => released.has(id)) ? "undetermined" : combine(constraints.map(checkOne));
       return { index: s.index, verdict, cues: verdict === "fails" ? cuesFor(s, correct, world, syntaxMarks) : [] };

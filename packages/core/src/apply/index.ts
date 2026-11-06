@@ -27,7 +27,7 @@ export interface Resolution {
 export interface ApplyResult {
   judgeWorld: WorldScene;
   drawWorld: WorldScene;
-  /** The world the statements are checked on: answers and procedure values in, answers set aside out. */
+  /** The world the statements are checked on: answers in (unless set aside), procedure values out (Q17). */
   checkWorld: WorldScene;
   touched: string[];
   idMap: Record<string, string>;
@@ -329,14 +329,16 @@ export function apply(input: ApplyInput): ApplyResult {
     return { ...a, onQuestionTarget, drawn: onQuestionTarget && priorAnswers < MAX_VALUE_UTTERANCES };
   });
   const drawnAnswer = answers.filter((a) => a.drawn).at(-1);
-  // The statements are checked on the world with the answers and the procedure values (指示書 第5.7節,
-  // 第5.3節); the drawing world is that world without the procedure values.
-  const checkStart = drawnAnswer === undefined ? world : setValue(world, target, drawnAnswer.value);
+  // The drawing and checking worlds leave the procedure values out before conflicts are resolved, so a
+  // number of the problem is never given up for a value the child did not say (Q17). The check puts the
+  // procedure values back only on the relations they aim at (statements, 指示書 第5.3節).
+  let checkStart = world;
+  for (const p of procedures) checkStart = setValue(checkStart, p.target_id, null);
+  if (drawnAnswer !== undefined) checkStart = setValue(checkStart, target, drawnAnswer.value);
   const drawTouched = drawnAnswer === undefined ? touched : new Set([...touched, target]);
   const drawn = resolve(checkStart, drawTouched, drawnAnswer === undefined ? null : target);
   const checkWorld = drawn.world;
   let drawWorld = checkWorld;
-  for (const p of procedures) drawWorld = setValue(drawWorld, p.target_id, null);
   // The child said this number, so it is drawn even when it was set aside or a procedure aimed at it.
   if (drawnAnswer !== undefined) drawWorld = setValue(drawWorld, target, drawnAnswer.value);
 

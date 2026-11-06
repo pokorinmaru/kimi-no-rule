@@ -75,6 +75,14 @@ describe("signboard: multiply what is given (procedure)", () => {
     const res = proceduralReading();
     expect(younger(res.judgeWorld).value).toEqual(num(9, 2));
     expect(younger(res.drawWorld).value).toBeNull();
+    expect(younger(res.checkWorld).value).toBeNull();
+  });
+
+  it("keeps the given 6 in the drawing world (Q17)", () => {
+    const res = proceduralReading();
+    const older = (w: WorldScene) => w.quantities.find((q) => q.id === "q_ani")?.value;
+    expect(older(res.drawWorld)).toEqual(num(6));
+    expect(older(res.checkWorld)).toEqual(num(6));
   });
 
   it("carries the ratio between the two brothers as it is, and touches it", () => {

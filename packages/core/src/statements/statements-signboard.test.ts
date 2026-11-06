@@ -79,22 +79,20 @@ describe("signboard: read as written", () => {
   });
 });
 
-describe("signboard: multiply what is given (procedure)", () => {
-  it("the 6 of the older brother is released, so the first sentence fails", () => {
+describe("signboard: multiply what is given (procedure, Q17)", () => {
+  it("the 6 stays in the drawing and checking worlds; only the judging world gives it up", () => {
     const correct = structuredClone(signboardRecord.world);
-    expect(apply({ correct, ops: proceduralReading }).draw.released).toEqual(["q_ani"]);
-    expect(checked(check(proceduralReading))[0]?.verdict).toBe("fails");
+    const res = apply({ correct, ops: proceduralReading });
+    expect(res.draw.released).toEqual([]);
+    expect(res.judge.released).toEqual(["q_ani"]);
   });
 
-  it("the ratio sentence holds: the relation is carried unchanged and the procedure value satisfies it", () => {
-    // younger = 9/2 from the procedure; the relation then fixes older = 3/4 x 9/2 = 27/8.
-    expect(checked(check(proceduralReading))[1]?.verdict).toBe("holds");
+  it("the ratio sentence fails: the procedure value 9/2 does not satisfy it with the given 6", () => {
+    expect(verdicts(check(proceduralReading, allPhrases()))).toEqual(["holds", "fails", "holds"]);
   });
 
-  it("the question sentence holds and no sentence has a cue", () => {
-    const res = check(proceduralReading);
-    expect(verdicts(res)).toEqual(["fails", "holds", "holds"]);
-    for (const s of checked(res)) expect(s.cues).toEqual([]);
+  it("the sentence of the 6 is not decided when the child's words did not touch it", () => {
+    expect(verdicts(check(proceduralReading))).toEqual(["undetermined", "fails", "holds"]);
   });
 });
 
@@ -159,10 +157,6 @@ describe("signboard: sentences the child's words did not touch (指示書 第5.7
 
   it("the given 6 holds once the child's words touch it", () => {
     expect(verdicts(check(correctReading, [phrase("q_ani")]))).toEqual(["holds", "holds", "holds"]);
-  });
-
-  it("a number given up to make the world hold is shown as not holding even when untouched", () => {
-    expect(verdicts(check(proceduralReading))[0]).toBe("fails");
   });
 });
 
