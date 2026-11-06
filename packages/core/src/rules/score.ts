@@ -16,12 +16,21 @@ export interface Observation {
 
 export type Reproduction = "reproduced" | "missed" | "not_applicable";
 
-/** The rule's world cut down to the relations and events the child touched. */
+/**
+ * The rule's world cut down the way apply builds the child's world: touched relations and events, plus
+ * what is asked and the events that only mark a time, without their amounts.
+ */
 function cutTo(w: WorldScene, touched: ReadonlySet<string>): WorldScene {
+  const asked = w.question.target_type === "quantity" ? null : w.question.target_id;
+  const anchors = new Set(w.quantities.flatMap((q) => (q.at_event === null ? [] : [q.at_event])));
   return {
     ...w,
-    relations: w.relations.filter((r) => touched.has(r.id)),
-    events: w.events.map((e) => (touched.has(e.id) ? e : { ...e, amount: null })),
+    relations: w.relations
+      .filter((r) => touched.has(r.id) || r.id === asked)
+      .map((r) => (r.id === asked ? { ...r, amount: null } : r)),
+    events: w.events
+      .filter((e) => touched.has(e.id) || e.id === asked || anchors.has(e.id))
+      .map((e) => (touched.has(e.id) && e.id !== asked ? e : { ...e, amount: null })),
   };
 }
 

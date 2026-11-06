@@ -57,7 +57,7 @@ export function predict(
   hs: readonly Hypothesis[],
   record: ProblemRecord,
   referenceObserved: boolean,
-): { predictions: Prediction[]; worlds: WorldScene[] } {
+): { predictions: Prediction[]; worlds: WorldScene[]; referenceObserved: boolean } {
   const worlds: WorldScene[] = [];
   classOf(worlds, record.world, referenceObserved);
   for (const c of misreadCandidates(record.world)) classOf(worlds, c.world, referenceObserved);
@@ -74,5 +74,5 @@ export function predict(
     const verdicts = checked.kind === "checked" ? checked.statements.map((s) => s.verdict) : [];
     return { hypothesisId: h.id, world, worldClass, verdicts };
   });
-  return { predictions, worlds };
+  return { predictions, worlds, referenceObserved };
 }

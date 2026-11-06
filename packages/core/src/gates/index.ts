@@ -73,7 +73,11 @@ const decimal = (s: string): Exact => {
   return rat(BigInt((whole || "0") + frac), 10n ** BigInt(frac.length));
 };
 
-/** Every number a text could be read as (指示書 第5.5節). Readings in kana are not matched. */
+/**
+ * Every number a text could be read as (指示書 第5.5節), kana readings included (Q20). Reading too many
+ * numbers only makes the gate stricter for what is said to the child; never use this to collect what
+ * the child said, where a word read as a number would let that number through.
+ */
 export function numbersIn(text: string): Rational[] {
   const t = kanaToDigits(text.normalize("NFKC"))
     .replace(/⁄/g, "/")
@@ -120,6 +124,8 @@ export function numbersIn(text: string): Rational[] {
     const s = m[1] ?? "0";
     push(m.index ?? 0, div(s.includes(".") ? decimal(s) : exact(jaValue(s)), exact(100n)));
   });
+  // Tenths: 3割.
+  each(new RegExp(`(${NUM})\\s*割`, "g"), (m) => push(m.index ?? 0, div(exact(jaValue(m[1] ?? "0")), exact(10n))));
   // Halves and words for numbers.
   each(/半分|半数/g, (m) => push(m.index ?? 0, exact(1n, 2n)));
   each(EN_NUMBER, (m) => push(m.index ?? 0, exact(BigInt(englishValue(m[0])))));
@@ -137,11 +143,12 @@ export function numbersIn(text: string): Rational[] {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Numbers read in kana (Q20): はち, やっつ, はっぴき, さんびゃく, よんぶんのさん
+// Numbers read in kana (Q20): はち, やっつ, はっぴき, ろっぴゃく, さんぶんのに, れいてんご, さんわり
 // ---------------------------------------------------------------------------------------------
 
-/** Readings of digits and units. A reading ending in っ only counts before a counter (はっぴき). */
-const KANA_TOKENS: [string, { digit?: number; unit?: number; sound?: true }][] = [
+type KanaToken = { digit?: number; unit?: number; sound?: true };
+/** Readings of digits and units, longest first. A reading ending in っ goes on only into a unit (ろっぴゃく). */
+const KANA_TOKENS: [string, KanaToken][] = [
   ["きゅう", { digit: 9 }], ["じゅう", { unit: 10 }], ["じゅっ", { unit: 10, sound: true }], ["じっ", { unit: 10, sound: true }],
   ["ひゃく", { unit: 100 }], ["びゃく", { unit: 100 }], ["ぴゃく", { unit: 100 }], ["せん", { unit: 1000 }],
   ["ぜん", { unit: 1000 }], ["まん", { unit: 10000 }], ["れい", { digit: 0 }], ["ぜろ", { digit: 0 }],
@@ -150,20 +157,27 @@ const KANA_TOKENS: [string, { digit?: number; unit?: number; sound?: true }][] =
   ["はち", { digit: 8 }], ["はっ", { digit: 8, sound: true }], ["に", { digit: 2 }], ["し", { digit: 4 }],
   ["ご", { digit: 5 }], ["く", { digit: 9 }],
 ];
-/** Single readings long enough to stand alone; に・さん・し・ご・く need a counter or a unit. */
-const STANDALONE = new Set(["いち", "よん", "ろく", "なな", "しち", "はち", "きゅう", "れい", "ぜろ"]);
-const COUNTER = /^(?:ひき|びき|ぴき|こ|にん|ほん|ぼん|ぽん|まい|だい|かい|ばい|さい|ぷん|ふん|[匹個人本枚台回倍歳])/;
+/** Single readings that are numbers on their own; the rest need a unit, a counter or a fraction next to them. */
+const STANDALONE = new Set(["はち", "ろく", "きゅう", "よん", "ぜろ"]);
+/** Readings too common inside other words to take a counter alone (おしまい, くまい). */
+const NEVER_WITH_COUNTER = new Set(["し", "く"]);
+/** Counters after a number. こ is not a counter when に follows (にこにこ). */
+const COUNTER = /^(?:ひき|びき|ぴき|こ(?!に)|にん|ほん|ぼん|ぽん|まい|だい|かい|ばい|さい|ぷん|ふん|わり|[匹個人本枚台回倍歳割%])/;
 const NATIVE: [string, number][] = [
   ["ここのつ", 9], ["ひとつ", 1], ["ふたつ", 2], ["みっつ", 3], ["よっつ", 4], ["いつつ", 5], ["むっつ", 6],
-  ["ななつ", 7], ["やっつ", 8], ["ひとり", 1], ["ふたり", 2], ["とお", 10],
+  ["ななつ", 7], ["やっつ", 8], ["ひとり", 1], ["ふたり", 2],
 ];
 
 /** Katakana to hiragana, so ハチ reads like はち. */
 const toHiragana = (s: string): string => s.replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+const tokenAt = (t: string, j: number): [string, KanaToken] | undefined => KANA_TOKENS.find(([w]) => t.startsWith(w, j));
 
-/** The text with every kana number replaced by its digits (and ぶんの by 分の). Other text is kept. */
+/**
+ * The text with every kana number replaced by its digits. Words that only sound like numbers stay
+ * (せんぱい, まんなか, わかりません, いちばん): a unit alone, or a short reading alone, is not a number.
+ */
 function kanaToDigits(text: string): string {
-  const t = toHiragana(text).replace(/ぶんの/g, "分の");
+  const t = toHiragana(text).replace(/ぱーせんと/g, "%").replace(/ぶんの/g, "分の").replace(/はんぶん/g, "半分");
   let out = "";
   let i = 0;
   while (i < t.length) {
@@ -173,45 +187,82 @@ function kanaToDigits(text: string): string {
       i += native[0].length;
       continue;
     }
+    if (t.startsWith("とお", i) && !/[\u3041-\u3096]/.test(t[i + 2] ?? "")) {
+      out += "10";
+      i += 2;
+      continue;
+    }
     // Read the longest run of digit and unit readings from here.
     let j = i;
     let total = 0;
     let section = 0;
     let digit: number | null = null;
     let tokens = 0;
-    let hasUnit = false;
-    let lastSound = false;
+    let digits = 0;
+    let units = 0;
+    let stoppedOnSound = false;
     let first = "";
     for (;;) {
-      const tok = KANA_TOKENS.find(([w]) => t.startsWith(w, j));
+      const tok = tokenAt(t, j);
       if (tok === undefined) break;
       const [w, v] = tok;
+      if (v.digit !== undefined && digit !== null) break; // two digits in a row is not one number
       if (tokens === 0) first = w;
       if (v.digit !== undefined) {
-        if (digit !== null) break; // two digits in a row is not one number
         digit = v.digit;
+        digits++;
       } else if (v.unit !== undefined) {
         if (v.unit === 10000) {
           total += (section + (digit ?? 0) || 1) * 10000;
           section = 0;
         } else section += (digit ?? 1) * v.unit;
         digit = null;
-        hasUnit = true;
+        units++;
       }
-      lastSound = v.sound === true;
       tokens++;
       j += w.length;
-      if (lastSound) break;
+      if (v.sound === true) {
+        const next = tokenAt(t, j);
+        if (next?.[1].unit === undefined) {
+          stoppedOnSound = true;
+          break;
+        }
+      }
     }
-    const value = total + section + (digit ?? 0);
-    const counterAfter = COUNTER.test(t.slice(j));
-    const afterFraction = out.endsWith("分の");
+    let value = String(total + section + (digit ?? 0));
+    // A decimal point read as てん: れいてんご.
+    let decimal = false;
+    if (tokens > 0 && t.startsWith("てん", j) && tokenAt(t, j + 2)?.[1].digit !== undefined) {
+      let k = j + 2;
+      let frac = "";
+      for (let tok = tokenAt(t, k); tok?.[1].digit !== undefined && tok[1].sound !== true; tok = tokenAt(t, k)) {
+        frac += String(tok[1].digit);
+        k += tok[0].length;
+      }
+      if (frac !== "") {
+        value += "." + frac;
+        j = k;
+        decimal = true;
+      }
+    }
+    const rest = t.slice(j);
+    const counter =
+      COUNTER.test(rest) &&
+      !(tokens === 1 && NEVER_WITH_COUNTER.has(first)) &&
+      !(tokens === 1 && first === "に" && rest.startsWith("こ"));
+    const fraction = rest.startsWith("分の") || out.endsWith("分の");
     const accepted =
       tokens > 0 &&
-      (lastSound ? counterAfter : hasUnit || counterAfter || afterFraction || (tokens === 1 && STANDALONE.has(first)));
+      (decimal ||
+        fraction ||
+        (stoppedOnSound ? counter : counter || (digits > 0 && units > 0) || units > 1 || (tokens === 1 && STANDALONE.has(first))));
     if (accepted) {
-      out += String(value);
+      out += value;
       i = j;
+      if (t.startsWith("わり", i)) {
+        out += "割";
+        i += 2;
+      }
     } else {
       out += t[i];
       i++;

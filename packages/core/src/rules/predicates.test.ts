@@ -144,7 +144,8 @@ describe("true, and the ways to combine conditions", () => {
 
   it("a predicate about relations does not hold on an event", () => {
     expect(holdsOnEvent(p("relation_operator_is", "times"), eventRecord(), "e_1")).toBe(false);
-    expect(holdsOnEvent(not(p("relation_operator_is", "times")), eventRecord(), "e_1")).toBe(true);
+    // Under not as well: a condition written about relations never catches an event (Q22).
+    expect(holdsOnEvent(not(p("relation_operator_is", "times")), eventRecord(), "e_1")).toBe(false);
   });
 
   it("and, or, not", () => {

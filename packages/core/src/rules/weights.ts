@@ -20,6 +20,9 @@ const OTHER = "other";
  * spreads ε over the rest of W; "other" builds every world of W alike. Each model sums to 1 over W.
  */
 export function constructiveLikelihoods(pred: Predicted, observed: WorldScene, referenceObserved: boolean): Record<string, number> {
+  if (pred.referenceObserved !== referenceObserved) {
+    throw new Error("the observation and W disagree on whether the reference was observed");
+  }
   const worlds = [...pred.worlds];
   let observedClass = worlds.findIndex((w) => sameReading(w, observed, referenceObserved));
   if (observedClass < 0) {
@@ -56,7 +59,37 @@ function normalized(w: Weights): Weights {
 }
 
 export function update(w: Weights, likelihoods: Record<string, number>): Weights {
-  return normalized(Object.fromEntries(Object.entries(w).map(([k, v]) => [k, v * (likelihoods[k] ?? 1)])));
+  // A model with no likelihood would gain against the ones that were scored: refuse instead.
+  for (const k of Object.keys(w)) if (!(k in likelihoods)) throw new Error(`no likelihood for ${k}`);
+  return normalized(Object.fromEntries(Object.entries(w).map(([k, v]) => [k, v * (likelihoods[k] as number)])));
+}
+
+/** Whether the hypotheses predict different worlds on the problem, so an observation there tells them apart. */
+export function isSplit(pred: Predicted): boolean {
+  return new Set(pred.predictions.map((p) => p.worldClass)).size > 1;
+}
+
+/** Only the child's first reading counts: not one made after a fix, nor one after opening the word book. */
+export function countsAsObservation(o: { afterFix: boolean; wordbookOpenedBefore: boolean }): boolean {
+  return !o.afterFix && !o.wordbookOpenedBefore;
+}
+
+/**
+ * The state of one hypothesis (指示書 第6.7節 手順4). When "other" weighs most, the reading is recorded as
+ * one the language cannot express; a confirmed reading that changes nothing (a correct reader) opens no chapter.
+ */
+export function confirmation(o: {
+  weights: Weights;
+  id: string;
+  splitObservations: number;
+  previous: "hypothesis" | "confirmed";
+  noChange: boolean;
+}): { status: "hypothesis" | "confirmed"; startChapter: boolean; unexpressible: boolean } {
+  const otherWeight = o.weights[OTHER] ?? 0;
+  const largest = Math.max(...Object.values(o.weights));
+  const unexpressible = otherWeight >= largest && otherWeight > 0;
+  const s = unexpressible ? "hypothesis" : status(o.weights[o.id] ?? 0, o.splitObservations, o.previous);
+  return { status: s, startChapter: s === "confirmed" && !o.noChange, unexpressible };
 }
 
 /** A new hypothesis takes half of "other"; the ratios between the others stay as they were. */

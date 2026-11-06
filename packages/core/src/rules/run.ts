@@ -124,7 +124,20 @@ function holderNextTo(ctx: Context, at: { statement: number; start: number; end:
   return ctx.holderOf.get(m.element_id as string) ?? (m.element_id as string);
 }
 
+const RELATION_ONLY = new Set([
+  "relation_operator_is", "ratio_kind_is", "word_in_statement", "word_before_ratio", "word_after_holder",
+  "reference_is", "numbers_compare", "ratio_is_unit_fraction",
+]);
+
+/** Whether a condition speaks about relations anywhere, under not included. */
+function aboutRelations(e: Expr): boolean {
+  if ("op" in e) return e.op === "not" ? aboutRelations(e.arg) : e.args.some(aboutRelations);
+  return RELATION_ONLY.has(e.pred);
+}
+
 function evalExpr(e: Expr, ctx: Context, target: Relation | WorldEvent, isRelation: boolean): boolean {
+  // A condition about relations never holds on an event, even when wrapped in not.
+  if (!isRelation && aboutRelations(e)) return false;
   if ("op" in e) {
     if (e.op === "and") return e.args.every((a) => evalExpr(a, ctx, target, isRelation));
     if (e.op === "or") return e.args.some((a) => evalExpr(a, ctx, target, isRelation));
@@ -298,8 +311,11 @@ function actOnEvent(w: WorldScene, e: WorldEvent, a: Action): WorldScene | undef
 export function runRule(h: Hypothesis, record: ProblemRecord): WorldScene {
   const ctx = contextOf(record);
   let world = structuredClone(record.world);
+  // An action is kept only if the world still passes the meaning check and can be solved (指示書 第5.8節).
   const keep = (next: WorldScene | undefined): void => {
-    if (next !== undefined && validateWorld(next).ok) world = next;
+    if (next === undefined || !validateWorld(next).ok) return;
+    const kind = solve(next).kind;
+    if (kind === "unique" || kind === "underdetermined") world = next;
   };
   for (const r of record.world.relations) {
     const clause = h.clauses.find((c) => evalExpr(c.when, ctx, r, true));

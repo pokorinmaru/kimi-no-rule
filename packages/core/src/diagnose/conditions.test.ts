@@ -9,6 +9,8 @@ import { rat } from "../rational/index.ts";
 import { solve } from "../solve/index.ts";
 import { sameWorld } from "../world/same-world.ts";
 import { problemConditions, type ConditionFailure } from "./conditions.ts";
+import { apply } from "../apply/index.ts";
+import { checkStatements } from "../statements/index.ts";
 import { num } from "../apply/test-worlds.ts";
 import { pairWorld, record, rel, stmt } from "./test-records.ts";
 import {
@@ -179,5 +181,18 @@ describe("an asked difference keeps more and less apart (Q21)", () => {
     w.question = { target_type: "relation_amount", target_id: "r_1" };
     const res = problemConditions(record(w, [stmt(0, ["q_a", "q_b", "r_1"]), stmt(1, ["r_1"], true)]));
     expect(res.failures.map((f) => f.code)).not.toContain("candidate_all_statements_hold");
+  });
+});
+
+describe("an asked multiple counts times and fraction_of as the same kind (Q21)", () => {
+  it("a child who reads 'how many times' as a fraction of the same two counts keeps the sentence holding", () => {
+    const w = pairWorld(5, [rel("r_1", "times", "q_b", "q_a", null)]);
+    w.quantities = w.quantities.map((q) => (q.id === "q_b" ? { ...q, value: num(15) } : q));
+    w.question = { target_type: "relation_amount", target_id: "r_1" };
+    const rec = record(w, [stmt(0, ["q_a", "q_b", "r_1"]), stmt(1, ["r_1"], true)]);
+    const ops = [{ op: "set_relation_operator" as const, target_id: "r_1", operator: "fraction_of" as const, evidence: "" }];
+    const child = apply({ correct: structuredClone(w), ops, phrases: [{ phrase: "r_1", lang: "ja", element_id: "r_1" }] });
+    const res = checkStatements({ correct: w, statements: rec.statements, syntaxMarks: [], ops, child });
+    expect(res.kind === "checked" ? res.statements[0]?.verdict : null).toBe("holds");
   });
 });
