@@ -2,7 +2,9 @@
 // same text (no clock, no random order). Systems that did not run are listed with the reason.
 import type { InterpretRow, SafetyRow } from "./dataset.ts";
 import { lostToBaseline, type Rate, type SystemResult } from "./interpret-eval.ts";
+import type { ResearchResult } from "./research-eval.ts";
 import type { SafetyResult } from "./safety-eval.ts";
+import { wilson } from "./stats.ts";
 
 export interface NotRun {
   name: string;
@@ -13,6 +15,8 @@ export interface EvalsInput {
   interpret: { k: number; baseline: string; results: SystemResult[]; notRun: NotRun[] };
   safety: { results: { name: string; result: SafetyResult }[]; notRun: NotRun[] };
   data: { interpret: readonly InterpretRow[]; safety: readonly SafetyRow[] };
+  /** The research eval (simulated children), when it was run. */
+  research?: { results: ResearchResult[]; notRun: NotRun[]; seeds: number; maxProblems: number };
   /** A heading note, e.g. which problem set the rows come from. */
   note?: string;
 }
@@ -77,6 +81,8 @@ export function renderEvalsMd(input: EvalsInput): string {
   for (const n of input.safety.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | | |`);
   out.push("");
 
+  if (input.research !== undefined) out.push(...researchSection(input.research));
+
   out.push("## データ", "", "### 解釈", "");
   out.push(...countTable("split", counts(input.data.interpret, (r) => r.split)));
   out.push(...countTable("kind", counts(input.data.interpret, (r) => r.kind)));
@@ -86,4 +92,42 @@ export function renderEvalsMd(input: EvalsInput): string {
   out.push(...countTable("expected / style", counts(input.data.safety, (r) => `${r.expected} / ${r.style}`)));
   out.push(...countTable("source", counts(input.data.safety, (r) => r.source)));
   return `${out.join("\n").trimEnd()}\n`;
+}
+
+const KIND_LABEL: [keyof ResearchResult["byKind"], string][] = [
+  ["listed", "よくある読み違いの一覧にある読み方"],
+  ["inside", "一覧に無く、列挙の範囲の内側"],
+  ["outside", "一覧に無く、列挙の範囲の外側"],
+  ["inexpressible", "記述言語で書けない読み方"],
+];
+
+const ratio = (k: number, n: number): string => {
+  if (n === 0) return "—";
+  const ci = wilson(k, n);
+  return `${k}/${n} (${pct(k / n)}; 95% CI ${pct(ci.low)}–${pct(ci.high)})`;
+};
+
+function researchSection(r: NonNullable<EvalsInput["research"]>): string[] {
+  const out: string[] = [
+    "## 読み方の研究の評価（研究する層）",
+    "",
+    `読み方を先に決めた模擬の子どもに、1問目は看板の問題、その後は研究する側が選んだ問題を最大 ${r.maxProblems} 問まで出した（1人の子どもにつき ${r.seeds} 回、うっかりの率と並びは種で固定）。確定した読み方が、銀行のすべての問題で子どもの読み方と同じ世界を作れば「回復」。確定したのに回復でなければ「誤った確定」。記述言語で書けない読み方は、回復ではなく誤った確定の率を見る。`,
+    "",
+    "模擬の子どもも判定も同じ記述言語で書いているので、評価はその中で閉じている（循環）。書けない読み方の行は、その循環を一部だけ破るために置いた。模擬の子どもと言い方は AI の下書きで、第三者が書いたものではない（BLOCKED B3）。",
+    "",
+    "| system | 読み方の種類 | 回復 | 誤った確定 | 確定までの問題数（回復した回の中央値） |",
+    "| --- | --- | --- | --- | --- |",
+  ];
+  for (const res of r.results) {
+    for (const [kind, label] of KIND_LABEL) {
+      const row = res.byKind[kind];
+      const after = [...row.confirmedAfter].sort((a, b) => a - b);
+      const med = after.length === 0 ? "—" : String(after[Math.floor((after.length - 1) / 2)]);
+      const recovered = kind === "inexpressible" ? "—" : ratio(row.recovered, row.episodes);
+      out.push(`| ${cell(res.name)} | ${label} | ${recovered} | ${ratio(row.falseConfirmations, row.episodes)} | ${med} |`);
+    }
+  }
+  for (const n of r.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | |`);
+  out.push("");
+  return out;
 }

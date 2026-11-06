@@ -3,14 +3,16 @@
 //   pnpm eval:live  also Haiku, Sonnet and Opus (needs ANTHROPIC_API_KEY in the environment)
 // Neither the transcripts nor the replies are logged; only the numbers go into EVALS.md.
 import { readFileSync, writeFileSync } from "node:fs";
-import type { AnyOp, ProblemRecord } from "@kimi/core";
+import { FRACTION_BANK, type AnyOp, type ProblemRecord } from "@kimi/core";
 import { parseKeywords } from "@kimi/baseline-parser";
-import { MODELS, anthropicClient, checkSafety, interpret, type ClaudeClient } from "@kimi/interpret";
+import { MODELS, anthropicAgentClient, anthropicClient, checkSafety, interpret, writeHypotheses, type ClaudeClient } from "@kimi/interpret";
 import { PROVISIONAL } from "../../../packages/core/fixtures/problems/provisional.ts";
 import { interpretRow, loadJsonl, safetyRow } from "./dataset.ts";
 import { runInterpretEval, type EvalSystem } from "./interpret-eval.ts";
 import { renderEvalsMd, type NotRun } from "./report.ts";
 import { runSafetyEval } from "./safety-eval.ts";
+import { SIM_CHILDREN } from "./research-children.ts";
+import { MAX_PROBLEMS, RESEARCH_SEEDS, RESEARCH_SEEDS_CLAUDE, baselineResearchers, poolResearcher, runResearchEval, type Researcher } from "./research-eval.ts";
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string): string => readFileSync(new URL(p, root), "utf8");
@@ -80,10 +82,28 @@ async function main(): Promise<void> {
   if (client === null) safetyNotRun.push({ name: "haiku-5.5（辞書への切り替えを含む）", reason: "API キー待ち（BLOCKED B3）" });
   else safety.push({ name: "haiku-5.5（辞書への切り替えを含む）", result: await runSafetyEval(safetyRows, async (t) => (await checkSafety(t, client)).flag) });
 
+  const researchNotRun: NotRun[] = [];
+  const research = await runResearchEval(baselineResearchers(FRACTION_BANK), SIM_CHILDREN, FRACTION_BANK, RESEARCH_SEEDS);
+  if (!live) researchNotRun.push({ name: "opus-5.5 が仮説を書く（研究層）", reason: "API キー待ち（BLOCKED B3）" });
+  else {
+    const agent = anthropicAgentClient();
+    const opus: Researcher = poolResearcher("opus-5.5 が仮説を書く（研究層、1人1回）", FRACTION_BANK, async (state, seen) => {
+      const out = await writeHypotheses(agent, {
+        state,
+        readings: seen.map((x) => ({ record: x.record, childWorld: x.world, referencePlaced: true, afterFix: false, wordbookOpenedBefore: false, words: x.words })),
+        bank: FRACTION_BANK,
+      });
+      return out.kind === "submitted" ? out.revision.state : state;
+    });
+    research.push(...(await runResearchEval([opus], SIM_CHILDREN, FRACTION_BANK, RESEARCH_SEEDS_CLAUDE)));
+  }
+  researchNotRun.push({ name: "sonnet-5.5・haiku-5.5 が仮説を書く", reason: "費用を抑えるため提出版では回さない" });
+
   const md = renderEvalsMd({
     interpret: { k, baseline: KEYWORD, results, notRun },
     safety: { results: safety, notRun: safetyNotRun },
     data: { interpret: interpretRows, safety: safetyRows },
+    research: { results: research, notRun: researchNotRun, seeds: RESEARCH_SEEDS.length, maxProblems: MAX_PROBLEMS },
     note: tune
       ? "対象：調整用（tune）の行と【仮】の問題10題。調整の判断にだけ使い、公開しない。"
       : "対象：本番用（test）の行と、誤読への耐性の検査で選ぶ前の【仮】の問題10題（指示書 第10.1節の「選別前」）。選別後の問題の一致率は、問題の組み立てを本物の Claude で回した後に足す。",

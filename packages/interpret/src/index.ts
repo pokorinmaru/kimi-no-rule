@@ -19,3 +19,4 @@ export {
   type BuildOutcome,
   type RejectReason,
 } from "./build.ts";
+export * from "./research.ts";

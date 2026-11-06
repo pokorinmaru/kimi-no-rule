@@ -105,3 +105,25 @@ export {
 } from "./i18n/index.ts";
 export { parseRestated, restate, type RestatedSentence } from "./restate/index.ts";
 export { hasChildText, redactExplanation, redactInterpretation } from "./redact/index.ts";
+export {
+  COMMON_FRACTION_READINGS,
+  COMMON_MISREADINGS,
+  CORRECT_READING_ID,
+  GAIN_THRESHOLD,
+  OTHER,
+  POOL_MAX,
+  chooseNext,
+  initialState,
+  kohaiReading,
+  observe,
+  readingCard,
+  revisePool,
+  type Choice,
+  type FirstReading,
+  type KohaiReading,
+  type PoolEdit,
+  type PoolEntry,
+  type ResearchState,
+  type Revision,
+} from "./research/index.ts";
+export { FRACTION_BANK } from "../fixtures/problems/fraction-bank.ts";
