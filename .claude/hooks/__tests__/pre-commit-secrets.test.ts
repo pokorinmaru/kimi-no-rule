@@ -144,6 +144,26 @@ describe("pre-commit-secrets", () => {
     expect(isDenied(bash(dir, 'git commit -m "quoted"'))).toBe(true);
   });
 
+  it("checks every assignment on a line, not only the first one", () => {
+    const line =
+      "const tok" + "ens = problemRecord.statements, api" + "Key = " + '"' + "q8Rw2LmZ7vX4nT9pK3sY6bH1" + '"' + ";\n";
+    const dir = repo({ "src/d.ts": line }, true);
+    expect(isDenied(bash(dir, 'git commit -m "two"'))).toBe(true);
+  });
+
+  it("never excuses a dotted value in a config file", () => {
+    const dir = repo({ "app.env": "TO" + "KEN=" + "deployKeys.productionValue\n" }, true);
+    expect(isDenied(bash(dir, 'git commit -m "config"'))).toBe(true);
+    const yaml = repo({ "config/app.yaml": "to" + "ken: " + "deployKeys.productionValue\n" }, true);
+    expect(isDenied(bash(yaml, 'git commit -m "yaml"'))).toBe(true);
+  });
+
+  it("never excuses a dotted value whose parts mix digits with upper and lower case", () => {
+    const line = "const to" + "ken = " + "aB3dE5gH7jK9mN1p.rS2tU4vW6xY8zA0b;\n";
+    const dir = repo({ "src/e.ts": line }, true);
+    expect(isDenied(bash(dir, 'git commit -m "mixed"'))).toBe(true);
+  });
+
   it("ignores lockfile integrity hashes", () => {
     const dir = repo({ "pnpm-lock.yaml": "integrity: sha512-" + "Ab9+".repeat(20) + "==\n" }, true);
     expect(isAllowed(bash(dir, 'git commit -m "lock"'))).toBe(true);

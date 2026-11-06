@@ -65,7 +65,7 @@ const RULES = [
   ["Slack token", /\bxox[abprs]-[A-Za-z0-9-]{10,}/],
   ["Google API key", /\bAIza[0-9A-Za-z_-]{35}\b/],
 ];
-const GENERIC = /(api[_-]?key|secret|token|passw(?:or)?d|access[_-]?key|auth)[A-Za-z0-9_-]*["']?\s*[:=]\s*["']?([A-Za-z0-9_\-/+=.]{20,})/i;
+const GENERIC = /(api[_-]?key|secret|token|passw(?:or)?d|access[_-]?key|auth)[A-Za-z0-9_-]*["']?\s*[:=]\s*["']?([A-Za-z0-9_\-/+=.]{20,})/gi;
 
 /** @param {string} s */
 function entropy(s) {
@@ -77,26 +77,32 @@ function entropy(s) {
   return h;
 }
 
-/** @param {string} line @returns {string | undefined} */
-function classify(line) {
+/** @param {string} line @param {string} file @returns {string | undefined} */
+function classify(line, file) {
   for (const [kind, re] of RULES) if (re.test(line)) return kind;
-  const g = GENERIC.exec(line);
-  if (g && g[2] && entropy(g[2]) >= 3.5 && !isCodeReference(g[0], g[2])) return `generic secret (${g[1]})`;
+  // Every assignment on the line is checked: an excused one never hides a later one.
+  for (const g of line.matchAll(GENERIC)) {
+    if (g[2] && entropy(g[2]) >= 3.5 && !isCodeReference(g[0], g[2], file)) return `generic secret (${g[1]})`;
+  }
   return undefined;
 }
 
-/** A path of short identifiers (`record.statements`); identifier parts are far shorter than key parts. */
-const IDENTIFIER_PATH = /^[A-Za-z_$][\w$]{0,29}(?:\.[A-Za-z_$][\w$]{0,29})+$/;
+/** Files where a value is written as code; config files (.env, yaml, ini, ...) never get the excuse. */
+const CODE_FILE = /\.(?:[cm]?[jt]sx?|svelte|vue)$/i;
+/** A path of short identifiers (`record.statements`); key parts are far longer. */
+const IDENTIFIER_PATH = /^[A-Za-z_$][\w$]{0,19}(?:\.[A-Za-z_$][\w$]{0,19})+$/;
 
 /**
- * An unquoted property path is code reading a value, not a value (QUESTIONS Q16). A quoted value is
- * never excused.
- * @param {string} match @param {string} value
+ * An unquoted property path in code is code reading a value, not a value (QUESTIONS Q16). A quoted
+ * value, a config file, and parts that mix digits with upper and lower case are never excused.
+ * @param {string} match @param {string} value @param {string} file
  */
-function isCodeReference(match, value) {
+function isCodeReference(match, value, file) {
+  if (!CODE_FILE.test(file)) return false;
   const before = match[match.length - value.length - 1];
   if (before === '"' || before === "'") return false;
-  return IDENTIFIER_PATH.test(value);
+  if (!IDENTIFIER_PATH.test(value)) return false;
+  return value.split(".").every((part) => !(/\d/.test(part) && /[A-Z]/.test(part) && /[a-z]/.test(part)));
 }
 
 /**
@@ -152,7 +158,7 @@ function scan(cwd, includeWorkingTree) {
   const findings = new Set();
   for (const [file, line] of lines) {
     if (SKIP_FILE.test(file)) continue;
-    const kind = classify(line);
+    const kind = classify(line, file);
     if (kind) findings.add(`${file}: ${kind}`);
   }
   const gl = spawnSync("gitleaks", ["git", "--pre-commit", "--staged", "--redact", "--no-banner", "."], { cwd: root, encoding: "utf8" });
