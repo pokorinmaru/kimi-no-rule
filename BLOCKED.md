@@ -4,9 +4,7 @@
 
 ## 待ち
 
-### B1 GitHub への push（gh のトークンに workflow 権限が無い）
-- 理由：`.github/workflows/ci.yml` を含むコミットの push が、権限不足で拒否される。
-- 人の作業：`gh auth refresh -h github.com -s workflow` を実行し、ブラウザで承認する。
-- 再開の手順：`git push -u origin main` → `gh run watch` で CI の成功を確かめる。
-
 ## 解決済み
+
+### B1 GitHub への push（gh のトークンに workflow 権限が無い）
+- 解決：2026-11-06。人が `gh auth refresh -h github.com -s workflow` で承認し、push と CI の成功を確かめた。
