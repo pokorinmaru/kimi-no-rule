@@ -73,7 +73,7 @@ export const TEMPLATES = {
   },
   "statement.fails": {
     slots: [],
-    ja: ["この文は、この世界では成り立たないみたい", "この世界だと、この文とかみ合わないね", "この文と世界が、くいちがっているよ"],
+    ja: ["この文は、この世界では成り立たないみたい", "ここでは、この文がうまく合わないね", "この文と世界が、そろっていないよ"],
     en: ["This sentence does not hold in this world.", "In this world, this sentence does not fit.", "This sentence and the world disagree."],
   },
   "statement.undetermined": {
