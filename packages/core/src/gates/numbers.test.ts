@@ -141,3 +141,9 @@ describe("numbersIn: property", () => {
     );
   });
 });
+
+describe("a fraction in kanji is one number (found while fixing the gates)", () => {
+  it.each(["四分の三", "四 分の 三"])("%s reads only as 3/4", (text) => {
+    expect(numbersIn(text).map((r) => `${r.num}/${r.den}`)).toEqual(["3/4"]);
+  });
+});

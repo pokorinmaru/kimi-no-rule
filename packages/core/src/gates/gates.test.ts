@@ -10,6 +10,7 @@ import { signboardCorrect } from "../../fixtures/problems/signboard.ts";
 import {
   gate,
   isVerified,
+  numbersIn,
   verifiedCorrectWorld,
   verifiedDrawWorld,
   type Action,

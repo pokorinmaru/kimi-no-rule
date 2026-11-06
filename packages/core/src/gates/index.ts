@@ -1,10 +1,11 @@
 // M1 step (6): gates before anything reaches the child (指示書 第5.5節, 第1節 原則1). Pure functions:
-// an action is data, and a refused action is not shown.
+// an action is data, and a refused action is not shown. When in doubt the gates refuse: reading more
+// numbers out of a text than it holds only makes them stricter.
 import type { ApplyResult } from "../apply/index.ts";
 import type { Rational } from "../schema/common.ts";
 import { validateWorld } from "../schema/semantic.ts";
 import type { WorldScene } from "../schema/world-scene.ts";
-import { eq, fromSchema, toSchema, rat } from "../rational/index.ts";
+import { add, div, eq, fromSchema, neg, rat, toSchema, type Rational as Exact } from "../rational/index.ts";
 import { solve } from "../solve/index.ts";
 
 // ---------------------------------------------------------------------------------------------
@@ -12,42 +13,47 @@ import { solve } from "../solve/index.ts";
 // ---------------------------------------------------------------------------------------------
 
 const KANJI_DIGIT: Record<string, number> = { 〇: 0, 零: 0, 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
-const KANJI_UNIT: Record<string, number> = { 十: 10, 百: 100, 千: 1000 };
+const SMALL_UNIT: Record<string, number> = { 十: 10, 百: 100, 千: 1000 };
+const BIG_UNIT: Record<string, bigint> = { 万: 10_000n, 億: 100_000_000n };
 
-function kanjiValue(s: string): number {
-  let total = 0;
-  let section = 0;
-  let digit = -1;
+/** A run of Arabic digits and kanji numerals, mixed as people write them (1万2千, 三百, 二〇二六). */
+function jaValue(s: string): bigint {
+  let total = 0n;
+  let section = 0n;
+  let digits: bigint | null = null;
   for (const c of s) {
-    if (c === "万") {
-      total += (section + (digit < 0 ? 0 : digit) || 1) * 10000;
-      section = 0;
-      digit = -1;
-    } else if (c in KANJI_UNIT) {
-      section += (digit < 0 ? 1 : digit) * (KANJI_UNIT[c] as number);
-      digit = -1;
-    } else {
-      // Positional digits (二〇二六) continue the number.
-      digit = digit < 0 ? (KANJI_DIGIT[c] as number) : digit * 10 + (KANJI_DIGIT[c] as number);
+    if (/[0-9]/.test(c)) digits = (digits ?? 0n) * 10n + BigInt(c);
+    else if (c in KANJI_DIGIT) digits = (digits ?? 0n) * 10n + BigInt(KANJI_DIGIT[c] as number);
+    else if (c in SMALL_UNIT) {
+      section += (digits ?? 1n) * BigInt(SMALL_UNIT[c] as number);
+      digits = null;
+    } else if (c in BIG_UNIT) {
+      total += (section + (digits ?? 0n) || 1n) * (BIG_UNIT[c] as bigint);
+      section = 0n;
+      digits = null;
     }
   }
-  return total + section + (digit < 0 ? 0 : digit);
+  return total + section + (digits ?? 0n);
 }
 
 const EN_SMALL: Record<string, number> = {
   zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
   eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
   eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70,
-  eighty: 80, ninety: 90,
+  eighty: 80, ninety: 90, a: 1, an: 1,
 };
-const EN_SCALE: Record<string, number> = { hundred: 100, thousand: 1000 };
-const EN_WORD = new RegExp(`\\b(?:${[...Object.keys(EN_SMALL), ...Object.keys(EN_SCALE)].join("|")})(?:[\\s-]+(?:and[\\s-]+)?(?:${[...Object.keys(EN_SMALL), ...Object.keys(EN_SCALE)].join("|")}))*\\b`, "gi");
+const EN_WORDS = [...Object.keys(EN_SMALL).filter((w) => w !== "a" && w !== "an"), "hundred", "thousand"].join("|");
+const EN_NUMBER = new RegExp(`\\b(?:${EN_WORDS})(?:[\\s-]+(?:and[\\s-]+)?(?:${EN_WORDS}))*\\b`, "gi");
+const EN_FRACTION = new RegExp(
+  `\\b(${EN_WORDS}|a|an)[\\s-]+(halves|half|thirds?|quarters?|fourths?|fifths?|sixths?|eighths?|tenths?)\\b`,
+  "gi",
+);
+const EN_DENOMINATOR: Record<string, number> = { half: 2, halves: 2, third: 3, quarter: 4, fourth: 4, fifth: 5, sixth: 6, eighth: 8, tenth: 10 };
 
 function englishValue(words: string): number {
   let total = 0;
   let current = 0;
   for (const w of words.toLowerCase().split(/[\s-]+/)) {
-    if (w === "and" || w === "") continue;
     if (w in EN_SMALL) current += EN_SMALL[w] as number;
     else if (w === "hundred") current = (current || 1) * 100;
     else if (w === "thousand") {
@@ -58,41 +64,77 @@ function englishValue(words: string): number {
   return total + current;
 }
 
-const KANJI_NUM = "[〇零一二三四五六七八九十百千万]+";
-const ARABIC = "\\d+(?:\\.\\d+)?";
-const TOKEN = new RegExp(
-  `(${ARABIC}|${KANJI_NUM})\\s*分の\\s*(${ARABIC}|${KANJI_NUM})|(\\d+)\\s*/\\s*(\\d+)|(${ARABIC})|(${KANJI_NUM})`,
-  "g",
-);
+const NUM = "[0-9〇零一二三四五六七八九十百千万億]+";
+const DEC = "[0-9]*\\.[0-9]+";
 
-function single(s: string): Rational {
-  if (/^\d/.test(s)) {
-    const [whole, frac = ""] = s.split(".");
-    return toSchema(rat(BigInt((whole ?? "0") + frac), 10n ** BigInt(frac.length)));
-  }
-  return toSchema(rat(kanjiValue(s)));
-}
+const exact = (n: bigint, d = 1n): Exact => rat(n, d);
+const decimal = (s: string): Exact => {
+  const [whole = "", frac = ""] = s.split(".");
+  return rat(BigInt((whole || "0") + frac), 10n ** BigInt(frac.length));
+};
 
-function divide(n: Rational, d: Rational): Rational | null {
-  const dd = fromSchema(d);
-  if (dd.num === 0n) return null;
-  return toSchema(rat(fromSchema(n).num * dd.den, fromSchema(n).den * dd.num));
-}
-
-/** Every number in a text, whatever the notation (指示書 第5.5節). Readings in kana are not matched. */
+/** Every number a text could be read as (指示書 第5.5節). Readings in kana are not matched. */
 export function numbersIn(text: string): Rational[] {
-  const t = text.normalize("NFKC");
-  const found: { at: number; value: Rational }[] = [];
-  for (const m of t.matchAll(TOKEN)) {
-    const at = m.index ?? 0;
-    let v: Rational | null;
-    if (m[1] !== undefined && m[2] !== undefined) v = divide(single(m[2]), single(m[1]));
-    else if (m[3] !== undefined && m[4] !== undefined) v = divide(single(m[3]), single(m[4]));
-    else v = single((m[5] ?? m[6]) as string);
-    if (v !== null) found.push({ at, value: v });
+  const t = text
+    .normalize("NFKC")
+    .replace(/⁄/g, "/")
+    .replace(/(\d),(?=\d{3}(?!\d))/g, "$1");
+  const found: { at: number; value: Exact }[] = [];
+  const push = (at: number, value: Exact | null): void => {
+    if (value !== null) found.push({ at, value });
+  };
+  const frac = (n: Exact, d: Exact): Exact | null => (d.num === 0n ? null : div(n, d));
+  const each = (re: RegExp, f: (m: RegExpMatchArray) => void): void => {
+    for (const m of t.matchAll(re)) f(m);
+  };
+
+  // A fraction is one number: its numerator and denominator are not read on their own.
+  const fractionSpans: [number, number][] = [];
+  for (const re of [/\d+\s*\/\s*\d+/g, new RegExp(`${NUM}\\s*分の\\s*${NUM}`, "g")]) {
+    for (const m of t.matchAll(re)) fractionSpans.push([m.index ?? 0, (m.index ?? 0) + m[0].length]);
   }
-  for (const m of t.matchAll(EN_WORD)) found.push({ at: m.index ?? 0, value: toSchema(rat(englishValue(m[0]))) });
-  return found.sort((a, b) => a.at - b.at).map((f) => f.value);
+  const insideFraction = (at: number, end: number): boolean => fractionSpans.some(([a, b]) => a <= at && end <= b);
+
+  // Plain numbers: decimals, runs of digits and kanji, and a sign in front.
+  each(new RegExp(`${DEC}|${NUM}`, "g"), (m) => {
+    const at = m.index ?? 0;
+    if (insideFraction(at, at + m[0].length)) return;
+    const v = m[0].includes(".") ? decimal(m[0]) : exact(jaValue(m[0]));
+    push(at, v);
+    if (at > 0 && /[-−]/.test(t[at - 1] ?? "") && !/[0-9]/.test(t[at - 2] ?? "")) push(at - 1, neg(v));
+  });
+  // Fractions: a/b, b分のa, and mixed numbers (1と3/4, 2 1/2, 4と2分の1).
+  each(/(\d+)\s*\/\s*(\d+)/g, (m) => push(m.index ?? 0, frac(exact(BigInt(m[1] ?? "0")), exact(BigInt(m[2] ?? "1")))));
+  each(new RegExp(`(${NUM})\\s*分の\\s*(${NUM})`, "g"), (m) =>
+    push(m.index ?? 0, frac(exact(jaValue(m[2] ?? "")), exact(jaValue(m[1] ?? "")))),
+  );
+  each(new RegExp(`(${NUM})\\s*(?:と|\\s)\\s*(\\d+)\\s*/\\s*(\\d+)`, "g"), (m) => {
+    const f = frac(exact(BigInt(m[2] ?? "0")), exact(BigInt(m[3] ?? "1")));
+    if (f !== null) push(m.index ?? 0, add(exact(jaValue(m[1] ?? "")), f));
+  });
+  each(new RegExp(`(${NUM})\\s*と\\s*(${NUM})\\s*分の\\s*(${NUM})`, "g"), (m) => {
+    const f = frac(exact(jaValue(m[3] ?? "")), exact(jaValue(m[2] ?? "")));
+    if (f !== null) push(m.index ?? 0, add(exact(jaValue(m[1] ?? "")), f));
+  });
+  // Percentages.
+  each(new RegExp(`(${DEC}|${NUM})\\s*%`, "g"), (m) => {
+    const s = m[1] ?? "0";
+    push(m.index ?? 0, div(s.includes(".") ? decimal(s) : exact(jaValue(s)), exact(100n)));
+  });
+  // Halves and words for numbers.
+  each(/半分|半数/g, (m) => push(m.index ?? 0, exact(1n, 2n)));
+  each(EN_NUMBER, (m) => push(m.index ?? 0, exact(BigInt(englishValue(m[0])))));
+  each(EN_FRACTION, (m) => {
+    const d = EN_DENOMINATOR[(m[2] ?? "").toLowerCase().replace(/s$/, "")] ?? EN_DENOMINATOR[(m[2] ?? "").toLowerCase()];
+    if (d !== undefined) push(m.index ?? 0, exact(BigInt(englishValue(m[1] ?? "one") || 1), BigInt(d)));
+  });
+  each(/\btwice\b/gi, (m) => push(m.index ?? 0, exact(2n)));
+  each(/\bthrice\b/gi, (m) => push(m.index ?? 0, exact(3n)));
+  each(new RegExp(`\\b(?:(${EN_WORDS}|a)\\s+)?dozens?\\b`, "gi"), (m) =>
+    push(m.index ?? 0, exact(BigInt(12 * (m[1] === undefined || m[1].toLowerCase() === "a" ? 1 : englishValue(m[1]))))),
+  );
+
+  return found.sort((a, b) => a.at - b.at).map((f) => toSchema(f.value));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -101,15 +143,29 @@ export function numbersIn(text: string): Rational[] {
 
 declare const VERIFIED: unique symbol;
 export type Verified<T> = T & { readonly [VERIFIED]: true };
+
 // One set of marks per door: a correct world may never be shown as a child's world (which would skip
 // the early-reveal check), and a drawing world may never be shown as the correct world.
 const drawMarks = new WeakSet<object>();
 const correctMarks = new WeakSet<object>();
 
+/** Marked worlds are frozen copies, so nothing can be written into them after the check. */
+function frozenCopy<T>(x: T): T {
+  const copy = structuredClone(x);
+  const freeze = (v: unknown): void => {
+    if (v === null || typeof v !== "object" || Object.isFrozen(v)) return;
+    Object.freeze(v);
+    for (const child of Object.values(v)) freeze(child);
+  };
+  freeze(copy);
+  return copy;
+}
+
 /** Only the drawing world may be shown; the judging and checking worlds hold values the child did not say. */
 export function verifiedDrawWorld(child: ApplyResult): Verified<WorldScene> {
-  // A copy carries the mark, so a judging or checking world that is the same object never does.
-  const copy = structuredClone(child.drawWorld);
+  const v = validateWorld(child.drawWorld);
+  if (!v.ok) throw new Error(`the drawing world does not pass the meaning check: ${v.errors[0]?.message ?? ""}`);
+  const copy = frozenCopy(child.drawWorld);
   drawMarks.add(copy);
   return copy as Verified<WorldScene>;
 }
@@ -117,7 +173,7 @@ export function verifiedDrawWorld(child: ApplyResult): Verified<WorldScene> {
 export function verifiedCorrectWorld(correct: WorldScene): Verified<WorldScene> {
   const v = validateWorld(correct);
   if (!v.ok) throw new Error(`the correct world does not pass the meaning check: ${v.errors[0]?.message ?? ""}`);
-  const copy = structuredClone(correct);
+  const copy = frozenCopy(correct);
   correctMarks.add(copy);
   return copy as Verified<WorldScene>;
 }
@@ -149,57 +205,94 @@ export type Action =
 export type GateReason = "answer_leak" | "operation_name" | "question_not_hidden" | "too_early" | "unverified" | "grade_down";
 export type GateResult = { ok: true } | { ok: false; reasons: GateReason[] };
 
-/** Names of operations, by language. Words of the problem text and of the child are allowed. */
-const OPERATION_NAMES: Record<"ja" | "en", RegExp[]> = {
-  ja: [/足し算|たし算|引き算|ひき算|掛け算|かけ算|割り算|わり算|加法|減法|乗法|除法/, /足す|たす|引く|ひく|掛ける|かける|割る|わる/, /[×÷]/],
-  en: [/\b(?:add(?:ed|ing|ition)?|plus|subtract(?:ed|ing|ion)?|minus|multipl(?:y|ied|ying|ication)|times|divid(?:e|ed|ing)|division)\b/i],
-};
+/** Names and signs of operations, in every form (指示書 第5.5節 ②). */
+const OPERATION_NAMES: RegExp[] = [
+  /足し算|たし算|引き算|ひき算|掛け算|かけ算|割り算|わり算|加法|減法|乗法|除法/g,
+  /足[しすせそさ]|引[いきくけこか]|掛け|割[っるりれろら]/g,
+  /(?<!わ)たし[てた]|たす(?!け)|たせば|ひい[てた]|ひく(?!い)|ひけば|かけ[てたるれ]|わっ[てた]|わる(?!い)|われば/g,
+  /[×÷+*]|\d\s*[-−]\s*\d|\d\s*[xX]\s*\d/g,
+  /\b(?:add(?:s|ed|ing|ition)?|plus|subtract(?:s|ed|ing|ion)?|minus|multipl(?:y|ies|ied|ying|ication)|times|divid(?:e|es|ed|ing)|division|sum|product|quotient|difference|take\s+away)\b/gi,
+];
 
-function containsAny(values: readonly Rational[], v: Rational): boolean {
-  return values.some((x) => eq(fromSchema(x), fromSchema(v)));
+const same = (a: Rational, b: Rational): boolean => eq(fromSchema(a), fromSchema(b));
+const containsAny = (values: readonly Rational[], v: Rational): boolean => values.some((x) => same(x, v));
+
+/** The numbers the problem gives: values and amounts written into the correct world. */
+function givenValues(w: WorldScene): Rational[] {
+  return [
+    ...w.quantities.flatMap((q) => (q.value === null ? [] : [q.value])),
+    ...w.relations.flatMap((r) => (r.amount === null ? [] : [r.amount])),
+    ...w.events.flatMap((e) => (e.amount === null ? [] : [e.amount])),
+  ];
 }
 
-/** The answer and every value on the way that the problem text does not give (指示書 第5.5節 ①). */
-function hiddenValues(ctx: GateContext): Rational[] {
+interface Facts {
+  solvable: boolean;
+  given: Rational[];
+  hidden: Rational[];
+  answer: Rational | null;
+}
+
+/** The answer and every value on the way that the problem does not give (指示書 第5.5節 ①). */
+function facts(ctx: GateContext): Facts {
   const res = solve(ctx.correct);
-  if (res.kind !== "unique" && res.kind !== "underdetermined") return [];
-  const given = numbersIn(ctx.correct.problem_text);
-  return [...res.values.values()].map(toSchema).filter((v) => !containsAny(given, v));
+  const given = givenValues(ctx.correct);
+  if (res.kind !== "unique") return { solvable: false, given, hidden: [], answer: null };
+  const answer = res.values.get(ctx.correct.question.target_id);
+  const hidden = [...res.values.values()].map(toSchema).filter((v) => !containsAny(given, v));
+  return { solvable: true, given, hidden, answer: answer === undefined ? null : toSchema(answer) };
 }
 
-function leaks(numbers: readonly Rational[], ctx: GateContext): boolean {
-  const hidden = hiddenValues(ctx).filter((v) => !containsAny(ctx.childSaid.numbers, v));
-  return numbers.some((n) => containsAny(hidden, n));
+/** Numbers the child said that may be said back: the answer only when it is handed back as the child's words. */
+function excused(ctx: GateContext, f: Facts, echo: boolean): Rational[] {
+  return ctx.childSaid.numbers.filter((n) => echo || f.answer === null || !same(n, f.answer));
 }
 
 function operationWord(text: string, ctx: GateContext): boolean {
-  const allowed = [ctx.correct.problem_text, ...ctx.childSaid.words].join("\n");
-  for (const lang of ["ja", "en"] as const) {
-    for (const re of OPERATION_NAMES[lang]) {
-      const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
-      for (const m of text.matchAll(g)) if (!allowed.includes(m[0])) return true;
+  const t = text.normalize("NFKC");
+  const allowed = [ctx.correct.problem_text, ...ctx.childSaid.words].map((s) => s.normalize("NFKC"));
+  for (const re of OPERATION_NAMES) {
+    for (const m of t.matchAll(re)) {
+      const at = m.index ?? 0;
+      // The same word with the same letter before it, so a longer word of the problem (でかける) does not excuse it.
+      const withBefore = (at > 0 ? t[at - 1] : "") + m[0];
+      const ok = allowed.some((a) => (at > 0 ? a.includes(withBefore) : a.startsWith(m[0])) || a === m[0]);
+      if (!ok) return true;
     }
   }
   return false;
 }
 
+/** Every value written into a world. */
+function valuesOf(w: WorldScene): Rational[] {
+  return givenValues(w);
+}
+
 export function gate(action: Action, ctx: GateContext): GateResult {
   const reasons = new Set<GateReason>();
+  const f = facts(ctx);
+  // A correct world that does not solve to one answer cannot tell what to hide: refuse to show anything.
+  if (!f.solvable && action.kind !== "switch_problem") reasons.add("unverified");
+
   switch (action.kind) {
-    case "say":
-      // Handing the child's words back (echo) passes only because those numbers and words are the
-      // child's own: every other number is checked the same way (指示書 第5.5節).
-      if (leaks(numbersIn(action.text), ctx)) reasons.add("answer_leak");
+    case "say": {
+      const ok = excused(ctx, f, action.echo === true);
+      const hidden = f.hidden.filter((v) => !containsAny(ok, v));
+      if (numbersIn(action.text).some((n) => containsAny(hidden, n))) reasons.add("answer_leak");
       if (operationWord(action.text, ctx)) reasons.add("operation_name");
       break;
+    }
     case "show_world": {
       if (!drawMarks.has(action.world)) reasons.add("unverified");
+      // A drawn number is either a number of the problem or one the child said (指示書 第5.5節 描画の答え漏れ).
+      const drawable = [...f.given, ...ctx.childSaid.numbers];
       const asked = ctx.correct.question.target_id;
       for (const l of action.labels) {
         if (l.value === "?") continue;
         if (l.element_id === asked && !containsAny(ctx.childSaid.numbers, l.value)) reasons.add("question_not_hidden");
-        if (leaks([l.value], ctx)) reasons.add("answer_leak");
+        if (!containsAny(drawable, l.value)) reasons.add("answer_leak");
       }
+      if (valuesOf(action.world).some((v) => !containsAny(drawable, v))) reasons.add("answer_leak");
       break;
     }
     case "show_statements":

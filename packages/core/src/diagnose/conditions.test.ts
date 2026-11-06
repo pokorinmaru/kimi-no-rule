@@ -9,6 +9,8 @@ import { rat } from "../rational/index.ts";
 import { solve } from "../solve/index.ts";
 import { sameWorld } from "../world/same-world.ts";
 import { problemConditions, type ConditionFailure } from "./conditions.ts";
+import { num } from "../apply/test-worlds.ts";
+import { pairWorld, record, rel, stmt } from "./test-records.ts";
 import {
   differenceRecord,
   eventRecord,

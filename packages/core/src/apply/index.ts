@@ -41,6 +41,8 @@ export interface ApplyResult {
   wordCues: { statement_index: number; tokens: number[] }[];
   procedures: { target_id: string; value: Rational; impossible: ImpossibleReason[] }[];
   observedReferences: { relation_id: string; reference: string }[];
+  /** Relations touched only because a procedure carried them along, not named by the child's words. */
+  carriedOnly: string[];
 }
 
 const INTRODUCES: Partial<Record<AnyOp["op"], ElementKind>> = {
@@ -266,13 +268,25 @@ export function apply(input: ApplyInput): ApplyResult {
     precheck.ok ? [] : precheck.errors.flatMap((e) => /^ops\[(\d+)\]/.exec(e.path)?.[1] ?? []).map(Number),
   );
   const anchors = new Set<string>();
+  const carried = new Set<string>();
   ops.forEach((op, i) => {
     if (failing.has(i)) return;
     for (const id of idsNamed(op)) if (known(id)) touchedBase.add(id);
-    if (op.op === "state_procedure") for (const r of procedureRelations(correct, op)) touchedBase.add(r);
+    if (op.op === "state_procedure") {
+      for (const r of procedureRelations(correct, op)) {
+        touchedBase.add(r);
+        carried.add(r);
+      }
+    }
     if (op.op === "add_quantity" && op.at_event !== null && known(op.at_event)) anchors.add(op.at_event);
   });
   for (const p of phrases) if (known(p.element_id)) touchedBase.add(p.element_id);
+  // Relations only a procedure carried along, which the child's words never named (指示書 第5.4節).
+  const named = new Set([
+    ...ops.flatMap((o, i) => (failing.has(i) ? [] : idsNamed(o))),
+    ...phrases.map((p) => p.element_id),
+  ]);
+  const carriedOnly = [...carried].filter((r) => !named.has(r)).sort(byCodeUnit);
 
   // 2. The starting world, then 3. the ops in order.
   let world = baseWorld(correct, touchedBase, anchors);
@@ -362,6 +376,7 @@ export function apply(input: ApplyInput): ApplyResult {
     wordCues,
     procedures,
     observedReferences,
+    carriedOnly,
   };
 }
 

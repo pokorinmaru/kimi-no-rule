@@ -25,12 +25,26 @@ function classOf(op: WorldScene["relations"][number]["operator"]): RelationClass
   }
 }
 
-function quantityValues(w: WorldScene, res: SolveResult): Map<string, Rational> {
+/**
+ * The values the world solves for (Q19): every quantity, and the amounts of relations and events that
+ * the world does not give. A given amount is left out, so a swapped and an inverted reading of the same
+ * multiple stay the same world (指示書 第5.8節), while an asked "how many times" is still compared.
+ */
+function solvedValues(w: WorldScene, res: SolveResult): Map<string, Rational> {
   const out = new Map<string, Rational>();
   if (res.kind !== "unique" && res.kind !== "underdetermined") return out;
-  const ids = new Set(w.quantities.map((q) => q.id));
+  const ids = new Set([
+    ...w.quantities.map((q) => q.id),
+    ...w.relations.filter((r) => r.amount === null).map((r) => r.id),
+    ...w.events.filter((e) => e.amount === null).map((e) => e.id),
+  ]);
   for (const [id, v] of res.values) if (ids.has(id)) out.set(id, v);
   return out;
+}
+
+function quantitiesOnly(w: WorldScene, values: ReadonlyMap<string, Rational>): Map<string, Rational> {
+  const ids = new Set(w.quantities.map((q) => q.id));
+  return new Map([...values].filter(([id]) => ids.has(id)));
 }
 
 /**
@@ -82,14 +96,20 @@ export function sameWorld(a: WorldScene, b: WorldScene): boolean {
   const ra = solve(a);
   const rb = solve(b);
   if (ra.kind !== rb.kind) return false;
-  if (ra.kind === "contradiction" || ra.kind === "nonlinear") return true;
+  // Worlds that cannot be solved are the same only when they fail in the same place.
+  if (ra.kind === "contradiction" && rb.kind === "contradiction") {
+    return JSON.stringify(ra.minimalSets) === JSON.stringify(rb.minimalSets);
+  }
+  if (ra.kind === "nonlinear" && rb.kind === "nonlinear") {
+    return JSON.stringify(ra.relations) === JSON.stringify(rb.relations);
+  }
 
-  const va = quantityValues(a, ra);
-  const vb = quantityValues(b, rb);
+  const va = solvedValues(a, ra);
+  const vb = solvedValues(b, rb);
   if (va.size !== vb.size) return false;
   for (const [id, v] of va) {
     const w = vb.get(id);
     if (w === undefined || !eq(v, w)) return false;
   }
-  return lengthOrder(a, va) === lengthOrder(b, vb);
+  return lengthOrder(a, quantitiesOnly(a, va)) === lengthOrder(b, quantitiesOnly(b, vb));
 }

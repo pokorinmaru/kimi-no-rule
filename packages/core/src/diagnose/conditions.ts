@@ -14,7 +14,8 @@ export type ConditionFailure =
   | "no_candidate"
   | "candidate_same_as_correct"
   | "candidate_same_answer"
-  | "candidate_all_statements_hold";
+  | "candidate_all_statements_hold"
+  | "candidate_not_checkable";
 
 export function problemConditions(record: ProblemRecord): {
   ok: boolean;
@@ -51,7 +52,11 @@ export function problemConditions(record: ProblemRecord): {
       ops: c.ops,
       child,
     });
-    if (checked.kind === "checked" && !checked.statements.some((s) => s.verdict === "fails")) {
+    // A candidate whose ops are not all applied, or whose sentences cannot be checked, cannot show that
+    // a sentence fails, so the problem is not used (safe side; the current flips never get here).
+    if (child.discarded.length > 0 || checked.kind !== "checked") {
+      failures.push({ code: "candidate_not_checkable", flip });
+    } else if (!checked.statements.some((s) => s.verdict === "fails")) {
       failures.push({ code: "candidate_all_statements_hold", flip });
     }
   }

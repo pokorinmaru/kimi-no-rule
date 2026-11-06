@@ -148,12 +148,15 @@ export function diagnose(input: DiagnoseInput): Diagnosis {
   // Did the child touch a relation or an event in words (指示書 第5.4節)? Relations a procedure only
   // carried along do not count; any op that edits the world, or a phrase on a relation or event, does.
   const NUMBER_ONLY = new Set(["state_answer", "state_procedure", "word_cue", "set_unit_value"]);
+  const carriedByProcedure = new Set(child.carriedOnly);
   const explicit =
     ops.some((o) => !NUMBER_ONLY.has(o.op)) ||
-    (child.procedures.length === 0 && child.touched.some((id) => relationOrEvent.has(id)));
+    child.touched.some((id) => relationOrEvent.has(id) && !carriedByProcedure.has(id));
   let correctUnexplained = false;
 
   for (const p of child.procedures) {
+    // Only a procedure for what is asked can be compared with the answers (指示書 第5.4節).
+    if (p.target_id !== correct.question.target_id) continue;
     if (isCorrect(p.value)) correctUnexplained = true;
     else if (matchCandidates(p.value)) layers.add("operation_choice");
     else layers.add("calculation");
