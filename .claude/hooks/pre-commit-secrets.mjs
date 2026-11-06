@@ -7,12 +7,43 @@ import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { deny, projectDir, readInput } from "./lib/common.mjs";
 
-// `git [global options] commit`. Group 1 holds the global options (to find -C <dir>).
-const ARG = String.raw`(?:"[^"]*"|'[^']*'|[^\s;|&]+)`;
-const GIT_COMMIT = new RegExp(String.raw`\bgit((?:\s+(?:-[Cc]\s+${ARG}|--?[\w-]+(?:=${ARG})?))*)\s+commit\b`);
-const DASH_C = new RegExp(String.raw`-C\s+(${ARG})`, "g");
-// Options and variables that point git at another repository: we cannot follow them reliably, so deny.
-const REDIRECT = /(--git-dir\b|--work-tree\b|--namespace\b|\bGIT_DIR=|\bGIT_WORK_TREE=|\bGIT_INDEX_FILE=)/;
+// Tokens: quoted strings or bare words. A command segment ends at ; | & or a newline.
+const TOKEN = /"[^"]*"|'[^']*'|[^\s;|&]+/g;
+const unquote = (/** @type {string} */ t) => t.replace(/^["']|["']$/g, "");
+// Environment that can point git at another repository or index (bash or PowerShell form).
+const GIT_ENV = /(\bGIT_[A-Z_]*\s*=|\$env:GIT_)/i;
+const OPTION_WITH_VALUE = new Set(["-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--config-env"]);
+
+/**
+ * Find `git ... commit` in a command. Only plain `-C <dir>` is accepted as a global option (allowlist):
+ * anything else (-c, --git-dir, --work-tree, ...) could point the commit somewhere we do not scan.
+ * @param {string} command
+ * @returns {{ dirs: string[], badOption: string | undefined } | undefined}
+ */
+function parseCommit(command) {
+  for (const segment of command.split(/[;|&\n]+/)) {
+    const tokens = [...segment.matchAll(TOKEN)].map((t) => unquote(t[0]));
+    const g = tokens.findIndex((t) => /(^|[\\/])git(\.exe)?$/i.test(t));
+    if (g < 0) continue;
+    /** @type {string[]} */
+    const dirs = [];
+    /** @type {string | undefined} */
+    let badOption;
+    for (let i = g + 1; i < tokens.length; i++) {
+      const t = tokens[i] ?? "";
+      if (t === "-C") {
+        dirs.push(tokens[++i] ?? "");
+      } else if (t.startsWith("-")) {
+        badOption ??= t;
+        if (OPTION_WITH_VALUE.has(t)) i++;
+      } else {
+        if (t === "commit") return { dirs, badOption };
+        break; // another subcommand
+      }
+    }
+  }
+  return undefined;
+}
 const SKIP_FILE = /(^|\/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|[^/]+\.lock)$/;
 
 /** @type {Array<[string, RegExp]>} */
@@ -68,16 +99,18 @@ async function main() {
   const input = await readInput();
   const ti = /** @type {Record<string, unknown>} */ (input["tool_input"] ?? {});
   const command = String(ti["command"] ?? "");
-  if (/\bgit\b/.test(command) && /\bcommit\b/.test(command) && REDIRECT.test(command)) {
-    deny("git の対象リポジトリを --git-dir / --work-tree / GIT_DIR などで変えたコミットは、シークレット検査ができないため止めました。リポジトリの中で普通に git commit してください。");
+  const commit = parseCommit(command);
+  if (!commit) return;
+  if (commit.badOption || GIT_ENV.test(command)) {
+    deny(
+      `git commit の前に -C 以外のオプションや GIT_* の環境変数（${commit.badOption ?? "GIT_*"}）があると、コミット先を確かめられずシークレット検査ができないため止めました。リポジトリの中で普通に git commit してください。`,
+    );
   }
-  const m = GIT_COMMIT.exec(command);
-  if (!m) return;
 
   const base = typeof input["cwd"] === "string" && input["cwd"] ? input["cwd"] : projectDir(input);
   // Several -C options apply one after another, as in git.
   let cwd = base;
-  for (const c of (m[1] ?? "").matchAll(DASH_C)) cwd = path.resolve(cwd, (c[1] ?? "").replace(/^["']|["']$/g, ""));
+  for (const d of commit.dirs) cwd = path.resolve(cwd, d);
   if (spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).status !== 0) {
     deny(`コミット先のリポジトリを読めないため、シークレット検査ができません（${cwd}）。リポジトリの場所を確かめてください。`);
   }

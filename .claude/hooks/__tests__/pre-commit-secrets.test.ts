@@ -77,6 +77,19 @@ describe("pre-commit-secrets", () => {
     expect(isDenied(bash(dir, "GIT_DIR=/elsewhere/.git git commit -m x"))).toBe(true);
   });
 
+  it("only accepts plain -C as a global option (allowlist)", () => {
+    const dir = repo({ "src/a.ts": "export const a = 1;\n" }, true);
+    expect(isDenied(bash(dir, "git -c core.worktree=/elsewhere commit -m x"))).toBe(true);
+    expect(isDenied(bash(dir, "GIT_DIR = /elsewhere/.git git commit -m x"))).toBe(true);
+    expect(isDenied(bash(dir, '$env:GIT_DIR="/elsewhere/.git"; git commit -m x'))).toBe(true);
+    expect(isAllowed(bash(dir, `git -C "${dir}" commit -m "mentions -C and --git-dir in the message"`))).toBe(true);
+  });
+
+  it("does not treat other subcommands that mention commit as commits", () => {
+    const dir = repo({ "src/config.ts": FAKE.aws }, true);
+    expect(isAllowed(bash(dir, "git log --grep commit"))).toBe(true);
+  });
+
   it("denies when the repository cannot be read (fail closed)", () => {
     const notRepo = tempDir("norepo");
     expect(isDenied(bash(notRepo, 'git commit -m "x"'))).toBe(true);
