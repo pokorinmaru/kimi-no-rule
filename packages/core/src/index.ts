@@ -127,3 +127,4 @@ export {
   type Revision,
 } from "./research/index.ts";
 export { FRACTION_BANK } from "../fixtures/problems/fraction-bank.ts";
+export { judgeAnswer, judgeUnitValue } from "./answers/index.ts";
