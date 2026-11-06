@@ -88,3 +88,17 @@ export {
   update,
   type Weights,
 } from "./rules/weights.ts";
+export {
+  TEMPLATES,
+  TEMPLATE_KEYS,
+  holderName,
+  itemName,
+  problemNumber,
+  render,
+  transcript,
+  type Lang,
+  type Slot,
+  type SlotKind,
+  type SlotValues,
+  type TemplateKey,
+} from "./i18n/index.ts";

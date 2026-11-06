@@ -343,7 +343,7 @@ export type GateResult = { ok: true } | { ok: false; reasons: GateReason[] };
 const OPERATION_NAMES: RegExp[] = [
   /足し算|たし算|引き算|ひき算|掛け算|かけ算|割り算|わり算|加法|減法|乗法|除法/g,
   /足[しすせそさ]|引[いきくけこか]|掛け|割[っるりれろら]/g,
-  /(?<!わ)たし[てた]|たす(?!け)|たせば|ひい[てた]|ひく(?!い)|ひけば|かけ[てたるれ]|わっ[てた]|わる(?!い)|われば/g,
+  /(?<![わ㐀-鿿])たし[てた]|(?<![わ㐀-鿿])たす(?!け)|たせば|ひい[てた]|ひく(?!い)|ひけば|(?<![しでみ㐀-鿿])かけ[てたるれ]|(?<![かさまおこあ㐀-鿿])わっ[てた]|(?<![かさまおこあ㐀-鿿])わる(?!い)|われば/g,
   /[×÷+*]|\d\s*[-−]\s*\d|\d\s*[xX]\s*\d/g,
   /\b(?:add(?:s|ed|ing|ition)?|plus|subtract(?:s|ed|ing|ion)?|minus|multipl(?:y|ies|ied|ying|ication)|times|divid(?:e|es|ed|ing)|division|sum|product|quotient|difference|take\s+away)\b/gi,
 ];
@@ -412,7 +412,9 @@ export function gate(action: Action, ctx: GateContext): GateResult {
     case "say": {
       const ok = excused(ctx, f, action.echo === true);
       const hidden = f.hidden.filter((v) => !containsAny(ok, v));
-      if (numbersIn(action.text).some((n) => containsAny(hidden, n))) reasons.add("answer_leak");
+      // The "1" card is the name of a card, not a number (「1」, "1", “1”).
+      const spoken = action.text.replace(/「1」|"1"|“1”|「１」/g, "");
+      if (numbersIn(spoken).some((n) => containsAny(hidden, n))) reasons.add("answer_leak");
       if (operationWord(action.text, ctx)) reasons.add("operation_name");
       break;
     }

@@ -519,3 +519,24 @@ describe("the answer in kana is refused (Q20)", () => {
     expect(gate(say("兄さんは、ろっぴき"), ctx())).toEqual({ ok: true });
   });
 });
+
+describe("everyday words that only look like operations are not refused (found with the fixed sentences)", () => {
+  it.each(["教わった読み方", "色がかわった", "話しかけてみよう", "出かけた", "わたす", "見かけた", "おわったね"])("%s", (text) => {
+    expect(gate(say(text), ctx())).toEqual({ ok: true });
+  });
+
+  it("the operation forms are still refused", () => {
+    for (const text of ["わってみると", "かけてみよう", "たしてみよう"]) expect(reasons(gate(say(text), ctx()))).toContain("operation_name");
+  });
+});
+
+describe("the \"1\" card is a name, not a number", () => {
+  it("「1」 in a sentence is allowed even when 1 is a hidden value", () => {
+    const correct = structuredClone(signboardCorrect);
+    // a world where the answer is 1: older 3/4 of younger, older = 3/4 -> younger = 1
+    correct.quantities = correct.quantities.map((q) => (q.id === "q_ani" ? { ...q, value: num(3, 4) } : q));
+    expect(gate(say("弟が「1」、ですね"), ctx({ correct }))).toEqual({ ok: true });
+    expect(gate(say('The "1" goes on him'), ctx({ correct, lang: "en" }))).toEqual({ ok: true });
+    expect(reasons(gate(say("弟は1"), ctx({ correct })))).toContain("answer_leak");
+  });
+});
