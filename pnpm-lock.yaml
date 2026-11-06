@@ -92,11 +92,38 @@ importers:
         specifier: 4.6.7
         version: 4.6.7
 
+  tools/baseline-parser:
+    dependencies:
+      '@kimi/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+
+  tools/evals:
+    dependencies:
+      '@kimi/baseline-parser':
+        specifier: workspace:*
+        version: link:../baseline-parser
+      '@kimi/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@kimi/interpret':
+        specifier: workspace:*
+        version: link:../../packages/interpret
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
+
   tools/world-builder:
     dependencies:
       '@kimi/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@kimi/interpret':
+        specifier: workspace:*
+        version: link:../../packages/interpret
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
 
 packages:
 

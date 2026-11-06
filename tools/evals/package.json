@@ -1,0 +1,21 @@
+{
+  "name": "@kimi/evals",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "eval": "node src/run.ts",
+    "eval:live": "node src/run.ts --live"
+  },
+  "dependencies": {
+    "@kimi/baseline-parser": "workspace:*",
+    "@kimi/core": "workspace:*",
+    "@kimi/interpret": "workspace:*",
+    "zod": "4.6.7"
+  }
+}

@@ -8,9 +8,12 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:problems": "node src/cli.ts"
   },
   "dependencies": {
-    "@kimi/core": "workspace:*"
+    "@kimi/core": "workspace:*",
+    "@kimi/interpret": "workspace:*",
+    "zod": "4.6.7"
   }
 }
