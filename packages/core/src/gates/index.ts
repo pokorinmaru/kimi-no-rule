@@ -335,9 +335,11 @@ export type Action =
   | { kind: "show_world"; world: WorldScene; labels: { element_id: string; value: Rational | "?" }[] }
   | { kind: "show_statements" }
   | { kind: "show_correct_world"; world: WorldScene }
-  | { kind: "switch_problem"; grade: number };
+  | { kind: "switch_problem"; grade: number }
+  /** The "1" card put down: over a holder's whole tape, or over one of its segments (指示書 第11節 M4). */
+  | { kind: "place_card"; covers: "whole_tape" | "one_segment" };
 
-export type GateReason = "answer_leak" | "operation_name" | "question_not_hidden" | "too_early" | "unverified" | "grade_down";
+export type GateReason = "answer_leak" | "operation_name" | "question_not_hidden" | "too_early" | "unverified" | "grade_down" | "card_on_segment";
 export type GateResult = { ok: true } | { ok: false; reasons: GateReason[] };
 
 /** Names and signs of operations, in every form (指示書 第5.5節 ②). */
@@ -407,7 +409,7 @@ export function gate(action: Action, ctx: GateContext): GateResult {
   const reasons = new Set<GateReason>();
   const f = facts(ctx);
   // A correct world that does not solve to one answer cannot tell what to hide: refuse to show anything.
-  if (!f.solvable && action.kind !== "switch_problem") reasons.add("unverified");
+  if (!f.solvable && action.kind !== "switch_problem" && action.kind !== "place_card") reasons.add("unverified");
 
   switch (action.kind) {
     case "say": {
@@ -441,6 +443,10 @@ export function gate(action: Action, ctx: GateContext): GateResult {
       break;
     case "switch_problem":
       if (action.grade < ctx.grade) reasons.add("grade_down");
+      break;
+    case "place_card":
+      // The card names what is taken as 1: a whole holder. On one segment it would show a segment's size.
+      if (action.covers !== "whole_tape") reasons.add("card_on_segment");
       break;
   }
   return reasons.size === 0 ? { ok: true } : { ok: false, reasons: [...reasons] };

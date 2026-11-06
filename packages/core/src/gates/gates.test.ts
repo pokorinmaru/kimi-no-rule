@@ -561,3 +561,18 @@ describe("operation words after a kanji or a particle are still refused (found i
   );
 });
 
+
+describe("gate: the 1 card (指示書 第11節 M4)", () => {
+  const ctx = {
+    correct: signboardCorrect,
+    lang: "ja" as const,
+    childSaid: { numbers: [], words: [] },
+    grade: 6,
+    interpretationRecorded: false,
+    prediction: "disabled" as const,
+  };
+  it("lets the card cover a whole tape and refuses it on one segment", () => {
+    expect(gate({ kind: "place_card", covers: "whole_tape" }, ctx)).toEqual({ ok: true });
+    expect(gate({ kind: "place_card", covers: "one_segment" }, ctx)).toEqual({ ok: false, reasons: ["card_on_segment"] });
+  });
+});
