@@ -102,3 +102,5 @@ export {
   type SlotValues,
   type TemplateKey,
 } from "./i18n/index.ts";
+export { parseRestated, restate, type RestatedSentence } from "./restate/index.ts";
+export { hasChildText, redactExplanation, redactInterpretation } from "./redact/index.ts";

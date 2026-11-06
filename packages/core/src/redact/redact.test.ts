@@ -72,10 +72,13 @@ function sampleExplanation(): Explanation {
 }
 
 /** What redaction should give: the same object with only the child text emptied. */
+/** Names the child made up (a new holder or item, or a renamed item) are the child's words too (Q23). */
+const NAMING = new Set(["add_holder", "add_item_kind", "rename_item_kind"]);
+
 function expectedInterpretation(x: Interpretation): Interpretation {
   return {
     ...x,
-    ops: x.ops.map((o) => ({ ...o, evidence: "" })),
+    ops: x.ops.map((o) => (NAMING.has(o.op) ? { ...o, evidence: "", label: "" } : { ...o, evidence: "" })) as Interpretation["ops"],
     phrases: x.phrases.map((p) => ({ ...p, phrase: "" })),
   };
 }
@@ -84,7 +87,8 @@ const expectedExplanation = (x: Explanation): Explanation => ({ ...x, evidence: 
 
 /** Every non-empty string in the child-text slots of the input. */
 function childStrings(x: Interpretation): string[] {
-  return [...x.ops.map((o) => o.evidence), ...x.phrases.map((p) => p.phrase)].filter((s) => s !== "");
+  const labels = x.ops.flatMap((o) => ("label" in o ? [o.label] : []));
+  return [...x.ops.map((o) => o.evidence), ...labels, ...x.phrases.map((p) => p.phrase)].filter((s) => s !== "");
 }
 
 /** Save and load as the device store would: JSON text and back. */
@@ -108,7 +112,22 @@ describe("redactInterpretation", () => {
     expect(hasChildText(saved)).toBe(false);
   });
 
-  it("keeps everything else: op kinds, ids, numbers, labels, languages and unclear", () => {
+  it("a name the child made up counts as the child's words and is removed", () => {
+    const x: Interpretation = {
+      schema_version: "6",
+      utterance_lang: "ja",
+      representable: "full",
+      ops: [{ op: "add_holder", new_id: "n_1", label: "となりの子", evidence: "" }],
+      unclear: [],
+      phrases: [],
+    };
+    expect(hasChildText(x)).toBe(true);
+    const r = redactInterpretation(x);
+    expect(hasChildText(r)).toBe(false);
+    expect(JSON.stringify(r)).not.toContain("となりの子");
+  });
+
+  it("keeps everything else: op kinds, ids, numbers, languages and unclear", () => {
     const x = sampleInterpretation();
     const r = redactInterpretation(x);
     expect(r).toEqual(expectedInterpretation(x));
