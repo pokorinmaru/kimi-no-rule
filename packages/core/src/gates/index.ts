@@ -101,25 +101,29 @@ export function numbersIn(text: string): Rational[] {
 
 declare const VERIFIED: unique symbol;
 export type Verified<T> = T & { readonly [VERIFIED]: true };
-const verified = new WeakSet<object>();
+// One set of marks per door: a correct world may never be shown as a child's world (which would skip
+// the early-reveal check), and a drawing world may never be shown as the correct world.
+const drawMarks = new WeakSet<object>();
+const correctMarks = new WeakSet<object>();
 
 /** Only the drawing world may be shown; the judging and checking worlds hold values the child did not say. */
 export function verifiedDrawWorld(child: ApplyResult): Verified<WorldScene> {
   // A copy carries the mark, so a judging or checking world that is the same object never does.
   const copy = structuredClone(child.drawWorld);
-  verified.add(copy);
+  drawMarks.add(copy);
   return copy as Verified<WorldScene>;
 }
 
 export function verifiedCorrectWorld(correct: WorldScene): Verified<WorldScene> {
   const v = validateWorld(correct);
   if (!v.ok) throw new Error(`the correct world does not pass the meaning check: ${v.errors[0]?.message ?? ""}`);
-  verified.add(correct);
-  return correct as Verified<WorldScene>;
+  const copy = structuredClone(correct);
+  correctMarks.add(copy);
+  return copy as Verified<WorldScene>;
 }
 
 export function isVerified(x: object): boolean {
-  return verified.has(x);
+  return drawMarks.has(x) || correctMarks.has(x);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -189,7 +193,7 @@ export function gate(action: Action, ctx: GateContext): GateResult {
       if (operationWord(action.text, ctx)) reasons.add("operation_name");
       break;
     case "show_world": {
-      if (!isVerified(action.world)) reasons.add("unverified");
+      if (!drawMarks.has(action.world)) reasons.add("unverified");
       const asked = ctx.correct.question.target_id;
       for (const l of action.labels) {
         if (l.value === "?") continue;
@@ -203,7 +207,7 @@ export function gate(action: Action, ctx: GateContext): GateResult {
       break;
     case "show_correct_world":
       if (!ctx.interpretationRecorded || ctx.prediction === "pending") reasons.add("too_early");
-      if (!isVerified(action.world)) reasons.add("unverified");
+      if (!correctMarks.has(action.world)) reasons.add("unverified");
       break;
     case "switch_problem":
       if (action.grade < ctx.grade) reasons.add("grade_down");

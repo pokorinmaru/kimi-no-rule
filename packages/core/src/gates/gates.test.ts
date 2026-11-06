@@ -373,3 +373,17 @@ describe("several reasons at once", () => {
     expect(r).toEqual(expect.arrayContaining(["too_early", "unverified"]));
   });
 });
+
+describe("each kind of mark opens only its own door (found in security review)", () => {
+  it("a correct world marked for the correct-world view cannot be shown as a child's world", () => {
+    const correct = verifiedCorrectWorld(structuredClone(signboardCorrect));
+    const res = gate({ kind: "show_world", world: correct, labels: [] }, ctx({ interpretationRecorded: false }));
+    expect(reasons(res)).toContain("unverified");
+  });
+
+  it("a drawing world cannot be shown as the correct world", () => {
+    const child = apply({ correct: structuredClone(signboardCorrect), ops: [op.swap("r_ratio")] });
+    const res = gate({ kind: "show_correct_world", world: verifiedDrawWorld(child) }, ctx());
+    expect(reasons(res)).toContain("unverified");
+  });
+});
