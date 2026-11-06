@@ -1,0 +1,23 @@
+{
+  "name": "kimi-no-rule",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.9",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "pnpm -r --parallel exec tsc --noEmit",
+    "lint": "eslint .",
+    "e2e": "pnpm --filter @kimi/web e2e"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.10.1",
+    "eslint": "10.14.0",
+    "fast-check": "4.10.2",
+    "globals": "17.14.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vitest": "5.1.0"
+  }
+}

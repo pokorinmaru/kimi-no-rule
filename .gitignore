@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+.claude/hooks/.cache/
+*.log
