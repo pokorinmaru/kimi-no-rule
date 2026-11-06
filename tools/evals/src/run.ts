@@ -84,7 +84,9 @@ async function main(): Promise<void> {
     interpret: { k, baseline: KEYWORD, results, notRun },
     safety: { results: safety, notRun: safetyNotRun },
     data: { interpret: interpretRows, safety: safetyRows },
-    note: "対象：本番用（test）の行と、誤読への耐性の検査で選ぶ前の【仮】の問題10題（指示書 第10.1節の「選別前」）。選別後の問題の一致率は、問題の組み立てを本物の Claude で回した後に足す。",
+    note: tune
+      ? "対象：調整用（tune）の行と【仮】の問題10題。調整の判断にだけ使い、公開しない。"
+      : "対象：本番用（test）の行と、誤読への耐性の検査で選ぶ前の【仮】の問題10題（指示書 第10.1節の「選別前」）。選別後の問題の一致率は、問題の組み立てを本物の Claude で回した後に足す。",
   });
   // The tune split is for tuning: shown on screen, never written into the published table.
   if (tune) {
