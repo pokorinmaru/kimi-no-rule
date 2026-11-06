@@ -126,6 +126,24 @@ describe("pre-commit-secrets", () => {
     expect(isAllowed(bash(dir, "pnpm test"))).toBe(true);
   });
 
+  // Q16: an unquoted path of short identifiers is a code reference, not a value. Built at runtime.
+  it("allows assigning a property path to a variable named like a secret word", () => {
+    const line = "const " + "tok" + "ens = problemRecord.statements[i]?.tokens ?? [];\n";
+    const dir = repo({ "src/a.test.ts": line }, true);
+    expect(isAllowed(bash(dir, 'git commit -m "refs"'))).toBe(true);
+  });
+
+  it("still denies an unquoted dotted value whose parts are too long to be identifiers", () => {
+    const part = "eyJhbGciOiJIUzI1NiIsInR5cCI6Ikp";
+    const dir = repo({ ".env": "TO" + "KEN=" + part + "." + part.split("").reverse().join("") + "\n" }, true);
+    expect(isDenied(bash(dir, 'git commit -m "env"'))).toBe(true);
+  });
+
+  it("still denies a quoted value even when it looks like a property path", () => {
+    const dir = repo({ "src/c.ts": "const to" + 'ken = "' + "q8Rw2LmZ.vX4nT9pK3.sY6bH1Jd" + '";\n' }, true);
+    expect(isDenied(bash(dir, 'git commit -m "quoted"'))).toBe(true);
+  });
+
   it("ignores lockfile integrity hashes", () => {
     const dir = repo({ "pnpm-lock.yaml": "integrity: sha512-" + "Ab9+".repeat(20) + "==\n" }, true);
     expect(isAllowed(bash(dir, 'git commit -m "lock"'))).toBe(true);

@@ -81,8 +81,22 @@ function entropy(s) {
 function classify(line) {
   for (const [kind, re] of RULES) if (re.test(line)) return kind;
   const g = GENERIC.exec(line);
-  if (g && g[2] && entropy(g[2]) >= 3.5) return `generic secret (${g[1]})`;
+  if (g && g[2] && entropy(g[2]) >= 3.5 && !isCodeReference(g[0], g[2])) return `generic secret (${g[1]})`;
   return undefined;
+}
+
+/** A path of short identifiers (`record.statements`); identifier parts are far shorter than key parts. */
+const IDENTIFIER_PATH = /^[A-Za-z_$][\w$]{0,29}(?:\.[A-Za-z_$][\w$]{0,29})+$/;
+
+/**
+ * An unquoted property path is code reading a value, not a value (QUESTIONS Q16). A quoted value is
+ * never excused.
+ * @param {string} match @param {string} value
+ */
+function isCodeReference(match, value) {
+  const before = match[match.length - value.length - 1];
+  if (before === '"' || before === "'") return false;
+  return IDENTIFIER_PATH.test(value);
 }
 
 /**
