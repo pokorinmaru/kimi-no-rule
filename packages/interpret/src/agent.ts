@@ -2,7 +2,7 @@
 // the tools are core functions that run and check. A step's assistant content is appended unchanged,
 // so thinking blocks go back as they came.
 import Anthropic from "@anthropic-ai/sdk";
-import type { ClaudeResponse } from "./client.ts";
+import { toStructuredSchema, type ClaudeResponse } from "./client.ts";
 
 export interface AgentTool {
   name: string;
@@ -67,7 +67,7 @@ export function anthropicAgentClient(options: { apiKey?: string } = {}): AgentCl
         max_tokens: 16000,
         system: [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }],
         messages: req.messages as Anthropic.MessageParam[],
-        tools: req.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema as Anthropic.Tool.InputSchema, strict: true })),
+        tools: req.tools.map((t) => ({ name: t.name, description: t.description, input_schema: toStructuredSchema(t.inputSchema) as Anthropic.Tool.InputSchema, strict: true })),
         output_config: { effort: "high" },
       });
       const toolCalls = res.content.flatMap((b) => (b.type === "tool_use" ? [{ id: b.id, name: b.name, input: b.input }] : []));

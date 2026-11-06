@@ -31,7 +31,6 @@ describe("checkSafety: one retry", () => {
     ["a thrown error", fails()],
     ["text that is not JSON", text("nope")],
     ["a flag outside the schema", json({ schema_version: "1", safety_flag: "maybe" })],
-    ["a refusal", stopped("refusal")],
     ["max_tokens", stopped("max_tokens")],
   ])("after %s, tries once more and uses the second answer", async (_name, first) => {
     const client = new FakeClaude([first, flag("distress")]);
@@ -73,10 +72,10 @@ describe("checkSafety: the word list on the device", () => {
     expect(slow.requests).toHaveLength(2);
   });
 
-  it("after two refusals, uses the dictionary", async () => {
+  it("a refusal to judge is taken as distress at once (Q24: heavy words are often what is declined)", async () => {
     const client = new FakeClaude([stopped("refusal"), stopped("refusal")]);
-    expect(await checkSafety(plain, client)).toEqual({ flag: "none", source: "dictionary" });
-    expect(client.requests).toHaveLength(2);
+    expect(await checkSafety(plain, client)).toEqual({ flag: "distress", source: "claude" });
+    expect(client.requests).toHaveLength(1);
   });
 
   it("property: any list word inside any text is distress when Claude never answers", async () => {

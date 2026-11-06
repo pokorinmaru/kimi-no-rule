@@ -47,10 +47,28 @@ function userTextOf(input: InterpretInput): string {
   return JSON.stringify({ transcript: input.transcript, finger_ops: input.fingerOps, word_cues: input.wordCues, lang: input.lang });
 }
 
-const sameOp = (a: AnyOp, b: AnyOp): boolean => {
-  const strip = (o: AnyOp) => ({ ...o, evidence: "" });
-  return JSON.stringify(strip(a)) === JSON.stringify(strip(b));
-};
+/** JSON with keys in sorted order, so two ops compare by content and not by the order of their keys. */
+function canonical(x: unknown): string {
+  if (Array.isArray(x)) return `[${x.map(canonical).join(",")}]`;
+  if (x !== null && typeof x === "object") {
+    return `{${Object.keys(x).sort().map((k) => `${JSON.stringify(k)}:${canonical((x as Record<string, unknown>)[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(x);
+}
+
+const sameOp = (a: AnyOp, b: AnyOp): boolean => canonical({ ...a, evidence: "" }) === canonical({ ...b, evidence: "" });
+
+/**
+ * Called once when a problem starts, so the structured-output grammar is compiled and the stable part
+ * cached before the child speaks (指示書 第6.1節). The reply is not used.
+ */
+export async function warmInterpret(record: ProblemRecord, client: ClaudeClient): Promise<void> {
+  try {
+    await interpret({ record, transcript: "", fingerOps: [], wordCues: [], lang: record.world.problem_lang }, client);
+  } catch {
+    // warming is best effort
+  }
+}
 
 /** Ops built from the fingers and tapped words alone, for when Claude does not answer in time. */
 function fingersOnly(input: InterpretInput): Interpretation {

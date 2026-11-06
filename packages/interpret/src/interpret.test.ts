@@ -295,3 +295,12 @@ describe("interpret: the words of the child go last, outside the cached part", (
     }
   });
 });
+
+describe("the fingers' ops are matched by content, not by the order of their keys (found in review)", () => {
+  it("a finger op written with its keys in another order still matches Claude's op", async () => {
+    const reordered = { evidence: "", reference: "q_otouto", target_id: "r_ratio", op: "set_relation_reference" } as unknown as AnyOp;
+    const client = new FakeClaude([json(interpretationOf([fingerReference]))]);
+    const input: InterpretInput = { record: record(), transcript: "弟", fingerOps: [reordered], wordCues: [], lang: "ja" };
+    expect((await interpret(input, client)).status).toBe("ok");
+  });
+});
