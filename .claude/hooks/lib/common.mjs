@@ -29,8 +29,12 @@ export async function readInput() {
   return raw ? JSON.parse(raw) : {};
 }
 
-/** Deny a tool call (PreToolUse JSON form) and exit. */
-export function deny(/** @type {string} */ reason) {
+/**
+ * Deny a tool call (PreToolUse JSON form) and exit.
+ * @param {string} reason
+ * @returns {never}
+ */
+export function deny(reason) {
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason },

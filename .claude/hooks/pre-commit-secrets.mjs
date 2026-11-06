@@ -1,6 +1,9 @@
 #!/usr/bin/env node
-// PreToolUse (Bash|PowerShell): before `git commit`, scan what is about to be committed for secrets.
-// Scans staged changes, unstaged tracked changes and untracked files (covers `git add -A && git commit`).
+// Secret scan before commits, in two places:
+// 1. Claude Code PreToolUse (Bash|PowerShell): before a `git commit` command, scan staged changes, unstaged
+//    tracked changes and untracked files (covers `git add -A && git commit`).
+// 2. Git's own pre-commit hook (.githooks/pre-commit runs this with --git-hook): scans the staged changes of
+//    every commit, however the command was written. This is the backstop for command-parsing gaps.
 // Uses gitleaks as well when it is on PATH; CI always runs gitleaks over the full history.
 import { spawnSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
@@ -10,17 +13,19 @@ import { deny, projectDir, readInput } from "./lib/common.mjs";
 // Tokens: quoted strings or bare words. A command segment ends at ; | & or a newline.
 const TOKEN = /"[^"]*"|'[^']*'|[^\s;|&]+/g;
 const unquote = (/** @type {string} */ t) => t.replace(/^["']|["']$/g, "");
-// Environment that can point git at another repository or index (bash or PowerShell form).
-const GIT_ENV = /(\bGIT_[A-Z_]*\s*=|\$env:GIT_)/i;
+// Variables that can point git at another repository, index or config. Any mention is denied.
+const GIT_ENV = /\bGIT_(DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|CONFIG\w*|NAMESPACE|COMMON_DIR|CEILING_DIRECTORIES)\b/i;
 const OPTION_WITH_VALUE = new Set(["-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--config-env"]);
+const SKIP_FILE = /(^|\/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|[^/]+\.lock)$/;
 
 /**
- * Find `git ... commit` in a command. Only plain `-C <dir>` is accepted as a global option (allowlist):
+ * Every `git ... commit` in a command. Only plain `-C <dir>` is accepted as a global option (allowlist):
  * anything else (-c, --git-dir, --work-tree, ...) could point the commit somewhere we do not scan.
  * @param {string} command
- * @returns {{ dirs: string[], badOption: string | undefined } | undefined}
+ * @returns {Array<{ dirs: string[], badOption: string | undefined }>}
  */
-function parseCommit(command) {
+function parseCommits(command) {
+  const commits = [];
   for (const segment of command.split(/[;|&\n]+/)) {
     const tokens = [...segment.matchAll(TOKEN)].map((t) => unquote(t[0]));
     const g = tokens.findIndex((t) => /(^|[\\/])git(\.exe)?$/i.test(t));
@@ -37,14 +42,13 @@ function parseCommit(command) {
         badOption ??= t;
         if (OPTION_WITH_VALUE.has(t)) i++;
       } else {
-        if (t === "commit") return { dirs, badOption };
-        break; // another subcommand
+        if (t === "commit") commits.push({ dirs, badOption });
+        break; // the subcommand decides; stop at it
       }
     }
   }
-  return undefined;
+  return commits;
 }
-const SKIP_FILE = /(^|\/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|[^/]+\.lock)$/;
 
 /** @type {Array<[string, RegExp]>} */
 const RULES = [
@@ -95,40 +99,31 @@ function addedLines(diff) {
   return out;
 }
 
-async function main() {
-  const input = await readInput();
-  const ti = /** @type {Record<string, unknown>} */ (input["tool_input"] ?? {});
-  const command = String(ti["command"] ?? "");
-  const commit = parseCommit(command);
-  if (!commit) return;
-  if (commit.badOption || GIT_ENV.test(command)) {
-    deny(
-      `git commit の前に -C 以外のオプションや GIT_* の環境変数（${commit.badOption ?? "GIT_*"}）があると、コミット先を確かめられずシークレット検査ができないため止めました。リポジトリの中で普通に git commit してください。`,
-    );
-  }
+/**
+ * Scan what a commit in `cwd` would contain. Returns undefined when `cwd` is not a readable repository.
+ * @param {string} cwd
+ * @param {boolean} includeWorkingTree also scan unstaged and untracked files
+ * @returns {string[] | undefined}
+ */
+function scan(cwd, includeWorkingTree) {
+  const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" });
+  if (top.status !== 0) return undefined;
+  const root = top.stdout.trim() || cwd;
 
-  const base = typeof input["cwd"] === "string" && input["cwd"] ? input["cwd"] : projectDir(input);
-  // Several -C options apply one after another, as in git.
-  let cwd = base;
-  for (const d of commit.dirs) cwd = path.resolve(cwd, d);
-  if (spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).status !== 0) {
-    deny(`コミット先のリポジトリを読めないため、シークレット検査ができません（${cwd}）。リポジトリの場所を確かめてください。`);
-  }
   /** @type {Array<[string, string]>} */
-  const lines = [
-    ...addedLines(git(["diff", "--cached", "-U0", "--no-color"], cwd)),
-    ...addedLines(git(["diff", "-U0", "--no-color"], cwd)),
-  ];
-  const top = git(["rev-parse", "--show-toplevel"], cwd).trim() || cwd;
-  for (const rel of git(["ls-files", "--others", "--exclude-standard"], cwd).split("\n").filter(Boolean)) {
-    const abs = path.join(top, rel);
-    try {
-      if (statSync(abs).size > 1024 * 1024) continue;
-      const text = readFileSync(abs, "utf8");
-      if (text.includes("\u0000")) continue;
-      for (const l of text.split(/\r?\n/)) lines.push([rel, l]);
-    } catch {
-      // unreadable: skip
+  const lines = [...addedLines(git(["diff", "--cached", "-U0", "--no-color"], cwd))];
+  if (includeWorkingTree) {
+    lines.push(...addedLines(git(["diff", "-U0", "--no-color"], cwd)));
+    for (const rel of git(["ls-files", "--others", "--exclude-standard"], cwd).split("\n").filter(Boolean)) {
+      const abs = path.join(root, rel);
+      try {
+        if (statSync(abs).size > 1024 * 1024) continue;
+        const text = readFileSync(abs, "utf8");
+        if (text.includes("\u0000")) continue;
+        for (const l of text.split(/\r?\n/)) lines.push([rel, l]);
+      } catch {
+        // unreadable: skip
+      }
     }
   }
 
@@ -138,18 +133,67 @@ async function main() {
     const kind = classify(line);
     if (kind) findings.add(`${file}: ${kind}`);
   }
-
-  const gl = spawnSync("gitleaks", ["git", "--pre-commit", "--staged", "--redact", "--no-banner", "."], { cwd: top, encoding: "utf8" });
+  const gl = spawnSync("gitleaks", ["git", "--pre-commit", "--staged", "--redact", "--no-banner", "."], { cwd: root, encoding: "utf8" });
   if (!gl.error && gl.status === 1) findings.add(`gitleaks: ${gl.stdout.split("\n").slice(0, 10).join(" / ")}`);
+  return [...findings];
+}
 
-  if (findings.size > 0) {
-    deny(
-      `コミットしようとしている変更にシークレットらしき値があります（値は表示しません）:\n- ${[...findings].join("\n- ")}\n` +
-        "値を取り除き、.env など ignore されたファイルや環境変数に移してからコミットしてください。誤検知なら QUESTIONS.md に書いてください。",
-    );
+const ADVICE =
+  "値を取り除き、.env など ignore されたファイルや環境変数に移してからコミットしてください。誤検知なら QUESTIONS.md に書いてください。";
+
+/** git's pre-commit hook: staged changes only; exit 1 aborts the commit. */
+function gitHookMode() {
+  const findings = scan(process.cwd(), false);
+  if (findings === undefined) {
+    process.stderr.write("pre-commit-secrets: リポジトリを読めないためコミットを止めました。\n");
+    process.exit(1);
+  }
+  if (findings.length > 0) {
+    process.stderr.write(`シークレットらしき値があるためコミットを止めました（値は表示しません）:\n- ${findings.join("\n- ")}\n${ADVICE}\n`);
+    process.exit(1);
   }
 }
 
-main().catch((/** @type {unknown} */ e) => {
-  deny(`pre-commit-secrets の内部エラーのため止めました: ${e instanceof Error ? e.message : String(e)}`);
-});
+async function claudeHookMode() {
+  const input = await readInput();
+  const ti = /** @type {Record<string, unknown>} */ (input["tool_input"] ?? {});
+  const command = String(ti["command"] ?? "");
+  const commits = parseCommits(command);
+  if (commits.length === 0) return;
+
+  const bad = commits.find((c) => c.badOption)?.badOption ?? GIT_ENV.exec(command)?.[0];
+  if (bad) {
+    deny(
+      `git commit と一緒に -C 以外のオプションや git の場所を変える環境変数（${bad}）があると、コミット先を確かめられずシークレット検査ができないため止めました。リポジトリの中で普通に git commit してください。`,
+    );
+  }
+
+  const base = typeof input["cwd"] === "string" && input["cwd"] ? input["cwd"] : projectDir(input);
+  const all = [];
+  for (const c of commits) {
+    // Several -C options apply one after another, as in git.
+    let cwd = base;
+    for (const d of c.dirs) cwd = path.resolve(cwd, d);
+    const findings = scan(cwd, true);
+    if (findings === undefined) {
+      deny(`コミット先のリポジトリを読めないため、シークレット検査ができません（${cwd}）。リポジトリの場所を確かめてください。`);
+    }
+    all.push(...findings);
+  }
+  if (all.length > 0) {
+    deny(`コミットしようとしている変更にシークレットらしき値があります（値は表示しません）:\n- ${[...new Set(all)].join("\n- ")}\n${ADVICE}`);
+  }
+}
+
+if (process.argv.includes("--git-hook")) {
+  try {
+    gitHookMode();
+  } catch (e) {
+    process.stderr.write(`pre-commit-secrets internal error: ${String(e)}\n`);
+    process.exit(1);
+  }
+} else {
+  claudeHookMode().catch((/** @type {unknown} */ e) => {
+    deny(`pre-commit-secrets の内部エラーのため止めました: ${e instanceof Error ? e.message : String(e)}`);
+  });
+}

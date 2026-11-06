@@ -1,0 +1,3 @@
+#!/bin/sh
+# Git's own pre-commit hook: secret scan of the staged changes (see .claude/hooks/pre-commit-secrets.mjs).
+exec node "$(dirname "$0")/../.claude/hooks/pre-commit-secrets.mjs" --git-hook

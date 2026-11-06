@@ -90,6 +90,17 @@ describe("pre-commit-secrets", () => {
     expect(isAllowed(bash(dir, "git log --grep commit"))).toBe(true);
   });
 
+  it("checks every commit in a chained command", () => {
+    const dir = repo({ "src/a.ts": "export const a = 1;\n" }, true);
+    expect(isDenied(bash(dir, 'git commit -m a; git -c core.worktree=/x commit -m b'))).toBe(true);
+  });
+
+  it("denies any mention of variables that move the repository", () => {
+    const dir = repo({ "src/a.ts": "export const a = 1;\n" }, true);
+    expect(isDenied(bash(dir, "export GIT_DIR; git commit -m x"))).toBe(true);
+    expect(isDenied(bash(dir, "env GIT_INDEX_FILE=/tmp/i git commit -m x"))).toBe(true);
+  });
+
   it("denies when the repository cannot be read (fail closed)", () => {
     const notRepo = tempDir("norepo");
     expect(isDenied(bash(notRepo, 'git commit -m "x"'))).toBe(true);
