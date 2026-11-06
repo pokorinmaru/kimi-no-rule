@@ -357,3 +357,23 @@ describe("validateOps: ids, prefixes, denominators, self relations", () => {
     expectFail(validateOps(compare(), ops(list)), "self_relation");
   });
 });
+
+describe("the meaning check of an explanation (found in M1b)", () => {
+  it("refuses a zero denominator and an element that does not exist", async () => {
+    const { validateExplanation } = await import("./semantic.ts");
+    const { signboardCorrect } = await import("../../fixtures/problems/signboard.ts");
+    const ok = {
+      schema_version: "2" as const,
+      utterance_lang: "ja" as const,
+      kind: "expression" as const,
+      tokens: [{ type: "number" as const, number: { num: 6, den: 1 }, operator: null }],
+      answer: { num: 8, den: 1 },
+      mentioned_elements: ["q_ani"],
+      evidence: "",
+    };
+    expect(validateExplanation(signboardCorrect, ok)).toEqual({ ok: true });
+    expect(validateExplanation(signboardCorrect, { ...ok, answer: { num: 1, den: 0 } }).ok).toBe(false);
+    expect(validateExplanation(signboardCorrect, { ...ok, tokens: [{ type: "number", number: { num: 1, den: 0 }, operator: null }] }).ok).toBe(false);
+    expect(validateExplanation(signboardCorrect, { ...ok, mentioned_elements: ["q_nobody"] }).ok).toBe(false);
+  });
+});

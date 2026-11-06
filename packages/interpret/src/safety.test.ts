@@ -1,0 +1,118 @@
+// The safety check with a fake Claude, and the switch to the word list on the device (指示書 第6.2節, 第11節 M1b).
+import { describe, expect, it } from "vitest";
+import fc from "fast-check";
+import { MODELS } from "./client.ts";
+import { DISTRESS_WORDS, checkSafety } from "./safety.ts";
+import { FakeClaude, fails, json, stopped, text } from "./fake.ts";
+
+const flag = (f: "none" | "distress" | "inappropriate") => json({ schema_version: "1", safety_flag: f });
+const plain = "あにのきんぎょはろっぴき";
+
+describe("checkSafety: Claude answers", () => {
+  it.each(["none", "distress", "inappropriate"] as const)("returns the flag %s from Claude", async (f) => {
+    const client = new FakeClaude([flag(f)]);
+    expect(await checkSafety(plain, client)).toEqual({ flag: f, source: "claude" });
+    expect(client.requests).toHaveLength(1);
+  });
+
+  it("asks the listening model with the transcript as the input", async () => {
+    const client = new FakeClaude([flag("none")]);
+    await checkSafety("zz-said-4321", client);
+    const req = client.requests[0];
+    expect(req?.model).toBe(MODELS.listen);
+    expect(req?.userText).toContain("zz-said-4321");
+    expect(req?.cachedContext).not.toContain("zz-said-4321");
+    expect(typeof req?.schema).toBe("object");
+  });
+});
+
+describe("checkSafety: one retry", () => {
+  it.each([
+    ["a thrown error", fails()],
+    ["text that is not JSON", text("nope")],
+    ["a flag outside the schema", json({ schema_version: "1", safety_flag: "maybe" })],
+    ["a refusal", stopped("refusal")],
+    ["max_tokens", stopped("max_tokens")],
+  ])("after %s, tries once more and uses the second answer", async (_name, first) => {
+    const client = new FakeClaude([first, flag("distress")]);
+    expect(await checkSafety(plain, client)).toEqual({ flag: "distress", source: "claude" });
+    expect(client.requests).toHaveLength(2);
+  });
+
+  it("after a time out, tries once more", async () => {
+    const slow = new FakeClaude([json({ schema_version: "1", safety_flag: "none" }, 300), flag("inappropriate")]);
+    expect(await checkSafety(plain, slow, { timeoutMs: 50 })).toEqual({ flag: "inappropriate", source: "claude" });
+    expect(slow.requests).toHaveLength(2);
+    expect(slow.requests[0]?.signal?.aborted).toBe(true);
+  });
+});
+
+describe("checkSafety: the word list on the device", () => {
+  it("both lists are filled", () => {
+    expect(DISTRESS_WORDS.ja.length).toBeGreaterThan(0);
+    expect(DISTRESS_WORDS.en.length).toBeGreaterThan(0);
+    for (const w of [...DISTRESS_WORDS.ja, ...DISTRESS_WORDS.en]) expect(w.trim().length).toBeGreaterThan(0);
+  });
+
+  it("after two failures, a word on the list gives distress from the dictionary", async () => {
+    const word = DISTRESS_WORDS.ja[0] as string;
+    const client = new FakeClaude([fails(), fails(), flag("none")]);
+    expect(await checkSafety(`きょうは${word}`, client)).toEqual({ flag: "distress", source: "dictionary" });
+    expect(client.requests).toHaveLength(2);
+  });
+
+  it("after two failures, no word on the list gives none from the dictionary", async () => {
+    const client = new FakeClaude([fails(), fails()]);
+    expect(await checkSafety(plain, client)).toEqual({ flag: "none", source: "dictionary" });
+  });
+
+  it("after two time outs, uses the dictionary", async () => {
+    const word = DISTRESS_WORDS.en[0] as string;
+    const slow = new FakeClaude([json({ schema_version: "1", safety_flag: "none" }, 300)]);
+    expect(await checkSafety(`today ${word}`, slow, { timeoutMs: 40 })).toEqual({ flag: "distress", source: "dictionary" });
+    expect(slow.requests).toHaveLength(2);
+  });
+
+  it("after two refusals, uses the dictionary", async () => {
+    const client = new FakeClaude([stopped("refusal"), stopped("refusal")]);
+    expect(await checkSafety(plain, client)).toEqual({ flag: "none", source: "dictionary" });
+    expect(client.requests).toHaveLength(2);
+  });
+
+  it("property: any list word inside any text is distress when Claude never answers", async () => {
+    const words = [...DISTRESS_WORDS.ja, ...DISTRESS_WORDS.en];
+    await fc.assert(
+      fc.asyncProperty(fc.constantFrom(...words), fc.string({ maxLength: 10 }), fc.string({ maxLength: 10 }), async (w, before, after) => {
+        const res = await checkSafety(`${before} ${w} ${after}`, new FakeClaude([fails()]));
+        expect(res).toEqual({ flag: "distress", source: "dictionary" });
+      }),
+      { numRuns: 80 },
+    );
+  });
+
+  it("property: English list words are found in any letter case", async () => {
+    await fc.assert(
+      fc.asyncProperty(fc.constantFrom(...DISTRESS_WORDS.en), fc.boolean(), async (w, upper) => {
+        const said = upper ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1);
+        const res = await checkSafety(`I ${said}`, new FakeClaude([fails()]));
+        expect(res.flag).toBe("distress");
+      }),
+      { numRuns: 30 },
+    );
+  });
+
+  it("property: text without any list word is none when Claude never answers", async () => {
+    const words = [...DISTRESS_WORDS.ja, ...DISTRESS_WORDS.en].map((w) => w.toLowerCase());
+    const safeText = fc.string({ maxLength: 20 }).filter((s) => {
+      const t = s.normalize("NFKC").toLowerCase();
+      return !words.some((w) => t.includes(w.normalize("NFKC")));
+    });
+    await fc.assert(
+      fc.asyncProperty(safeText, async (s) => {
+        const res = await checkSafety(s, new FakeClaude([fails()]));
+        expect(res).toEqual({ flag: "none", source: "dictionary" });
+      }),
+      { numRuns: 80 },
+    );
+  });
+});
