@@ -43,6 +43,27 @@ describe("pre-commit-secrets", () => {
     expect(isDenied(bash(dir, 'git add -A && git commit -m "wip"'))).toBe(true);
   });
 
+  it("recognises git commit with global options before the subcommand", () => {
+    const dir = repo({ "src/config.ts": FAKE.aws }, true);
+    expect(isDenied(bash(dir, 'git -c user.name=x -c core.hooksPath=/dev/null commit -m "x"'))).toBe(true);
+    expect(isDenied(bash(dir, 'git --no-pager commit -m "x"'))).toBe(true);
+  });
+
+  it("scans the repository named by git -C", () => {
+    const dir = repo({ "src/config.ts": FAKE.aws }, true);
+    const r = runHook(
+      SCRIPT,
+      { hook_event_name: "PreToolUse", tool_name: "Bash", cwd: tempDir("elsewhere"), tool_input: { command: `git -C "${dir}" commit -m x` } },
+      { CLAUDE_PROJECT_DIR: "" },
+    );
+    expect(isDenied(r)).toBe(true);
+  });
+
+  it("denies when the repository cannot be read (fail closed)", () => {
+    const notRepo = tempDir("norepo");
+    expect(isDenied(bash(notRepo, 'git commit -m "x"'))).toBe(true);
+  });
+
   it("allows a clean commit", () => {
     const dir = repo({ "src/a.ts": "export const a = 1;\n" }, true);
     expect(isAllowed(bash(dir, 'git commit -m "clean"'))).toBe(true);

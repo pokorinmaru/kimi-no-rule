@@ -109,6 +109,13 @@ describe("pre-write-guard: writing into the design folder", () => {
     expect(isDenied(write(p, "x"))).toBe(true);
   });
 
+  it("denies paths that reach the design folder through ..", () => {
+    const parent = path.dirname(design);
+    const sneaky = `${parent}/elsewhere/../${path.basename(design)}/brief.md`;
+    expect(isDenied(write(sneaky, "x"))).toBe(true);
+    expect(isDenied(write(`${design}/HANDOFF.md/../brief.md`, "x"))).toBe(true);
+  });
+
   it("allows HANDOFF.md", () => {
     expect(isAllowed(write(path.join(design, "HANDOFF.md"), "# HANDOFF\n- next: M1\n"))).toBe(true);
   });
@@ -154,6 +161,12 @@ describe("pre-write-guard: shell commands", () => {
     expect(isAllowed(sh("Bash", `cat "${design}/brief.md" | head -5`))).toBe(true);
   });
 
+  it("only exempts exactly HANDOFF.md in shell writes", () => {
+    expect(isAllowed(sh("Bash", `cat > "${design}/HANDOFF.md" <<'EOF'\n# HANDOFF\nEOF`))).toBe(true);
+    expect(isDenied(sh("Bash", `echo x > "${design}/HANDOFF.md.bak"`))).toBe(true);
+    expect(isDenied(sh("Bash", `echo x > "${design}/HANDOFF.mdx"`))).toBe(true);
+  });
+
   it("allows reading the design folder with stream redirections that write nothing", () => {
     expect(isAllowed(sh("Bash", `ls "${design}/" ; ls x 2>&1`))).toBe(true);
     expect(isAllowed(sh("Bash", `cat "${design}/brief.md" 2>/dev/null | wc -l`))).toBe(true);
@@ -162,6 +175,8 @@ describe("pre-write-guard: shell commands", () => {
 
   it("still denies redirecting design content into a file", () => {
     expect(isDenied(sh("Bash", `cat "${design}/brief.md" > notes.md 2>&1`))).toBe(true);
+    expect(isDenied(sh("Bash", `echo hi >/dev/null"${design}/x.md"`))).toBe(true);
+    expect(isDenied(sh("Bash", `echo hi 2>&1>"${design}/x.md"`))).toBe(true);
   });
 
   it("denies personal data in a command", () => {

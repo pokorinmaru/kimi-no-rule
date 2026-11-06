@@ -7,7 +7,10 @@ import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { deny, projectDir, readInput } from "./lib/common.mjs";
 
-const GIT_COMMIT = /\bgit\b(?:\s+-[Cc]\s+\S+)*\s+commit\b/;
+// `git [global options] commit`. Group 1 holds the global options (to find -C <dir>).
+const ARG = String.raw`(?:"[^"]*"|'[^']*'|[^\s;|&]+)`;
+const GIT_COMMIT = new RegExp(String.raw`\bgit((?:\s+(?:-[Cc]\s+${ARG}|--?[\w-]+(?:=${ARG})?))*)\s+commit\b`);
+const DASH_C = new RegExp(String.raw`-C\s+(${ARG})`);
 const SKIP_FILE = /(^|\/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|[^/]+\.lock)$/;
 
 /** @type {Array<[string, RegExp]>} */
@@ -63,9 +66,15 @@ async function main() {
   const input = await readInput();
   const ti = /** @type {Record<string, unknown>} */ (input["tool_input"] ?? {});
   const command = String(ti["command"] ?? "");
-  if (!GIT_COMMIT.test(command)) return;
+  const m = GIT_COMMIT.exec(command);
+  if (!m) return;
 
-  const cwd = typeof input["cwd"] === "string" && input["cwd"] ? input["cwd"] : projectDir(input);
+  const base = typeof input["cwd"] === "string" && input["cwd"] ? input["cwd"] : projectDir(input);
+  const dashC = DASH_C.exec(m[1] ?? "")?.[1]?.replace(/^["']|["']$/g, "");
+  const cwd = dashC ? path.resolve(base, dashC) : base;
+  if (spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).status !== 0) {
+    deny(`コミット先のリポジトリを読めないため、シークレット検査ができません（${cwd}）。リポジトリの場所を確かめてください。`);
+  }
   /** @type {Array<[string, string]>} */
   const lines = [
     ...addedLines(git(["diff", "--cached", "-U0", "--no-color"], cwd)),

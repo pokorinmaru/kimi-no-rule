@@ -35,10 +35,14 @@ function shellWritesDesign(command, dir) {
       i = cmd.indexOf(form, i + form.length);
     }
   }
-  // Redirections that only merge or discard streams write no file.
-  const writes = command.replace(/\d?>&\d/g, " ").replace(/\d?>\s*(\/dev\/null|\$null|nul)(?![\w/])/gi, " ");
+  // Redirections that only merge or discard streams write no file. Only whole tokens are stripped;
+  // any other ">" left over still counts as a write.
+  const END = String.raw`(?=\s|$|[;|&)])`;
+  const writes = command
+    .replace(new RegExp(String.raw`(^|\s)\d?>&(\d+|-)${END}`, "g"), " ")
+    .replace(new RegExp(String.raw`(^|\s)\d?>\s*["']?(\/dev\/null|\$null|nul)["']?${END}`, "gi"), " ");
   if (hits.length === 0 || !SHELL_WRITE.test(writes)) return false;
-  return !hits.every((rest) => rest.startsWith("handoff.md"));
+  return !hits.every((rest) => /^handoff\.md(?=$|[\s;|&)<>])/.test(rest));
 }
 
 async function main() {

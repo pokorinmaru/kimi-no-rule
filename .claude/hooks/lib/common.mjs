@@ -47,6 +47,7 @@ export function normPath(p) {
   let s = p.replace(/\\/g, "/");
   s = s.replace(/^\/([a-zA-Z])\//, "$1:/");
   if (!/^[a-zA-Z]:\//.test(s) && !s.startsWith("/")) s = path.resolve(s).replace(/\\/g, "/");
+  s = path.posix.normalize(s); // collapse "." and ".." so a\..\design cannot slip past the prefix check
   return s.replace(/\/+$/, "").toLowerCase();
 }
 
