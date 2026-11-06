@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@kimi/core": "workspace:*"
+    "@anthropic-ai/sdk": "1.1.0",
+    "@kimi/core": "workspace:*",
+    "zod": "4.6.7"
   }
 }
