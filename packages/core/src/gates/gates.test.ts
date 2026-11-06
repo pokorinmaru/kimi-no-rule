@@ -509,3 +509,13 @@ describe("found in review: what a label and an echo may carry", () => {
     expect(numbersIn("4と2分の1").some((r) => r.num === 9 && r.den === 2)).toBe(true);
   });
 });
+
+describe("the answer in kana is refused (Q20)", () => {
+  it.each(["はち", "弟ははっぴき", "ハチひき", "やっつ"])("%s", (text) => {
+    expect(reasons(gate(say(text), ctx()))).toContain("answer_leak");
+  });
+
+  it("a sentence with 兄さん and the problem's 6 in kana passes", () => {
+    expect(gate(say("兄さんは、ろっぴき"), ctx())).toEqual({ ok: true });
+  });
+});

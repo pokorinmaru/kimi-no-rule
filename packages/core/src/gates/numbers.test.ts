@@ -147,3 +147,25 @@ describe("a fraction in kanji is one number (found while fixing the gates)", () 
     expect(numbersIn(text).map((r) => `${r.num}/${r.den}`)).toEqual(["3/4"]);
   });
 });
+
+describe("numbers written in kana (Q20)", () => {
+  const values = (text: string) => numbersIn(text).map((r) => `${r.num}/${r.den}`);
+
+  it.each([
+    ["はち", "8/1"],
+    ["ハチ", "8/1"],
+    ["やっつ", "8/1"],
+    ["弟ははっぴき", "8/1"],
+    ["にひき", "2/1"],
+    ["じゅうに", "12/1"],
+    ["さんびゃく", "300/1"],
+    ["よんぶんのさん", "3/4"],
+    ["ふたり", "2/1"],
+  ])("%s reads as %s", (text, v) => {
+    expect(values(text)).toContain(v);
+  });
+
+  it.each(["兄さんと弟", "弟に見せる", "ごはんのあと", "しかし", "いっしょに"])("%s holds no number", (text) => {
+    expect(values(text)).toEqual([]);
+  });
+});

@@ -75,8 +75,7 @@ const decimal = (s: string): Exact => {
 
 /** Every number a text could be read as (指示書 第5.5節). Readings in kana are not matched. */
 export function numbersIn(text: string): Rational[] {
-  const t = text
-    .normalize("NFKC")
+  const t = kanaToDigits(text.normalize("NFKC"))
     .replace(/⁄/g, "/")
     .replace(/(\d),(?=\d{3}(?!\d))/g, "$1");
   const found: { at: number; value: Exact }[] = [];
@@ -135,6 +134,90 @@ export function numbersIn(text: string): Rational[] {
   );
 
   return found.sort((a, b) => a.at - b.at).map((f) => toSchema(f.value));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Numbers read in kana (Q20): はち, やっつ, はっぴき, さんびゃく, よんぶんのさん
+// ---------------------------------------------------------------------------------------------
+
+/** Readings of digits and units. A reading ending in っ only counts before a counter (はっぴき). */
+const KANA_TOKENS: [string, { digit?: number; unit?: number; sound?: true }][] = [
+  ["きゅう", { digit: 9 }], ["じゅう", { unit: 10 }], ["じゅっ", { unit: 10, sound: true }], ["じっ", { unit: 10, sound: true }],
+  ["ひゃく", { unit: 100 }], ["びゃく", { unit: 100 }], ["ぴゃく", { unit: 100 }], ["せん", { unit: 1000 }],
+  ["ぜん", { unit: 1000 }], ["まん", { unit: 10000 }], ["れい", { digit: 0 }], ["ぜろ", { digit: 0 }],
+  ["いち", { digit: 1 }], ["いっ", { digit: 1, sound: true }], ["さん", { digit: 3 }], ["よん", { digit: 4 }],
+  ["ろく", { digit: 6 }], ["ろっ", { digit: 6, sound: true }], ["なな", { digit: 7 }], ["しち", { digit: 7 }],
+  ["はち", { digit: 8 }], ["はっ", { digit: 8, sound: true }], ["に", { digit: 2 }], ["し", { digit: 4 }],
+  ["ご", { digit: 5 }], ["く", { digit: 9 }],
+];
+/** Single readings long enough to stand alone; に・さん・し・ご・く need a counter or a unit. */
+const STANDALONE = new Set(["いち", "よん", "ろく", "なな", "しち", "はち", "きゅう", "れい", "ぜろ"]);
+const COUNTER = /^(?:ひき|びき|ぴき|こ|にん|ほん|ぼん|ぽん|まい|だい|かい|ばい|さい|ぷん|ふん|[匹個人本枚台回倍歳])/;
+const NATIVE: [string, number][] = [
+  ["ここのつ", 9], ["ひとつ", 1], ["ふたつ", 2], ["みっつ", 3], ["よっつ", 4], ["いつつ", 5], ["むっつ", 6],
+  ["ななつ", 7], ["やっつ", 8], ["ひとり", 1], ["ふたり", 2], ["とお", 10],
+];
+
+/** Katakana to hiragana, so ハチ reads like はち. */
+const toHiragana = (s: string): string => s.replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+
+/** The text with every kana number replaced by its digits (and ぶんの by 分の). Other text is kept. */
+function kanaToDigits(text: string): string {
+  const t = toHiragana(text).replace(/ぶんの/g, "分の");
+  let out = "";
+  let i = 0;
+  while (i < t.length) {
+    const native = NATIVE.find(([w]) => t.startsWith(w, i));
+    if (native !== undefined) {
+      out += String(native[1]);
+      i += native[0].length;
+      continue;
+    }
+    // Read the longest run of digit and unit readings from here.
+    let j = i;
+    let total = 0;
+    let section = 0;
+    let digit: number | null = null;
+    let tokens = 0;
+    let hasUnit = false;
+    let lastSound = false;
+    let first = "";
+    for (;;) {
+      const tok = KANA_TOKENS.find(([w]) => t.startsWith(w, j));
+      if (tok === undefined) break;
+      const [w, v] = tok;
+      if (tokens === 0) first = w;
+      if (v.digit !== undefined) {
+        if (digit !== null) break; // two digits in a row is not one number
+        digit = v.digit;
+      } else if (v.unit !== undefined) {
+        if (v.unit === 10000) {
+          total += (section + (digit ?? 0) || 1) * 10000;
+          section = 0;
+        } else section += (digit ?? 1) * v.unit;
+        digit = null;
+        hasUnit = true;
+      }
+      lastSound = v.sound === true;
+      tokens++;
+      j += w.length;
+      if (lastSound) break;
+    }
+    const value = total + section + (digit ?? 0);
+    const counterAfter = COUNTER.test(t.slice(j));
+    const afterFraction = out.endsWith("分の");
+    const accepted =
+      tokens > 0 &&
+      (lastSound ? counterAfter : hasUnit || counterAfter || afterFraction || (tokens === 1 && STANDALONE.has(first)));
+    if (accepted) {
+      out += String(value);
+      i = j;
+    } else {
+      out += t[i];
+      i++;
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------
