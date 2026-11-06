@@ -11,6 +11,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@kimi/core": "workspace:*"
+    "@hono/node-server": "2.1.6",
+    "@kimi/core": "workspace:*",
+    "@kimi/interpret": "workspace:*",
+    "hono": "4.13.16"
   }
 }
