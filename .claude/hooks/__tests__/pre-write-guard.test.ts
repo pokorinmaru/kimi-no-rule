@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { denyReason, isAllowed, isDenied, runHook, tempDir, writeFiles } from "./helpers.ts";
+import { REPO_ROOT, denyReason, isAllowed, isDenied, runHook, tempDir, writeFiles } from "./helpers.ts";
 
 const SCRIPT = "pre-write-guard.mjs";
 
@@ -45,7 +45,7 @@ beforeAll(() => {
     "fake.schema.json": JSON.stringify(FAKE_SCHEMA, null, 2),
     "HANDOFF.md": "# handoff\n",
   });
-  env = { KIMI_DESIGN_DIR: design };
+  env = { KIMI_DESIGN_DIR: design, CLAUDE_PROJECT_DIR: repo };
 });
 
 const write = (file: string, content: string) =>
@@ -91,6 +91,16 @@ describe("pre-write-guard: copying from the design folder", () => {
       { tool_name: "NotebookEdit", tool_input: { notebook_path: path.join(repo, "n.ipynb"), new_source: FAKE_EN } },
     ];
     for (const i of inputs) expect(isDenied(runHook(SCRIPT, { hook_event_name: "PreToolUse", ...i }, env))).toBe(true);
+  });
+
+  it("does not apply the copy check outside the project (e.g. Claude Code plan files)", () => {
+    const outside = path.join(tempDir("plans"), "plan.md");
+    expect(isAllowed(write(outside, `plan: ${FAKE_JA}`))).toBe(true);
+  });
+
+  it("still checks personal data outside the project", () => {
+    const outside = path.join(tempDir("plans"), "plan.md");
+    expect(isDenied(write(outside, `contact ${PII.mobile}`))).toBe(true);
   });
 
   it("allows ordinary code", () => {
@@ -220,8 +230,8 @@ describe.skipIf(!existsSync(REAL_BRIEF))("pre-write-guard: the real design folde
     expect(line).toBeDefined();
     const r = runHook(
       SCRIPT,
-      { hook_event_name: "PreToolUse", tool_name: "Write", tool_input: { file_path: "C:\\dev\\hackathon_prod\\x.md", content: line } },
-      { KIMI_DESIGN_DIR: "" },
+      { hook_event_name: "PreToolUse", tool_name: "Write", tool_input: { file_path: path.join(REPO_ROOT, "x.md"), content: line } },
+      { KIMI_DESIGN_DIR: "", CLAUDE_PROJECT_DIR: REPO_ROOT },
     );
     expect(isDenied(r)).toBe(true);
     expect(denyReason(r)).toContain("build-brief.md");

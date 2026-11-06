@@ -85,6 +85,8 @@ async function main() {
   }
 
   if (intoDesign) return; // HANDOFF.md: personal-data check only
+  // The copy rule protects the repository. Files outside it (e.g. Claude Code plan files) are not checked.
+  if (target !== undefined && !isInside(target, projectDir(input))) return;
 
   const index = buildIndex(dir);
   if (!index) return; // design folder absent (e.g. CI): nothing to compare with
