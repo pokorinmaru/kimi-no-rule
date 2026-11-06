@@ -9,4 +9,19 @@ export default tseslint.config(
   {
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
+  {
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          // fast-check fails a property whose predicate returns anything but true/undefined,
+          // and vitest's expect(...).toBe(...) returns an object. Use a block body instead.
+          selector:
+            "CallExpression[callee.property.name=/^(property|asyncProperty)$/] > ArrowFunctionExpression[expression=true][body.type='CallExpression'][body.callee.object.callee.name='expect']",
+          message: "Wrap the fast-check predicate in { } — returning expect(...) makes the property fail.",
+        },
+      ],
+    },
+  },
 );

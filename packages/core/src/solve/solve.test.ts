@@ -798,11 +798,19 @@ describe("property: minimal conflict sets", () => {
           expect(set.length).toBeGreaterThan(0);
           expect(new Set(set).size).toBe(set.length);
           for (const id of set) expect(all).toContain(id);
-          for (const id of set) {
-            expect(solve(withoutConstraints(w, [id])).kind).not.toBe("contradiction");
-          }
+          // Minimality is judged on the world made of this set alone: it clashes, and dropping any one
+          // member clears it. With several minimal sets, dropping one member of one set can leave
+          // another set clashing in the whole world (QUESTIONS Q9), so the whole-world check only
+          // applies when exactly one minimal set exists.
           const rest = all.filter((id) => !set.includes(id));
-          expect(solve(withoutConstraints(w, rest)).kind).toBe("contradiction");
+          const alone = withoutConstraints(w, rest);
+          expect(solve(alone).kind).toBe("contradiction");
+          for (const id of set) {
+            expect(solve(withoutConstraints(alone, [id])).kind).not.toBe("contradiction");
+            if (res.minimalSets.length === 1) {
+              expect(solve(withoutConstraints(w, [id])).kind).not.toBe("contradiction");
+            }
+          }
         }
       }),
       { numRuns: 100 },

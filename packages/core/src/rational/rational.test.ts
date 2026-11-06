@@ -206,14 +206,18 @@ describe("cmp is consistent with sub (property)", () => {
         const d = sub(a, b);
         const expected = d.num === 0n ? 0 : d.num > 0n ? 1 : -1;
         expect(Math.sign(cmp(a, b))).toBe(expected);
-        expect(Math.sign(cmp(b, a))).toBe(-expected);
+        expect(Math.sign(cmp(b, a))).toBe(-expected || 0); // avoid -0 under Object.is
         expect(eq(a, b)).toBe(expected === 0);
       }),
     );
   });
 
   it("isInteger matches den === 1", () => {
-    fc.assert(fc.property(ratArb, (a) => expect(isInteger(a)).toBe(a.den === 1n)));
+    fc.assert(
+      fc.property(ratArb, (a) => {
+        expect(isInteger(a)).toBe(a.den === 1n);
+      }),
+    );
   });
 });
 
@@ -240,7 +244,11 @@ describe("conversion to and from the schema form (指示書 第5.1節)", () => {
   });
 
   it("property: round trip in both directions", () => {
-    fc.assert(fc.property(ratArb, (a) => expect(fromSchema(toSchema(a))).toEqual(a)));
+    fc.assert(
+      fc.property(ratArb, (a) => {
+        expect(fromSchema(toSchema(a))).toEqual(a);
+      }),
+    );
     fc.assert(
       fc.property(fc.integer({ min: -10_000, max: 10_000 }), fc.integer({ min: 1, max: 10_000 }), (n, d) => {
         const once = toSchema(fromSchema({ num: n, den: d }));
