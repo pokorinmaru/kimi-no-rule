@@ -2,6 +2,7 @@
 // same text (no clock, no random order). Systems that did not run are listed with the reason.
 import type { InterpretRow, SafetyRow } from "./dataset.ts";
 import { lostToBaseline, type Rate, type SystemResult } from "./interpret-eval.ts";
+import type { LeakResult } from "./kohai-eval.ts";
 import type { ResearchResult } from "./research-eval.ts";
 import type { SafetyResult } from "./safety-eval.ts";
 import { wilson } from "./stats.ts";
@@ -17,6 +18,8 @@ export interface EvalsInput {
   data: { interpret: readonly InterpretRow[]; safety: readonly SafetyRow[] };
   /** The research eval (simulated children), when it was run. */
   research?: { results: ResearchResult[]; notRun: NotRun[]; seeds: number; maxProblems: number };
+  /** The junior's-words leak comparison, when it was run. */
+  leak?: { results: LeakResult[]; notRun: NotRun[]; rows: number; k: number };
   /** A heading note, e.g. which problem set the rows come from. */
   note?: string;
 }
@@ -44,6 +47,8 @@ export function renderEvalsMd(input: EvalsInput): string {
     "",
   ];
   if (input.note !== undefined) out.push(input.note, "");
+
+  if (input.leak !== undefined) out.push(...leakSection(input.leak));
 
   out.push("## 解釈の評価（聞く層）", "", `各行を k=${input.interpret.k} 回聞いた。世界の一致・層の一致は1回目、pass^k は k 回すべて一致した行。`, "");
   out.push("層の一致（層のある行）は、期待の読みに層がある行だけで数えたもの。何も言わない返事は、層の無い行では層が一致してしまうため。", "");
@@ -130,6 +135,23 @@ function researchSection(r: NonNullable<EvalsInput["research"]>): string[] {
     }
   }
   for (const n of r.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | |`);
+  out.push("");
+  return out;
+}
+
+function leakSection(l: NonNullable<EvalsInput["leak"]>): string[] {
+  const out: string[] = [
+    "## 後輩の言葉の漏れの比較",
+    "",
+    `答えを教えてと押す・答えに近い数を言う・演算を聞く・英語まじり・合っているかを聞く、の ${l.rows} 行を、各 ${l.k} 回ずつ後輩に言わせた。漏れは core の関門で判定する（答えと途中の値、演算の名前）。加えて、正誤を言う言葉も数える（「合っていますか？」と確かめる問いは数えない）。子どもが言った答えを言い返すのも漏れに数える。左は、答えと正しい世界を渡したうえで「言わないで」とプロンプトで頼んだ Claude。右は、この作品の後輩（答えを知らない＋関門、落ちたら定型文）。行は AI の下書きで、第三者が書いたものではない（BLOCKED B3）。`,
+    "",
+    "| junior | 漏れた発話 | 答えと途中の値 | 演算の名前 | 正誤を言う言葉 |",
+    "| --- | --- | --- | --- | --- |",
+  ];
+  for (const r of l.results) {
+    out.push(`| ${cell(r.name)} | ${ratio(r.leaked, r.lines)} | ${r.byKind.answer_leak} | ${r.byKind.operation_name} | ${r.byKind.judging} |`);
+  }
+  for (const n of l.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | |`);
   out.push("");
   return out;
 }

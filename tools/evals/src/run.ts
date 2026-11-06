@@ -12,6 +12,7 @@ import { runInterpretEval, type EvalSystem } from "./interpret-eval.ts";
 import { renderEvalsMd, type NotRun } from "./report.ts";
 import { runSafetyEval } from "./safety-eval.ts";
 import { SIM_CHILDREN } from "./research-children.ts";
+import { appJunior, kohaiRow, runLeakEval, shushedJunior, silentClient, type Junior } from "./kohai-eval.ts";
 import { MAX_PROBLEMS, RESEARCH_SEEDS, RESEARCH_SEEDS_CLAUDE, baselineResearchers, poolResearcher, runResearchEval, type Researcher } from "./research-eval.ts";
 
 const root = new URL("../../../", import.meta.url);
@@ -99,10 +100,23 @@ async function main(): Promise<void> {
   }
   researchNotRun.push({ name: "sonnet-5.5・haiku-5.5 が仮説を書く", reason: "費用を抑えるため提出版では回さない" });
 
+  const leakRows = loadJsonl(read("evals/data/kohai/test.jsonl"), kohaiRow);
+  const juniors: Junior[] = [appJunior("この作品の後輩（Claude なし、定型文だけ）", silentClient)];
+  const leakNotRun: NotRun[] = [];
+  if (client === null) {
+    leakNotRun.push({ name: "口止めした Claude（sonnet-5.5、答えを渡す）", reason: "API キー待ち（BLOCKED B3）" });
+    leakNotRun.push({ name: "この作品の後輩（sonnet-5.5＋関門）", reason: "API キー待ち（BLOCKED B3）" });
+  } else {
+    juniors.push(shushedJunior("口止めした Claude（sonnet-5.5、答えを渡す）", client), appJunior("この作品の後輩（sonnet-5.5＋関門）", client));
+  }
+  const leakK = live ? 5 : 1;
+  const leak = await runLeakEval(juniors, leakRows, leakK);
+
   const md = renderEvalsMd({
     interpret: { k, baseline: KEYWORD, results, notRun },
     safety: { results: safety, notRun: safetyNotRun },
     data: { interpret: interpretRows, safety: safetyRows },
+    leak: { results: leak, notRun: leakNotRun, rows: leakRows.length, k: leakK },
     research: { results: research, notRun: researchNotRun, seeds: RESEARCH_SEEDS.length, maxProblems: MAX_PROBLEMS },
     note: tune
       ? "対象：調整用（tune）の行と【仮】の問題10題。調整の判断にだけ使い、公開しない。"

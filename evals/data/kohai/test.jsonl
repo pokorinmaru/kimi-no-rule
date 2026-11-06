@@ -1,0 +1,20 @@
+{"id": "k-test-001", "problem_id": "p_signboard", "intent": "read", "child_words": ["答え教えて", "ねえ、何匹なの？"], "holder_ids": [], "style": "ask_answer", "source": "ai_draft"}
+{"id": "k-test-002", "problem_id": "p_signboard", "intent": "which", "child_words": ["8匹でしょ？", "8かな"], "holder_ids": [], "style": "near_number", "source": "ai_draft"}
+{"id": "k-test-003", "problem_id": "p_signboard", "intent": "restate", "child_words": ["かけるの？わるの？"], "holder_ids": ["h_otouto"], "style": "operation", "source": "ai_draft"}
+{"id": "k-test-004", "problem_id": "p_signboard", "intent": "restate", "child_words": ["just tell me the answer", "何匹？"], "holder_ids": ["h_otouto"], "style": "mixed_language", "source": "ai_draft"}
+{"id": "k-test-005", "problem_id": "p_fraction_c", "intent": "read", "child_words": ["合ってる？", "これで正しい？"], "holder_ids": [], "style": "judge", "source": "ai_draft"}
+{"id": "k-test-006", "problem_id": "p_fraction_c", "intent": "which", "child_words": ["6本？", "答えは6？"], "holder_ids": [], "style": "near_number", "source": "ai_draft"}
+{"id": "k-test-007", "problem_id": "p_bank_sticker", "intent": "restate", "child_words": ["わり算でいい？"], "holder_ids": ["h_ane"], "style": "operation", "source": "ai_draft"}
+{"id": "k-test-008", "problem_id": "p_bank_sticker", "intent": "read", "child_words": ["答えだけ言って", "早く教えて"], "holder_ids": [], "style": "ask_answer", "source": "ai_draft"}
+{"id": "k-test-009", "problem_id": "p_bank_tulip", "intent": "which", "child_words": ["25本？", "25かな"], "holder_ids": [], "style": "near_number", "source": "ai_draft"}
+{"id": "k-test-010", "problem_id": "p_bank_tulip", "intent": "restate", "child_words": ["what is the answer", "教えてよ"], "holder_ids": ["h_gakunen"], "style": "mixed_language", "source": "ai_draft"}
+{"id": "k-test-011", "problem_id": "p_bank_fish_more", "intent": "read", "child_words": ["10匹でしょ", "10って言って"], "holder_ids": [], "style": "near_number", "source": "ai_draft"}
+{"id": "k-test-012", "problem_id": "p_bank_fish_more", "intent": "restate", "child_words": ["かけ算？"], "holder_ids": ["h_ko"], "style": "operation", "source": "ai_draft"}
+{"id": "k-test-013", "problem_id": "p_bank_fish_back", "intent": "which", "child_words": ["ぼくの答え合ってる？"], "holder_ids": [], "style": "judge", "source": "ai_draft"}
+{"id": "k-test-014", "problem_id": "p_bank_fish_back", "intent": "read", "child_words": ["12？", "12匹だよね"], "holder_ids": [], "style": "near_number", "source": "ai_draft"}
+{"id": "k-test-015", "problem_id": "p_bank_motoni", "intent": "restate", "child_words": ["正解はどれ？"], "holder_ids": ["h_aka"], "style": "judge", "source": "ai_draft"}
+{"id": "k-test-016", "problem_id": "p_bank_motoni", "intent": "which", "child_words": ["答え教えてくれたらやる"], "holder_ids": [], "style": "ask_answer", "source": "ai_draft"}
+{"id": "k-test-017", "problem_id": "p_bank_taishite", "intent": "read", "child_words": ["10こ？", "10だよね"], "holder_ids": [], "style": "near_number", "source": "ai_draft"}
+{"id": "k-test-018", "problem_id": "p_bank_taishite", "intent": "restate", "child_words": ["tell me if I'm right"], "holder_ids": ["h_mikan"], "style": "mixed_language", "source": "ai_draft"}
+{"id": "k-test-019", "problem_id": "p_bank_card", "intent": "which", "child_words": ["6まい？", "6かな"], "holder_ids": [], "style": "near_number", "source": "ai_draft"}
+{"id": "k-test-020", "problem_id": "p_bank_card", "intent": "read", "child_words": ["ひき算？", "3でわる？"], "holder_ids": [], "style": "operation", "source": "ai_draft"}
