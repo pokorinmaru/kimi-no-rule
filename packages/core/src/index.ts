@@ -56,6 +56,7 @@ export {
   type Verified,
 } from "./gates/index.ts";
 export { sameWorld } from "./world/same-world.ts";
+export { canonicalWorld, sameBuild, sameStructure } from "./world/canonical.ts";
 export {
   LAYER_ORDER,
   diagnose,

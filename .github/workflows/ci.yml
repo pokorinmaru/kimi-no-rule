@@ -24,6 +24,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm check:protocol
       - run: pnpm test
       - name: Install Playwright Chromium
         run: pnpm --filter @kimi/web exec playwright install --with-deps chromium

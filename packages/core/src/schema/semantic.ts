@@ -4,6 +4,10 @@ import { PREFIX, type ElementKind, type Rational } from "./common.ts";
 import type { Op } from "./interpretation.ts";
 import type { Explanation } from "./explanation.ts";
 import type { WorldScene } from "./world-scene.ts";
+import type { Statement, syntaxMark } from "./problem-record.ts";
+import type { z } from "zod";
+
+type SyntaxMark = z.infer<typeof syntaxMark>;
 
 export type SemanticCode =
   | "duplicate_id"
@@ -11,7 +15,8 @@ export type SemanticCode =
   | "missing_ref"
   | "bad_denominator"
   | "missing_field"
-  | "self_relation";
+  | "self_relation"
+  | "bad_statement";
 
 export interface SemanticError {
   code: SemanticCode;
@@ -288,6 +293,69 @@ export function validateExplanation(w: WorldScene, x: Explanation): SemanticResu
   const index = kindIndex(w);
   x.mentioned_elements.forEach((id, i) => {
     if (!index.has(id)) errors.push({ code: "missing_ref", path: `mentioned_elements[${i}]`, message: `${id} does not exist` });
+  });
+  return result(errors);
+}
+
+/**
+ * The meaning check of a problem's sentence list and syntax marks (指示書 第5.1節, 第6.6節 step 5):
+ * the sentences make up the problem text, their tokens make up each sentence, every id exists, one
+ * sentence asks the question, every given element is named somewhere, and each mark sits on its tokens.
+ */
+export function validateStatements(w: WorldScene, statements: readonly Statement[], marks: readonly SyntaxMark[]): SemanticResult {
+  const errors: SemanticError[] = [];
+  const bad = (path: string, message: string): void => {
+    errors.push({ code: "bad_statement", path, message });
+  };
+  const index = kindIndex(w);
+  // The sentences appear in the problem text in order without overlapping; text around them (a frame such
+  // as a signboard's quotation marks) need not be a sentence (Q25).
+  let from = 0;
+  for (const s of statements) {
+    const at = s.text === "" ? -1 : w.problem_text.indexOf(s.text, from);
+    if (at < 0) {
+      bad("statements", "the sentences are not in the problem text in order");
+      break;
+    }
+    from = at + s.text.length;
+  }
+  statements.forEach((s, i) => {
+    const p = `statements[${i}]`;
+    if (s.index !== i) bad(`${p}.index`, `index ${s.index} should be ${i}`);
+    if (s.tokens.length === 0) bad(`${p}.tokens`, "no tokens");
+    else if (s.tokens.join("") !== s.text) bad(`${p}.tokens`, "the tokens do not make up the sentence");
+    s.element_ids.forEach((id, j) => {
+      if (!index.has(id)) errors.push({ code: "missing_ref", path: `${p}.element_ids[${j}]`, message: `${id} does not exist` });
+    });
+    if (s.speaker_holder_id !== null && index.get(s.speaker_holder_id) !== "holder") {
+      errors.push({ code: "missing_ref", path: `${p}.speaker_holder_id`, message: `${s.speaker_holder_id} is not a holder` });
+    }
+  });
+  const questions = statements.filter((s) => s.is_question);
+  if (questions.length !== 1) bad("statements", `${questions.length} sentences ask the question, expected 1`);
+  else if (!questions[0]?.element_ids.includes(w.question.target_id)) bad("statements", `the question sentence does not name ${w.question.target_id}`);
+
+  const named = new Set(statements.flatMap((s) => s.element_ids));
+  const given = [
+    ...w.quantities.filter((q) => q.value !== null).map((q) => q.id),
+    ...w.relations.map((r) => r.id),
+    ...w.events.map((e) => e.id),
+  ];
+  for (const id of given) if (!named.has(id)) bad("statements", `${id} is in no sentence`);
+
+  marks.forEach((m, i) => {
+    const p = `syntax_marks[${i}]`;
+    const s = statements[m.statement_index];
+    if (s === undefined) {
+      bad(`${p}.statement_index`, `no sentence ${m.statement_index}`);
+      return;
+    }
+    if (m.token_start < 0 || m.token_start > m.token_end || m.token_end >= s.tokens.length) {
+      bad(`${p}.token_start`, `tokens ${m.token_start}..${m.token_end} are outside the sentence`);
+    } else if (s.tokens.slice(m.token_start, m.token_end + 1).join("") !== m.word) {
+      bad(`${p}.word`, `the word is not the marked tokens`);
+    }
+    if (m.element_id !== null && !index.has(m.element_id)) errors.push({ code: "missing_ref", path: `${p}.element_id`, message: `${m.element_id} does not exist` });
   });
   return result(errors);
 }

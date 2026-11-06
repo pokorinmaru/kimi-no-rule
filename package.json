@@ -11,7 +11,11 @@
     "typecheck": "pnpm -r --parallel exec tsc --noEmit && tsc --noEmit -p .claude/hooks",
     "lint": "eslint .",
     "e2e": "pnpm --filter @kimi/web e2e",
-    "prepare": "git config core.hooksPath .githooks || true"
+    "prepare": "git config core.hooksPath .githooks || true",
+    "eval": "pnpm --filter @kimi/evals eval",
+    "eval:live": "pnpm --filter @kimi/evals eval:live",
+    "check:protocol": "node tools/evals/src/check-protocol.ts",
+    "build:problems": "pnpm --filter @kimi/world-builder build:problems"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

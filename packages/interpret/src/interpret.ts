@@ -125,13 +125,14 @@ function parseJson<T>(text: string, schema: z.ZodType<T>): Parsed<T> {
   }
 }
 
-export async function interpret(input: InterpretInput, client: ClaudeClient, opts: { timeoutMs?: number } = {}): Promise<InterpretResult> {
+/** `model` is for the eval only (指示書 第10.1節 compares models); the app always listens with Haiku. */
+export async function interpret(input: InterpretInput, client: ClaudeClient, opts: { timeoutMs?: number; model?: string } = {}): Promise<InterpretResult> {
   try {
     const world = input.record.world;
     const scoped = problemScopedSchemas(world, input.record.statements);
     const result = await callChecked(
       client,
-      MODELS.listen,
+      opts.model ?? MODELS.listen,
       INTERPRET_SYSTEM,
       contextOf(input.record),
       userTextOf(input),
