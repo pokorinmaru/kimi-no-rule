@@ -77,7 +77,7 @@ export function worldWithoutLaterCount(): WorldScene {
 /** The main world with a quantity whose id is already q_new1. */
 export function worldWithTakenId(): WorldScene {
   const w = worldW();
-  w.quantities.push({ id: "q_new1", holder: "h_a", item_kind: "k_other", at_event: null, value: num(7) });
+  w.quantities.push({ id: "q_new1", holder: "h_b", item_kind: "k_other", at_event: null, value: num(7) });
   return w;
 }
 

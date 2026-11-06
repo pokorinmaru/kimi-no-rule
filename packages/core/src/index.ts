@@ -28,3 +28,10 @@ export {
   type ImpossibleReason,
   type SolveResult,
 } from "./solve/index.ts";
+export {
+  MAX_VALUE_UTTERANCES,
+  apply,
+  type ApplyInput,
+  type ApplyResult,
+  type Resolution,
+} from "./apply/index.ts";
