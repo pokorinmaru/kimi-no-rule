@@ -387,3 +387,124 @@ describe("each kind of mark opens only its own door (found in security review)",
     expect(reasons(res)).toContain("unverified");
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// Found in the safety review: ways around the gates (指示書 第1節 原則1, 第5.5節)
+// ---------------------------------------------------------------------------------------------
+
+describe("operation names in other forms are refused", () => {
+  it.each(["6に3/4を足してみよう", "たしてみよう", "引いてみたら", "ひいたら", "かけてみると", "掛けた数", "割ってみると", "わってみると", "わったら"])(
+    "ja: %s",
+    (text) => {
+      expect(reasons(gate(say(text), ctx()))).toContain("operation_name");
+    },
+  );
+
+  it.each(["6+2", "6＋2", "6-2", "6－2", "6*2", "6x2"])("a sign between numbers: %s", (text) => {
+    expect(reasons(gate(say(text), ctx()))).toContain("operation_name");
+  });
+
+  it.each(["he adds them", "it multiplies", "she divides", "subtracts", "ＴＩＭＥＳ", "the sum", "the product", "the quotient", "the difference", "take away three"])(
+    "en: %s",
+    (text) => {
+      expect(reasons(gate(say(text), ctx({ lang: "en" })))).toContain("operation_name");
+    },
+  );
+
+  it("the words of checking again are not an operation", () => {
+    expect(gate(say("もう1回、文をたしかめますか？"), ctx())).toEqual({ ok: true });
+  });
+
+  it("a word inside a longer word of the problem text does not excuse the operation", () => {
+    const correct = structuredClone(signboardCorrect);
+    correct.problem_text = correct.problem_text + "兄はでかける前に数えました。";
+    expect(reasons(gate(say("かけてみよう"), ctx({ correct })))).toContain("operation_name");
+  });
+});
+
+describe("the gate stays closed when the correct world cannot be solved", () => {
+  it("refuses to speak about a world that contradicts itself", () => {
+    const correct = structuredClone(signboardCorrect);
+    correct.quantities = correct.quantities.map((q) => (q.id === "q_otouto" ? { ...q, value: num(9) } : q));
+    expect(gate(say("8"), ctx({ correct })).ok).toBe(false);
+  });
+});
+
+describe("more ways of writing the answer are caught", () => {
+  it.each([
+    ["1,000", 1000],
+    ["１，０００", 1000],
+    ["1万2千", 12000],
+    ["2万", 20000],
+    ["3百", 300],
+    ["三億", 300000000],
+  ])("%s reads as %d", (text, n) => {
+    expect(numbersIn(text).some((r) => r.num === n && r.den === 1)).toBe(true);
+  });
+
+  it.each([
+    ["¾", 3, 4],
+    ["3⁄4", 3, 4],
+    ["1と3/4", 7, 4],
+    ["2 1/2", 5, 2],
+    [".75", 3, 4],
+    ["75%", 3, 4],
+    ["-3", -3, 1],
+    ["半分", 1, 2],
+    ["a half", 1, 2],
+    ["three quarters", 3, 4],
+    ["twice", 2, 1],
+    ["a dozen", 12, 1],
+  ])("%s reads as %d/%d", (text, n, d) => {
+    expect(numbersIn(text).some((r) => r.num === n && r.den === d)).toBe(true);
+  });
+});
+
+describe("a word in the problem text that holds a numeral does not excuse the answer", () => {
+  it("一人 in the problem text does not let 1 through when 1 is a hidden value", () => {
+    const correct = structuredClone(signboardCorrect);
+    correct.problem_text = correct.problem_text + "兄は一人で数えました。";
+    // The answer 8 is hidden; the ratio 3/4 and the 6 are given; 1 is not a value here, so test 8 written as a word.
+    expect(reasons(gate(say("八"), ctx({ correct })))).toContain("answer_leak");
+  });
+});
+
+describe("a marked world cannot be changed afterwards", () => {
+  it("the marked correct world and drawing world are frozen", () => {
+    const correct = verifiedCorrectWorld(structuredClone(signboardCorrect));
+    expect(Object.isFrozen(correct)).toBe(true);
+    expect(Object.isFrozen(correct.quantities[0])).toBe(true);
+    const child = apply({ correct: structuredClone(signboardCorrect), ops: [op.swap("r_ratio")] });
+    const drawn = verifiedDrawWorld(child);
+    expect(Object.isFrozen(drawn.quantities[1])).toBe(true);
+  });
+});
+
+describe("show_world also looks at the numbers in the world", () => {
+  it("refuses a drawing world that holds a value the child did not say", () => {
+    const child = apply({ correct: structuredClone(signboardCorrect), ops: [op.answer("q_otouto", num(8))] });
+    const drawn = verifiedDrawWorld(child);
+    // The child said 8, so it may be drawn.
+    expect(gate({ kind: "show_world", world: drawn, labels: [] }, ctx({ childSaid: { numbers: [num(8)], words: [] } }))).toEqual({ ok: true });
+    // The same world when the child's words are not known to the gate is refused.
+    expect(reasons(gate({ kind: "show_world", world: drawn, labels: [] }, ctx()))).toContain("answer_leak");
+  });
+});
+
+describe("found in review: what a label and an echo may carry", () => {
+  it("a label may carry only a number of the problem or one the child said", () => {
+    const child = apply({ correct: structuredClone(signboardCorrect), ops: [op.swap("r_ratio")] });
+    const shown = { kind: "show_world" as const, world: verifiedDrawWorld(child), labels: [{ element_id: "q_ani", value: num(9) }] };
+    expect(reasons(gate(shown, ctx()))).toContain("answer_leak");
+  });
+
+  it("the answer the child said passes only when handed back as the child's words", () => {
+    const c = ctx({ childSaid: { numbers: [num(8)], words: [] } });
+    expect(reasons(gate(say("8"), c))).toContain("answer_leak");
+    expect(gate(say("8", true), c)).toEqual({ ok: true });
+  });
+
+  it("4と2分の1 reads as 9/2", () => {
+    expect(numbersIn("4と2分の1").some((r) => r.num === 9 && r.den === 2)).toBe(true);
+  });
+});

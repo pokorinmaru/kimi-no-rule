@@ -142,3 +142,20 @@ describe("same_world: signboard (指示書 第11節 M1)", () => {
     expect(sameWorld(signboardProcedural, signboardAdditive)).toBe(false);
   });
 });
+
+describe("found in review: values that are solved, not given (Q19)", () => {
+  it("an asked times relation: swapping its ends changes the answer, so the worlds differ", () => {
+    const w = pairWorld(5, [rel("r_1", "times", "q_b", "q_a", null)]);
+    w.quantities = w.quantities.map((q) => (q.id === "q_b" ? { ...q, value: num(15) } : q));
+    w.question = { target_type: "relation_amount", target_id: "r_1" };
+    expect(sameWorld(w, editRelation(w, "r_1", swapEnds))).toBe(false);
+  });
+
+  it("two worlds that contradict themselves in different places are not the same", () => {
+    const a = pairWorld(5, [rel("r_1", "more_by", "q_b", "q_a", num(3)), rel("r_2", "same_as", "q_b", "q_a", null)]);
+    const b = pairWorld(5, [rel("r_1", "more_by", "q_b", "q_a", num(3)), rel("r_2", "less_by", "q_b", "q_a", num(3))]);
+    b.relations = b.relations.map((r) => (r.id === "r_2" ? { ...r, operator: "same_as", amount: null } : r));
+    b.quantities = b.quantities.map((q) => (q.id === "q_b" ? { ...q, value: num(1) } : q));
+    expect(sameWorld(a, b)).toBe(false);
+  });
+});

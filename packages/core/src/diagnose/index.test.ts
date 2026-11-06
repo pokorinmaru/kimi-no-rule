@@ -388,3 +388,18 @@ describe("diagnose: signboard (指示書 第11節 M1)", () => {
     expect(ops).toEqual(before);
   });
 });
+
+describe("found in review: procedures and explicit words", () => {
+  it("a procedure on a middle count is not compared with the final answer", () => {
+    const r = twoStepRecord();
+    const d = run(r, [op.procedure("q_m", [{ quantity_id: "q_a" }, num(2)], "add")], all(r));
+    expect(d.layers).not.toContain("calculation");
+    expect(d.layers).not.toContain("operation_choice");
+  });
+
+  it("words on a relation count as touching it even when there is also a procedure", () => {
+    const ops = [op.procedure("q_b", [{ quantity_id: "q_a" }, num(3)], "add"), op.answer("q_b", num(2))];
+    const d = run(D, ops, { phrases: ["r_1"] });
+    expect(d.layers).not.toContain("operation_choice");
+  });
+});

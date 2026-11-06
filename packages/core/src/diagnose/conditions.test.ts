@@ -149,3 +149,13 @@ describe("conditions: signboard (指示書 第11節 M1)", () => {
     expect(sameWorld(signboardAdditive, signboardCorrect)).toBe(false);
   });
 });
+
+describe("found in review: an asked relation amount", () => {
+  it("the candidate that swaps the ends of 'how many times' is not the same as the correct world", () => {
+    const w = pairWorld(5, [rel("r_1", "times", "q_b", "q_a", null)]);
+    w.quantities = w.quantities.map((q) => (q.id === "q_b" ? { ...q, value: num(15) } : q));
+    w.question = { target_type: "relation_amount", target_id: "r_1" };
+    const res = problemConditions(record(w, [stmt(0, ["q_a", "q_b", "r_1"]), stmt(1, ["r_1"], true)]));
+    expect(res.failures.map((f) => f.code)).not.toContain("candidate_same_as_correct");
+  });
+});
