@@ -1,0 +1,101 @@
+{
+  "schema_version": "1",
+  "world": {
+    "schema_version": "3",
+    "problem_id": "p_cmp_acorn",
+    "problem_type": "compare",
+    "problem_text": "うさぎはどんぐりを7こ拾いました。たぬきはうさぎより3こ多く拾いました。たぬきは何こ拾いましたか。",
+    "grade": 1,
+    "problem_lang": "ja",
+    "holders": [
+      {
+        "id": "h_usagi",
+        "label": "うさぎ"
+      },
+      {
+        "id": "h_tanuki",
+        "label": "たぬき"
+      }
+    ],
+    "item_kinds": [
+      {
+        "id": "k_acorn",
+        "noun": "どんぐり",
+        "counter": "こ",
+        "asset_key": null,
+        "countable": true
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_usagi",
+        "holder": "h_usagi",
+        "item_kind": "k_acorn",
+        "at_event": null,
+        "value": {
+          "num": 7,
+          "den": 1
+        }
+      },
+      {
+        "id": "q_tanuki",
+        "holder": "h_tanuki",
+        "item_kind": "k_acorn",
+        "at_event": null,
+        "value": null
+      }
+    ],
+    "relations": [
+      {
+        "id": "r_more",
+        "operator": "more_by",
+        "subject": "q_tanuki",
+        "reference": "q_usagi",
+        "reference_list": null,
+        "amount": {
+          "num": 3,
+          "den": 1
+        },
+        "other_description": null
+      }
+    ],
+    "events": [],
+    "question": {
+      "target_type": "quantity",
+      "target_id": "q_tanuki"
+    },
+    "word_links": [
+      {
+        "phrase": "多く",
+        "lang": "ja",
+        "element_id": "r_more"
+      }
+    ]
+  },
+  "consistency": "consistent",
+  "pair_id": null,
+  "source": "prepared",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.75,
+    "human_checked": true
+  },
+  "expected_answer": {
+    "num": 10,
+    "den": 1
+  },
+  "statements": [
+    {
+      "index": 0,
+      "text": "うさぎはどんぐりを7こ拾いました。",
+      "element_ids": [
+        "q_usagi"
+      ],
+      "is_question": false,
+      "speaker_holder_id": "h_usagi"
+    }
+  ],
+  "syntax_marks": [],
+  "companion_ids": []
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "6",
+  "utterance_lang": "ja",
+  "representable": "full",
+  "ops": [
+    {
+      "op": "add_event",
+      "new_id": "n_1",
+      "event_type": "gain",
+      "holder": "h_penguin",
+      "item_kind": "k_fish",
+      "number": null,
+      "evidence": ""
+    }
+  ],
+  "unclear": [],
+  "phrases": []
+}

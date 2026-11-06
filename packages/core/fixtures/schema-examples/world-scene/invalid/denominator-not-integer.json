@@ -1,0 +1,72 @@
+{
+  "schema_version": "3",
+  "problem_id": "p_rat_tape",
+  "problem_type": "ratio",
+  "problem_text": "赤いリボンは12mです。青いリボンの長さは赤いリボンの2/3です。青いリボンは何mですか。",
+  "grade": 5,
+  "problem_lang": "ja",
+  "holders": [
+    {
+      "id": "h_red_ribbon",
+      "label": "赤いリボン"
+    },
+    {
+      "id": "h_blue_ribbon",
+      "label": "青いリボン"
+    }
+  ],
+  "item_kinds": [
+    {
+      "id": "k_length",
+      "noun": "長さ",
+      "counter": "m",
+      "asset_key": null,
+      "countable": false
+    }
+  ],
+  "quantities": [
+    {
+      "id": "q_red_len",
+      "holder": "h_red_ribbon",
+      "item_kind": "k_length",
+      "at_event": null,
+      "value": {
+        "num": 12,
+        "den": 1
+      }
+    },
+    {
+      "id": "q_blue_len",
+      "holder": "h_blue_ribbon",
+      "item_kind": "k_length",
+      "at_event": null,
+      "value": null
+    }
+  ],
+  "relations": [
+    {
+      "id": "r_part",
+      "operator": "fraction_of",
+      "subject": "q_blue_len",
+      "reference": "q_red_len",
+      "reference_list": null,
+      "amount": {
+        "num": 2,
+        "den": 1.5
+      },
+      "other_description": null
+    }
+  ],
+  "events": [],
+  "question": {
+    "target_type": "quantity",
+    "target_id": "q_blue_len"
+  },
+  "word_links": [
+    {
+      "phrase": "の2/3",
+      "lang": "ja",
+      "element_id": "r_part"
+    }
+  ]
+}

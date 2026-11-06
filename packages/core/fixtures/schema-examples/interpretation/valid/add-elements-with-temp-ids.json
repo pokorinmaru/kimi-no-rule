@@ -1,0 +1,58 @@
+{
+  "schema_version": "6",
+  "utterance_lang": "ja",
+  "representable": "partial",
+  "ops": [
+    {
+      "op": "add_holder",
+      "new_id": "n_1",
+      "label": "くま",
+      "evidence": "くまもいる"
+    },
+    {
+      "op": "add_item_kind",
+      "new_id": "n_2",
+      "label": "はちみつ",
+      "evidence": ""
+    },
+    {
+      "op": "add_quantity",
+      "new_id": "n_3",
+      "holder": "n_1",
+      "item_kind": "n_2",
+      "at_event": null,
+      "number": null,
+      "evidence": ""
+    },
+    {
+      "op": "add_event",
+      "new_id": "n_4",
+      "event_type": "move",
+      "holder": "h_kitsune",
+      "item_kind": "k_chestnut",
+      "number": {
+        "num": 2,
+        "den": 1
+      },
+      "to_holder": "n_1",
+      "evidence": ""
+    },
+    {
+      "op": "add_relation",
+      "new_id": "n_5",
+      "operator": "total_of",
+      "subject": "q_all",
+      "reference": null,
+      "reference_list": [
+        "q_red",
+        "q_white"
+      ],
+      "number": null,
+      "evidence": "あわせて"
+    }
+  ],
+  "unclear": [
+    "q_white"
+  ],
+  "phrases": []
+}

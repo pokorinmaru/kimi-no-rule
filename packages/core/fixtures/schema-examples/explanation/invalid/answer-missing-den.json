@@ -1,0 +1,11 @@
+{
+  "schema_version": "2",
+  "utterance_lang": "ja",
+  "kind": "expression",
+  "tokens": [],
+  "answer": {
+    "num": 3
+  },
+  "mentioned_elements": [],
+  "evidence": ""
+}

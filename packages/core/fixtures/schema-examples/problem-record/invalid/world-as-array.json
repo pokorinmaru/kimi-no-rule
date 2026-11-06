@@ -1,0 +1,20 @@
+{
+  "schema_version": "1",
+  "world": [],
+  "consistency": "consistent",
+  "pair_id": null,
+  "source": "prepared",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.75,
+    "human_checked": true
+  },
+  "expected_answer": {
+    "num": 10,
+    "den": 1
+  },
+  "statements": [],
+  "syntax_marks": [],
+  "companion_ids": []
+}

@@ -1,0 +1,68 @@
+{
+  "schema_version": "3",
+  "problem_id": "p_chg_fish",
+  "problem_type": "change",
+  "problem_text": "ぺんぎんは魚を4ひき持っていました。何びきかもらったので、10ぴきになりました。何びきもらいましたか。",
+  "grade": 2,
+  "problem_lang": "ja",
+  "holders": [
+    {
+      "id": "h_penguin",
+      "label": "ぺんぎん"
+    }
+  ],
+  "item_kinds": [
+    {
+      "id": "k_fish",
+      "noun": "魚",
+      "counter": "ひき",
+      "asset_key": null,
+      "countable": true
+    }
+  ],
+  "quantities": [
+    {
+      "id": "q_fish_0",
+      "holder": "h_penguin",
+      "item_kind": "k_fish",
+      "at_event": null,
+      "value": {
+        "num": 4,
+        "den": 1
+      }
+    },
+    {
+      "id": "q_fish_1",
+      "holder": "h_penguin",
+      "item_kind": "k_fish",
+      "at_event": "e_get",
+      "value": {
+        "num": 10,
+        "den": 1
+      }
+    }
+  ],
+  "relations": [],
+  "events": [
+    {
+      "id": "e_get",
+      "order": 1,
+      "type": "gain",
+      "holder": "h_penguin",
+      "item_kind": "k_fish",
+      "amount": null,
+      "to_holder": null
+    }
+  ],
+  "question": {
+    "target_type": "event_amount",
+    "target_id": "e_get"
+  },
+  "word_links": [
+    {
+      "phrase": "もらった",
+      "lang": "ja",
+      "element_id": "e_get"
+    }
+  ]
+}

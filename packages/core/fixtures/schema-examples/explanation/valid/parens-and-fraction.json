@@ -1,0 +1,44 @@
+{
+  "schema_version": "2",
+  "utterance_lang": "en",
+  "kind": "expression",
+  "tokens": [
+    {
+      "type": "paren_open",
+      "number": null,
+      "operator": null
+    },
+    {
+      "type": "number",
+      "number": {
+        "num": 12,
+        "den": 1
+      },
+      "operator": null
+    },
+    {
+      "type": "operator",
+      "number": null,
+      "operator": "*"
+    },
+    {
+      "type": "number",
+      "number": {
+        "num": 2,
+        "den": 3
+      },
+      "operator": null
+    },
+    {
+      "type": "paren_close",
+      "number": null,
+      "operator": null
+    }
+  ],
+  "answer": {
+    "num": 8,
+    "den": 1
+  },
+  "mentioned_elements": [],
+  "evidence": ""
+}

@@ -1,0 +1,11 @@
+{
+  "intent": "read",
+  "utterance": "どんぐりの数を、こう読みました。",
+  "refers_to": [
+    "h_usagi",
+    "k_acorn",
+    "e_give",
+    "q_tanuki"
+  ],
+  "lang": "ja"
+}

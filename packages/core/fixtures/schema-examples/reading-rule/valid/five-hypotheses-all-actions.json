@@ -1,0 +1,111 @@
+{
+  "schema_version": "2",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "consistency_is",
+            "args": [
+              "inconsistent"
+            ]
+          },
+          "then": {
+            "action": "set_relation_type_additive",
+            "amount": "numerator"
+          }
+        }
+      ],
+      "word_cues": [
+        "additive_reading"
+      ],
+      "note_for_adult": "test note"
+    },
+    {
+      "id": "h2",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "numbers_compare",
+            "args": [
+              "larger_is_known"
+            ]
+          },
+          "then": {
+            "action": "number_op",
+            "mode": "divide_large_by_small"
+          }
+        }
+      ],
+      "word_cues": [
+        "operation_by_size"
+      ],
+      "note_for_adult": "test note"
+    },
+    {
+      "id": "h3",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "ratio_kind_is",
+            "args": [
+              "lt1"
+            ]
+          },
+          "then": {
+            "action": "invert_ratio"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "test note"
+    },
+    {
+      "id": "h4",
+      "origin": "first_language",
+      "clauses": [
+        {
+          "when": {
+            "pred": "relation_operator_is",
+            "args": [
+              "more_by"
+            ]
+          },
+          "then": {
+            "action": "flip_event"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "test note"
+    },
+    {
+      "id": "h5",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "reference_is",
+            "args": [
+              "asked"
+            ]
+          },
+          "then": {
+            "action": "misread_question",
+            "target": "other_holder"
+          }
+        }
+      ],
+      "word_cues": [
+        "keyword_subtract",
+        "keyword_multiply"
+      ],
+      "note_for_adult": "test note"
+    }
+  ],
+  "unexpressible": []
+}

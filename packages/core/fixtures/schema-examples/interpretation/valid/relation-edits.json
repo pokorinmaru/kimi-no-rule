@@ -1,0 +1,44 @@
+{
+  "schema_version": "6",
+  "utterance_lang": "ja",
+  "representable": "full",
+  "ops": [
+    {
+      "op": "set_relation_amount",
+      "target_id": "r_more",
+      "number": {
+        "num": 3,
+        "den": 1
+      },
+      "evidence": ""
+    },
+    {
+      "op": "set_relation_operator",
+      "target_id": "r_more",
+      "operator": "less_by",
+      "evidence": "すくない"
+    },
+    {
+      "op": "swap_relation_direction",
+      "target_id": "r_more",
+      "evidence": ""
+    },
+    {
+      "op": "set_relation_reference",
+      "target_id": "r_more",
+      "reference": "q_tanuki",
+      "evidence": ""
+    },
+    {
+      "op": "set_unit_value",
+      "target_id": "r_part",
+      "number": {
+        "num": 4,
+        "den": 1
+      },
+      "evidence": "ひとつ分は4"
+    }
+  ],
+  "unclear": [],
+  "phrases": []
+}

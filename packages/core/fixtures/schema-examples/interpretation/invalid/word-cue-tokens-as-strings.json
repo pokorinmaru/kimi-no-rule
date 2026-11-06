@@ -1,0 +1,17 @@
+{
+  "schema_version": "6",
+  "utterance_lang": "ja",
+  "representable": "full",
+  "ops": [
+    {
+      "op": "word_cue",
+      "statement_index": 0,
+      "tokens": [
+        "2"
+      ],
+      "evidence": ""
+    }
+  ],
+  "unclear": [],
+  "phrases": []
+}

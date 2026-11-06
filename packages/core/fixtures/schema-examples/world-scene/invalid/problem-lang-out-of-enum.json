@@ -1,0 +1,75 @@
+{
+  "schema_version": "3",
+  "problem_id": "p_rate_cart",
+  "problem_type": "rate",
+  "problem_text": "A toy cart rolls 250 m every minute. How far does it roll in 6 minutes?",
+  "grade": 5,
+  "problem_lang": "de",
+  "holders": [
+    {
+      "id": "h_cart",
+      "label": "toy cart"
+    }
+  ],
+  "item_kinds": [
+    {
+      "id": "k_distance",
+      "noun": "distance",
+      "counter": "m",
+      "asset_key": null,
+      "countable": false
+    },
+    {
+      "id": "k_time",
+      "noun": "time",
+      "counter": "min",
+      "asset_key": null,
+      "countable": false
+    }
+  ],
+  "quantities": [
+    {
+      "id": "q_dist",
+      "holder": "h_cart",
+      "item_kind": "k_distance",
+      "at_event": null,
+      "value": null
+    },
+    {
+      "id": "q_time",
+      "holder": "h_cart",
+      "item_kind": "k_time",
+      "at_event": null,
+      "value": {
+        "num": 6,
+        "den": 1
+      }
+    }
+  ],
+  "relations": [
+    {
+      "id": "r_speed",
+      "operator": "per",
+      "subject": "q_dist",
+      "reference": "q_time",
+      "reference_list": null,
+      "amount": {
+        "num": 250,
+        "den": 1
+      },
+      "other_description": null
+    }
+  ],
+  "events": [],
+  "question": {
+    "target_type": "quantity",
+    "target_id": "q_dist"
+  },
+  "word_links": [
+    {
+      "phrase": "every minute",
+      "lang": "en",
+      "element_id": "r_speed"
+    }
+  ]
+}

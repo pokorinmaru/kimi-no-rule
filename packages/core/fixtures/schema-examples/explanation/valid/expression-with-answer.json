@@ -1,0 +1,50 @@
+{
+  "schema_version": "2",
+  "utterance_lang": "ja",
+  "kind": "expression",
+  "tokens": [
+    {
+      "type": "number",
+      "number": {
+        "num": 7,
+        "den": 1
+      },
+      "operator": null
+    },
+    {
+      "type": "operator",
+      "number": null,
+      "operator": "+"
+    },
+    {
+      "type": "number",
+      "number": {
+        "num": 3,
+        "den": 1
+      },
+      "operator": null
+    },
+    {
+      "type": "operator",
+      "number": null,
+      "operator": "="
+    },
+    {
+      "type": "number",
+      "number": {
+        "num": 10,
+        "den": 1
+      },
+      "operator": null
+    }
+  ],
+  "answer": {
+    "num": 10,
+    "den": 1
+  },
+  "mentioned_elements": [
+    "q_usagi",
+    "r_more"
+  ],
+  "evidence": "7たす3で10"
+}

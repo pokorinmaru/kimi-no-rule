@@ -1,0 +1,29 @@
+{
+  "schema_version": "6",
+  "utterance_lang": "ja",
+  "representable": "full",
+  "ops": [
+    {
+      "op": "state_procedure",
+      "target_id": "q_dist",
+      "operands": [
+        {
+          "num": 1,
+          "den": 1
+        },
+        {
+          "num": 2,
+          "den": 1
+        },
+        {
+          "num": 3,
+          "den": 1
+        }
+      ],
+      "operation": "add",
+      "evidence": ""
+    }
+  ],
+  "unclear": [],
+  "phrases": []
+}

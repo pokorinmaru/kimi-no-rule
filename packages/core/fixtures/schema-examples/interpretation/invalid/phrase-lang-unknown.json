@@ -1,0 +1,24 @@
+{
+  "schema_version": "6",
+  "utterance_lang": "ja",
+  "representable": "full",
+  "ops": [
+    {
+      "op": "set_quantity",
+      "target_id": "q_tanuki",
+      "number": {
+        "num": 10,
+        "den": 1
+      },
+      "evidence": ""
+    }
+  ],
+  "unclear": [],
+  "phrases": [
+    {
+      "phrase": "x",
+      "lang": "unknown",
+      "element_id": "q_tanuki"
+    }
+  ]
+}

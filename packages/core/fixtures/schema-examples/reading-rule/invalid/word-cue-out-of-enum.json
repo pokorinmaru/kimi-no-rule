@@ -1,0 +1,25 @@
+{
+  "schema_version": "2",
+  "hypotheses": [
+    {
+      "id": "x",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "no_change"
+          }
+        }
+      ],
+      "word_cues": [
+        "guess"
+      ],
+      "note_for_adult": "test note"
+    }
+  ],
+  "unexpressible": []
+}

@@ -1,0 +1,8 @@
+{
+  "intent": "read",
+  "utterance": "どんぐりの数を、こう読みました。",
+  "refers_to": [
+    "x_1"
+  ],
+  "lang": "ja"
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": "2",
+  "utterance_lang": "ja",
+  "kind": "reason",
+  "tokens": [],
+  "answer": null,
+  "mentioned_elements": [
+    "r_part"
+  ],
+  "evidence": "赤い方をもとにしたから"
+}

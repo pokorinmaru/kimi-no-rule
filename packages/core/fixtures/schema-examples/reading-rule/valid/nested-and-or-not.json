@@ -1,0 +1,69 @@
+{
+  "schema_version": "2",
+  "hypotheses": [
+    {
+      "id": "hyp_b",
+      "origin": "japanese_reading",
+      "clauses": [
+        {
+          "when": {
+            "op": "and",
+            "args": [
+              {
+                "pred": "problem_type_is",
+                "args": [
+                  "ratio"
+                ]
+              },
+              {
+                "op": "not",
+                "arg": {
+                  "pred": "ratio_is_unit_fraction",
+                  "args": []
+                }
+              },
+              {
+                "op": "or",
+                "args": [
+                  {
+                    "pred": "word_in_statement",
+                    "args": [
+                      "の"
+                    ]
+                  },
+                  {
+                    "pred": "word_before_ratio",
+                    "args": [
+                      "より"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {
+            "action": "swap_reference"
+          }
+        },
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "no_change"
+          }
+        }
+      ],
+      "word_cues": [
+        {
+          "kind": "problem_word",
+          "word": "の"
+        },
+        "none"
+      ],
+      "note_for_adult": "test note"
+    }
+  ],
+  "unexpressible": []
+}

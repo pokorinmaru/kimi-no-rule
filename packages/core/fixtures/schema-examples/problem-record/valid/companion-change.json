@@ -1,0 +1,116 @@
+{
+  "schema_version": "1",
+  "world": {
+    "schema_version": "3",
+    "problem_id": "p_chg_chestnut",
+    "problem_type": "change",
+    "problem_text": "きつねはくりを9こ持っています。りすに4こあげました。きつねのくりは何こになりましたか。",
+    "grade": 1,
+    "problem_lang": "ja",
+    "holders": [
+      {
+        "id": "h_kitsune",
+        "label": "きつね"
+      },
+      {
+        "id": "h_risu",
+        "label": "りす"
+      }
+    ],
+    "item_kinds": [
+      {
+        "id": "k_chestnut",
+        "noun": "くり",
+        "counter": "こ",
+        "asset_key": "chestnut",
+        "countable": true
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_kitsune_0",
+        "holder": "h_kitsune",
+        "item_kind": "k_chestnut",
+        "at_event": null,
+        "value": {
+          "num": 9,
+          "den": 1
+        }
+      },
+      {
+        "id": "q_kitsune_1",
+        "holder": "h_kitsune",
+        "item_kind": "k_chestnut",
+        "at_event": "e_give",
+        "value": null
+      }
+    ],
+    "relations": [],
+    "events": [
+      {
+        "id": "e_give",
+        "order": 1,
+        "type": "move",
+        "holder": "h_kitsune",
+        "item_kind": "k_chestnut",
+        "amount": {
+          "num": 4,
+          "den": 1
+        },
+        "to_holder": "h_risu"
+      }
+    ],
+    "question": {
+      "target_type": "quantity",
+      "target_id": "q_kitsune_1"
+    },
+    "word_links": [
+      {
+        "phrase": "あげました",
+        "lang": "ja",
+        "element_id": "e_give"
+      }
+    ]
+  },
+  "consistency": "consistent",
+  "pair_id": null,
+  "source": "companion",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.75,
+    "human_checked": true
+  },
+  "expected_answer": null,
+  "statements": [
+    {
+      "index": 0,
+      "text": "りすに4こあげました。",
+      "element_ids": [
+        "e_give"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "りす",
+        "に",
+        "4こ",
+        "あげました"
+      ]
+    }
+  ],
+  "syntax_marks": [
+    {
+      "kind": "demonstrative",
+      "statement_index": 0,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_risu",
+      "word": "りす",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    }
+  ],
+  "companion_ids": []
+}

@@ -1,0 +1,41 @@
+{
+  "schema_version": "2",
+  "hypotheses": [
+    {
+      "id": "hyp_c",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "word_after_holder",
+            "args": [
+              "の"
+            ]
+          },
+          "then": {
+            "action": "choose_reference",
+            "by": {
+              "holder": "after_word",
+              "word": "より"
+            }
+          }
+        },
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "number_op",
+            "mode": "percent_as_count"
+          }
+        }
+      ],
+      "word_cues": [
+        "known_as_whole"
+      ],
+      "note_for_adult": "test note"
+    }
+  ],
+  "unexpressible": []
+}

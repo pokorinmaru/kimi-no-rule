@@ -1,0 +1,8 @@
+{
+  "intent": "read",
+  "utterance": "",
+  "refers_to": [
+    "q_usagi"
+  ],
+  "lang": "ja"
+}

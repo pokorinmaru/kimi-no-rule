@@ -1,0 +1,47 @@
+{
+  "schema_version": "6",
+  "utterance_lang": "ja",
+  "representable": "full",
+  "ops": [
+    {
+      "op": "set_event_amount",
+      "target_id": "e_give",
+      "number": {
+        "num": 5,
+        "den": 1
+      },
+      "evidence": ""
+    },
+    {
+      "op": "set_event_type",
+      "target_id": "e_give",
+      "event_type": "lose",
+      "evidence": ""
+    },
+    {
+      "op": "set_event_to_holder",
+      "target_id": "e_give",
+      "to_holder": "h_kitsune",
+      "evidence": ""
+    },
+    {
+      "op": "set_question_target",
+      "target_id": "q_kitsune_0",
+      "question_type": "quantity",
+      "evidence": ""
+    },
+    {
+      "op": "rename_item_kind",
+      "target_id": "k_chestnut",
+      "label": "まつぼっくり",
+      "evidence": ""
+    },
+    {
+      "op": "remove_element",
+      "target_id": "h_risu",
+      "evidence": ""
+    }
+  ],
+  "unclear": [],
+  "phrases": []
+}

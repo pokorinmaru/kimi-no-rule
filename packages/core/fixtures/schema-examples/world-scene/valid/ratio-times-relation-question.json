@@ -1,0 +1,72 @@
+{
+  "schema_version": "3",
+  "problem_id": "p_rat_stickers",
+  "problem_type": "ratio",
+  "problem_text": "ねこはシールを15まい、いぬは5まい持っています。ねこのシールはいぬのシールの何倍ですか。",
+  "grade": 3,
+  "problem_lang": "ja",
+  "holders": [
+    {
+      "id": "h_neko",
+      "label": "ねこ"
+    },
+    {
+      "id": "h_inu",
+      "label": "いぬ"
+    }
+  ],
+  "item_kinds": [
+    {
+      "id": "k_sticker",
+      "noun": "シール",
+      "counter": "まい",
+      "asset_key": "sticker",
+      "countable": true
+    }
+  ],
+  "quantities": [
+    {
+      "id": "q_neko",
+      "holder": "h_neko",
+      "item_kind": "k_sticker",
+      "at_event": null,
+      "value": {
+        "num": 15,
+        "den": 1
+      }
+    },
+    {
+      "id": "q_inu",
+      "holder": "h_inu",
+      "item_kind": "k_sticker",
+      "at_event": null,
+      "value": {
+        "num": 5,
+        "den": 1
+      }
+    }
+  ],
+  "relations": [
+    {
+      "id": "r_times",
+      "operator": "times",
+      "subject": "q_neko",
+      "reference": "q_inu",
+      "reference_list": null,
+      "amount": null,
+      "other_description": null
+    }
+  ],
+  "events": [],
+  "question": {
+    "target_type": "relation_amount",
+    "target_id": "r_times"
+  },
+  "word_links": [
+    {
+      "phrase": "何倍",
+      "lang": "ja",
+      "element_id": "r_times"
+    }
+  ]
+}

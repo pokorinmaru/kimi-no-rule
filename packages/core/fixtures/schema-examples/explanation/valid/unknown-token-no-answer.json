@@ -1,0 +1,31 @@
+{
+  "schema_version": "2",
+  "utterance_lang": "unknown",
+  "kind": "expression",
+  "tokens": [
+    {
+      "type": "number",
+      "number": {
+        "num": 15,
+        "den": 1
+      },
+      "operator": null
+    },
+    {
+      "type": "unknown",
+      "number": null,
+      "operator": null
+    },
+    {
+      "type": "number",
+      "number": {
+        "num": 5,
+        "den": 1
+      },
+      "operator": null
+    }
+  ],
+  "answer": null,
+  "mentioned_elements": [],
+  "evidence": ""
+}

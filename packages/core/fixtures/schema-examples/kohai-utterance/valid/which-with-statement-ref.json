@@ -1,0 +1,9 @@
+{
+  "intent": "which",
+  "utterance": "どの文がへんかな？",
+  "refers_to": [
+    "s_0",
+    "s_2"
+  ],
+  "lang": "ja"
+}

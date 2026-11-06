@@ -1,0 +1,108 @@
+{
+  "schema_version": "2",
+  "hypotheses": [
+    {
+      "id": "a",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "no_change"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "test note"
+    },
+    {
+      "id": "b",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "no_change"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "test note"
+    },
+    {
+      "id": "c",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "no_change"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "test note"
+    },
+    {
+      "id": "d",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "no_change"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "test note"
+    },
+    {
+      "id": "e",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "no_change"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "test note"
+    },
+    {
+      "id": "f",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "no_change"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "test note"
+    }
+  ],
+  "unexpressible": []
+}

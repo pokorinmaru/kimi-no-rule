@@ -1,0 +1,72 @@
+{
+  "schema_version": "3",
+  "problem_id": "p_chg_chestnut",
+  "problem_type": "change",
+  "problem_text": "きつねはくりを9こ持っています。りすに4こあげました。きつねのくりは何こになりましたか。",
+  "grade": 1,
+  "problem_lang": "ja",
+  "holders": [
+    {
+      "id": "h_kitsune",
+      "label": "きつね"
+    },
+    {
+      "id": "h_risu",
+      "label": "りす"
+    }
+  ],
+  "item_kinds": [
+    {
+      "id": "k_chestnut",
+      "noun": "くり",
+      "counter": "こ",
+      "asset_key": "chestnut",
+      "countable": true
+    }
+  ],
+  "quantities": [
+    {
+      "id": "q_kitsune_0",
+      "holder": "h_kitsune",
+      "item_kind": "k_chestnut",
+      "at_event": null,
+      "value": {
+        "num": 9,
+        "den": 1
+      }
+    },
+    {
+      "id": "q_kitsune_1",
+      "holder": "h_kitsune",
+      "item_kind": "k_chestnut",
+      "at_event": "e_give",
+      "value": null
+    }
+  ],
+  "relations": [],
+  "events": [
+    {
+      "id": "e_give",
+      "order": 1,
+      "type": "give",
+      "holder": "h_kitsune",
+      "item_kind": "k_chestnut",
+      "amount": {
+        "num": 4,
+        "den": 1
+      },
+      "to_holder": "h_risu"
+    }
+  ],
+  "question": {
+    "target_type": "quantity",
+    "target_id": "q_kitsune_1"
+  },
+  "word_links": [
+    {
+      "phrase": "あげました",
+      "lang": "ja",
+      "element_id": "e_give"
+    }
+  ]
+}

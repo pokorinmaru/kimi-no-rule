@@ -1,0 +1,9 @@
+{
+  "intent": "read",
+  "utterance": "どんぐりの数を、こう読みました。",
+  "refers_to": [
+    "q_usagi"
+  ],
+  "lang": "ja",
+  "emotion": "glad"
+}

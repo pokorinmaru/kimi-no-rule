@@ -1,0 +1,31 @@
+{
+  "schema_version": "2",
+  "hypotheses": [
+    {
+      "id": "hyp_d",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "set_relation_type_additive",
+            "amount": "ratio_value"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "test note"
+    }
+  ],
+  "unexpressible": [
+    {
+      "note_for_adult": "a reading the rule language cannot hold"
+    },
+    {
+      "note_for_adult": "another one"
+    }
+  ]
+}

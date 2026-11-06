@@ -1,0 +1,28 @@
+{
+  "schema_version": "2",
+  "hypotheses": [
+    {
+      "id": "hyp_a",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "relation_operator_is",
+            "args": [
+              "fraction_of"
+            ]
+          },
+          "then": {
+            "action": "choose_reference",
+            "by": "first_mentioned"
+          }
+        }
+      ],
+      "word_cues": [
+        "first_mentioned_as_whole"
+      ],
+      "note_for_adult": "test note"
+    }
+  ],
+  "unexpressible": []
+}

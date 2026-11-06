@@ -1,0 +1,92 @@
+{
+  "schema_version": "3",
+  "problem_id": "p_cmb_flowers",
+  "problem_type": "combine",
+  "problem_text": "花だんに赤い花が5本、白い花が8本さいています。花はぜんぶで何本ですか。",
+  "grade": 1,
+  "problem_lang": "ja",
+  "holders": [
+    {
+      "id": "h_bed",
+      "label": "花だん"
+    }
+  ],
+  "item_kinds": [
+    {
+      "id": "k_red",
+      "noun": "赤い花",
+      "counter": "本",
+      "asset_key": null,
+      "countable": true
+    },
+    {
+      "id": "k_white",
+      "noun": "白い花",
+      "counter": "本",
+      "asset_key": null,
+      "countable": true
+    },
+    {
+      "id": "k_flower",
+      "noun": "花",
+      "counter": "本",
+      "asset_key": "flower",
+      "countable": true
+    }
+  ],
+  "quantities": [
+    {
+      "id": "q_red",
+      "holder": "h_bed",
+      "item_kind": "k_red",
+      "at_event": null,
+      "value": {
+        "num": 5,
+        "den": 1
+      }
+    },
+    {
+      "id": "q_white",
+      "holder": "h_bed",
+      "item_kind": "k_white",
+      "at_event": null,
+      "value": {
+        "num": 8,
+        "den": 1
+      }
+    },
+    {
+      "id": "q_all",
+      "holder": "h_bed",
+      "item_kind": "k_flower",
+      "at_event": null,
+      "value": null
+    }
+  ],
+  "relations": [
+    {
+      "id": "r_sum",
+      "operator": "total_of",
+      "subject": "q_all",
+      "reference": null,
+      "reference_list": [
+        "q_red",
+        "q_white"
+      ],
+      "amount": null,
+      "other_description": null
+    }
+  ],
+  "events": [],
+  "question": {
+    "target_type": "quantity",
+    "target_id": "q_all"
+  },
+  "word_links": [
+    {
+      "phrase": "ぜんぶで",
+      "lang": "ja",
+      "element_id": "r_sum"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": "2",
+  "utterance_lang": "ja",
+  "kind": "expression",
+  "tokens": [
+    {
+      "type": "number",
+      "number": {
+        "num": 9,
+        "den": 1
+      },
+      "operator": null
+    },
+    {
+      "type": "operator",
+      "number": null,
+      "operator": "-"
+    },
+    {
+      "type": "number",
+      "number": {
+        "num": 4,
+        "den": 1
+      },
+      "operator": null
+    },
+    {
+      "type": "operator",
+      "number": null,
+      "operator": "/"
+    },
+    {
+      "type": "number",
+      "number": {
+        "num": 1,
+        "den": 1
+      },
+      "operator": null
+    }
+  ],
+  "answer": {
+    "num": 5,
+    "den": 1
+  },
+  "mentioned_elements": [],
+  "evidence": ""
+}

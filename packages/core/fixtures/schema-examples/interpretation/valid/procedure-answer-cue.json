@@ -1,0 +1,43 @@
+{
+  "schema_version": "6",
+  "utterance_lang": "unknown",
+  "representable": "full",
+  "ops": [
+    {
+      "op": "state_procedure",
+      "target_id": "q_blue_len",
+      "operands": [
+        {
+          "quantity_id": "q_red_len"
+        },
+        {
+          "num": 2,
+          "den": 3
+        }
+      ],
+      "operation": "multiply",
+      "evidence": ""
+    },
+    {
+      "op": "state_answer",
+      "target_id": "q_blue_len",
+      "number": {
+        "num": 8,
+        "den": 1
+      },
+      "evidence": "8"
+    },
+    {
+      "op": "word_cue",
+      "statement_index": 1,
+      "tokens": [
+        0,
+        2,
+        3
+      ],
+      "evidence": ""
+    }
+  ],
+  "unclear": [],
+  "phrases": []
+}
