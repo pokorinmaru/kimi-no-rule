@@ -44,7 +44,7 @@ function parseCommits(command) {
       } else {
         if (t === "commit") {
           // Skipping git's own pre-commit hook (the backstop) is not allowed.
-          const skip = tokens.slice(i + 1).find((a) => a === "--no-verify" || /^-[a-zA-Z]*n[a-zA-Z]*$/.test(a));
+          const skip = tokens.slice(i + 1).find((a) => a.startsWith("--no-v") || /^-[a-zA-Z]*n[a-zA-Z]*$/.test(a)); // git accepts --no-v… prefixes
           commits.push({ dirs, badOption: badOption ?? skip });
         }
         break; // the subcommand decides; stop at it

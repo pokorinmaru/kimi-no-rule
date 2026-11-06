@@ -105,6 +105,7 @@ describe("pre-commit-secrets", () => {
     const dir = repo({ "src/a.ts": "export const a = 1;\n" }, true);
     expect(isDenied(bash(dir, 'git commit --no-verify -m "x"'))).toBe(true);
     expect(isDenied(bash(dir, 'git commit -nm "x"'))).toBe(true);
+    expect(isDenied(bash(dir, 'git commit --no-veri -m "x"'))).toBe(true);
     expect(isDenied(bash(dir, "git config core.hooksPath /dev/null && git commit -m x"))).toBe(true);
     expect(isDenied(bash(dir, "git config --unset core.hookspath"))).toBe(true);
   });
