@@ -69,3 +69,22 @@ export {
   type Layer,
   type Outcome,
 } from "./diagnose/index.ts";
+export { runRule, type Hypothesis } from "./rules/run.ts";
+export { sameReading } from "./rules/same-reading.ts";
+export { groupHypotheses, reproduction, scoreRule, type Observation, type Reproduction } from "./rules/score.ts";
+export { predict, type Prediction } from "./rules/predict.ts";
+export {
+  CONFIRM_OBSERVATIONS,
+  CONFIRM_WEIGHT,
+  EPSILON_AGREEMENT,
+  EPSILON_CONSTRUCTIVE,
+  REVERT_WEIGHT,
+  addHypothesis,
+  agreementLikelihoods,
+  constructiveLikelihoods,
+  infoGain,
+  mergeHypotheses,
+  status,
+  update,
+  type Weights,
+} from "./rules/weights.ts";
