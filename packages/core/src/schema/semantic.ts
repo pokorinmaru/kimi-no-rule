@@ -2,6 +2,7 @@
 // Pure functions: they never change their input and return every problem they find.
 import { PREFIX, type ElementKind, type Rational } from "./common.ts";
 import type { Op } from "./interpretation.ts";
+import type { Explanation } from "./explanation.ts";
 import type { WorldScene } from "./world-scene.ts";
 
 export type SemanticCode =
@@ -273,5 +274,20 @@ export function validateOps(w: WorldScene, ops: readonly AnyOp[]): SemanticResul
     }
   });
 
+  return result(errors);
+}
+
+/**
+ * The meaning check of a child's expression or reason: every number has a positive whole denominator
+ * and every mentioned element exists in the world (指示書 第5.1節; found in M1b).
+ */
+export function validateExplanation(w: WorldScene, x: Explanation): SemanticResult {
+  const errors: SemanticError[] = [];
+  x.tokens.forEach((t, i) => checkDen(errors, `tokens[${i}].number`, t.number));
+  checkDen(errors, "answer", x.answer);
+  const index = kindIndex(w);
+  x.mentioned_elements.forEach((id, i) => {
+    if (!index.has(id)) errors.push({ code: "missing_ref", path: `mentioned_elements[${i}]`, message: `${id} does not exist` });
+  });
   return result(errors);
 }

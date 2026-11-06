@@ -32,6 +32,7 @@ export function toJsonSchemas(): Record<SchemaName, JsonSchema> {
 
 export { problemScopedSchemas, worldIds, type ProblemScopedSchemas } from "./per-problem.ts";
 export {
+  validateExplanation,
   validateOps,
   validateWorld,
   type AnyOp,
