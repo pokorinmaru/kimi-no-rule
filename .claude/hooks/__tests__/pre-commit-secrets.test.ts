@@ -1,0 +1,61 @@
+import { execFileSync } from "node:child_process";
+import { describe, expect, it } from "vitest";
+import { denyReason, isAllowed, isDenied, runHook, tempDir, writeFiles } from "./helpers.ts";
+
+const SCRIPT = "pre-commit-secrets.mjs";
+
+// Fake secrets are assembled at runtime so this file contains none.
+const FAKE = {
+  anthropic: ["sk", "ant", "api03", "Zx8Qp".repeat(16)].join("-"),
+  aws: "AKIA" + "QWERTYUIOPASDFGH",
+  github: "ghp" + "_" + "a1B2c3D4".repeat(5),
+  privateKey: ["-----BEGIN", "RSA", "PRIVATE", "KEY-----"].join(" ") + "\nMIIEow\n",
+  generic: "API" + "_KEY=" + "q8Rw2LmZ7vX4nT9pK3sY6bH1",
+};
+
+function repo(files: Record<string, string>, stage: boolean): string {
+  const dir = tempDir("git");
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, stdio: "pipe" });
+  git("init", "-q", "-b", "main");
+  git("config", "user.name", "fixture");
+  git("config", "user.email", ["fixture", "example.com"].join(String.fromCharCode(64)));
+  writeFiles(dir, files);
+  if (stage) git("add", "-A");
+  return dir;
+}
+
+const bash = (dir: string, command: string) =>
+  runHook(SCRIPT, { hook_event_name: "PreToolUse", tool_name: "Bash", cwd: dir, tool_input: { command } }, { CLAUDE_PROJECT_DIR: dir });
+
+describe("pre-commit-secrets", () => {
+  for (const [kind, secret] of Object.entries(FAKE)) {
+    it(`denies git commit when a staged file contains a ${kind} secret`, () => {
+      const dir = repo({ "src/config.ts": `export const x = ${JSON.stringify(secret)};\n` }, true);
+      const r = bash(dir, 'git commit -m "add config"');
+      expect(isDenied(r)).toBe(true);
+      expect(denyReason(r)).toContain("src/config.ts");
+      expect(denyReason(r)).not.toContain(secret);
+    });
+  }
+
+  it("also scans files that `git add -A && git commit` is about to stage", () => {
+    const dir = repo({ ".env": `${FAKE.generic}\n` }, false);
+    expect(isDenied(bash(dir, 'git add -A && git commit -m "wip"'))).toBe(true);
+  });
+
+  it("allows a clean commit", () => {
+    const dir = repo({ "src/a.ts": "export const a = 1;\n" }, true);
+    expect(isAllowed(bash(dir, 'git commit -m "clean"'))).toBe(true);
+  });
+
+  it("ignores commands that are not git commit", () => {
+    const dir = repo({ "src/config.ts": FAKE.aws }, true);
+    expect(isAllowed(bash(dir, "git status"))).toBe(true);
+    expect(isAllowed(bash(dir, "pnpm test"))).toBe(true);
+  });
+
+  it("ignores lockfile integrity hashes", () => {
+    const dir = repo({ "pnpm-lock.yaml": "integrity: sha512-" + "Ab9+".repeat(20) + "==\n" }, true);
+    expect(isAllowed(bash(dir, 'git commit -m "lock"'))).toBe(true);
+  });
+});

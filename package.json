@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.34.9",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "pnpm -r --parallel exec tsc --noEmit",
+    "typecheck": "pnpm -r --parallel exec tsc --noEmit && tsc --noEmit -p .claude/hooks",
     "lint": "eslint .",
     "e2e": "pnpm --filter @kimi/web e2e"
   },
