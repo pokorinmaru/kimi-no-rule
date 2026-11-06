@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { checkFreezeHistory, checkLock, lockOf } from "./protocol.ts";
+import { checkFreezeHistory, checkLock, lockOf, lockedPaths } from "./protocol.ts";
 
 const sha = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
 const lines = (text: string) => text.split("\n").filter((l) => l !== "");
@@ -119,5 +119,20 @@ describe("checkFreezeHistory", () => {
 
   it("only the exact lock path counts", () => {
     expect(checkFreezeHistory([c("a1", LOCK), c("a2", "evals/protocol.lock.bak", "old/evals/protocol.lock")])).toEqual([]);
+  });
+});
+
+describe("addendum locks (review fix, Q27)", () => {
+  const c = (hash: string, ...files: string[]) => ({ hash, files });
+  const ADD = "evals/protocol-addendum-1.lock";
+
+  it("lockedPaths lists the paths a lock names, in its order", () => {
+    expect(lockedPaths(lockOf(FILES))).toEqual(["EVALS-PROTOCOL.md", "evals/interpret/test.jsonl", "evals/safety/test.jsonl"]);
+  });
+
+  it("an addendum lock is checked on its own: written once, and it may come after EVALS.md", () => {
+    const history = [c("a1", "evals/protocol.lock"), c("a2", "EVALS.md"), c("a3", ADD)];
+    expect(checkFreezeHistory(history, ADD)).toEqual([]);
+    expect(checkFreezeHistory([...history, c("a4", ADD)], ADD).join("\n")).toContain("a4");
   });
 });

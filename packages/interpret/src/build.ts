@@ -5,6 +5,8 @@
 import { z } from "zod";
 import {
   apply,
+  eq,
+  fromSchema,
   misreadCandidates,
   problemConditions,
   problemScopedSchemas,
@@ -81,12 +83,27 @@ export const BUILD_SYSTEM = [
   "Check your world with the tools solve, diagnose_candidates and restate, then hand it in with submit_world. If submit_world refuses it, read the reasons, fix the world and submit again.",
 ].join("\n");
 
-const worldInput = { type: "object", properties: { world: z.toJSONSchema(schemas.worldScene, { target: "draft-2020-12" }) }, required: ["world"], additionalProperties: false } as Record<string, unknown>;
+/**
+ * Every tool takes the world as JSON text, checked with zod on arrival (Q27). The world schema itself in
+ * each strict tool would carry about 9 union-typed parameters per tool, over the API's limit of 16 for
+ * all strict schemas of one request.
+ */
+const worldInput: Record<string, unknown> = {
+  type: "object",
+  properties: { world_json: { type: "string", description: "The world-scene (schema version 3) as JSON text." } },
+  required: ["world_json"],
+  additionalProperties: false,
+};
+
+/** The input schemas the agent's tools send (for the request-shape test). */
+export const buildToolSchemas = (): Record<string, unknown>[] => BUILD_TOOLS.map(() => worldInput);
 
 const ratText = (r: { num: bigint | number; den: bigint | number }): string => `${r.num}/${r.den}`;
 
 function parseWorld(input: unknown): WorldScene {
-  const w = schemas.worldScene.parse((input as { world?: unknown } | null)?.world);
+  const text = (input as { world_json?: unknown } | null)?.world_json;
+  if (typeof text !== "string") throw new Error("world_json must be the world as JSON text");
+  const w = schemas.worldScene.parse(JSON.parse(text));
   const v = validateWorld(w);
   if (!v.ok) throw new Error(v.errors.map((e) => `${e.path}: ${e.message}`).join("; "));
   return w;
@@ -170,7 +187,7 @@ async function buildOnce(
         const out = misreadCandidates(w).map((c) => ({
           flips: c.flips,
           answer: c.answer === null ? null : ratText(c.answer),
-          differs: correct === undefined || c.answer === null ? null : ratText(correct) !== ratText(c.answer),
+          differs: correct === undefined || c.answer === null ? null : !eq(fromSchema(c.answer), correct),
           impossible: c.impossible,
         }));
         logged("diagnose_candidates", true, `${out.length} candidates`);
@@ -192,7 +209,8 @@ async function buildOnce(
       description: "Hand in the world. It is refused with the reasons when it does not meet the problem conditions.",
       inputSchema: worldInput,
       async run(x) {
-        if (accepted !== null) return { accepted: true };
+        // A later world that passes replaces the earlier one: the agent may have found a mistake after
+        // its first submit (Q27).
         if (rejections >= opts.maxRejections) throw new Error("no more submissions are taken for this build");
         let reasons: string[];
         try {
@@ -293,8 +311,10 @@ export async function buildProblem(deps: BuildDeps, input: BuildInput, options: 
 
   const restated = restate(world, input.lang).map((s) => s.text);
   const verdict = await judgeCall(deps, RESTATE_SYSTEM, `Problem text:\n${input.problemText}`, `Sentences written back from the world:\n${restated.join("\n")}`, restateVerdict);
-  log.push({ step: "restate", ok: verdict?.same_meaning === true, detail: verdict === null ? "no valid verdict" : verdict.same_meaning ? restated.join(" ") : verdict.differences.join("; ") });
-  if (verdict?.same_meaning !== true) return reject("restate_mismatch");
+  // A verdict of the same meaning that still lists a difference is not the same (Q27).
+  const meant = verdict !== null && verdict.same_meaning && verdict.differences.length === 0;
+  log.push({ step: "restate", ok: meant, detail: verdict === null ? "no valid verdict" : meant ? restated.join(" ") : verdict.differences.join("; ") || "not the same" });
+  if (!meant) return reject("restate_mismatch");
 
   const worldJson = JSON.stringify(world);
   const parts = await judgeCall(deps, STATEMENTS_SYSTEM, `World:\n${worldJson}`, `Problem text:\n${input.problemText}`, statementsReply, (s) => validateStatements(world, s.statements, s.syntax_marks).ok);

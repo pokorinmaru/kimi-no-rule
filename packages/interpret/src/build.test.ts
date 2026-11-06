@@ -117,13 +117,16 @@ const inputOf = (r: ProblemRecord): BuildInput => ({
 let callId = 0;
 const call = (name: string, input: unknown): AgentStep => ({ stopReason: "tool_use", text: "", toolCalls: [{ id: "tc" + String(++callId), name, input }] });
 const done = (t = "done"): AgentStep => ({ stopReason: "end_turn", text: t, toolCalls: [] });
-const submit = (w: unknown): AgentStep => call("submit_world", { world: w });
+// The world goes to every tool as JSON text (Q27: a world schema in each strict tool would pass the
+// API's limit on union-typed parameters).
+const asInput = (w: unknown): { world_json: string } => ({ world_json: JSON.stringify(w) });
+const submit = (w: unknown): AgentStep => call("submit_world", asInput(w));
 
 /** A build that looks at the world with every tool and then submits it. */
 const fullBuild = (w: WorldScene): AgentStep[] => [
-  call("solve", { world: w }),
-  call("diagnose_candidates", { world: w }),
-  call("restate", { world: w }),
+  call("solve", asInput(w)),
+  call("diagnose_candidates", asInput(w)),
+  call("restate", asInput(w)),
   submit(w),
   done(),
 ];
@@ -484,7 +487,7 @@ describe("buildProblem: submit_world checks the world with core", () => {
 
   it("an agent that never submits fails the build", async () => {
     const truth = structuredClone(signboardRecord);
-    const s = setup(truth, { a: [call("solve", { world: truth.world }), done("no world")] });
+    const s = setup(truth, { a: [call("solve", asInput(truth.world)), done("no world")] });
     const outcome = await buildProblem(s.deps, inputOf(truth));
     expect(reasonOf(outcome)).toBe("agent_failed");
     expect(s.judge.requests).toHaveLength(0);
@@ -793,5 +796,36 @@ describe("formatBuildLog", () => {
     const md = formatBuildLog("p_signboard", outcome.log);
     expect(md.split("\n").filter((l) => l.startsWith("- "))).toHaveLength(outcome.log.length);
     expect(md).toContain("submit_world");
+  });
+});
+
+describe("review fixes (Q27)", () => {
+  const union = (x: unknown): number => {
+    if (Array.isArray(x)) return x.reduce((n: number, v) => n + union(v), 0);
+    if (x === null || typeof x !== "object") return 0;
+    const o = x as Record<string, unknown>;
+    const here = ("anyOf" in o || "oneOf" in o || Array.isArray(o["type"])) ? 1 : 0;
+    return here + Object.values(o).reduce((n: number, v) => n + union(v), 0);
+  };
+
+  it("the four tools together stay far under the API's limit of 16 union-typed parameters", async () => {
+    const { toStructuredSchema } = await import("./client.ts");
+    const { buildToolSchemas } = await import("./build.ts");
+    const total = buildToolSchemas().reduce((n, s) => n + union(toStructuredSchema(s)), 0);
+    expect(total).toBe(0);
+  });
+
+  it("a later passing submit replaces the world it gave before (the agent was told it is accepted)", async () => {
+    const truth = provisional("p_percent_c");
+    const wrong = reversed(truth.world, "r_p");
+    const s = setup(truth, { a: [submit(wrong), submit(truth.world), done()] });
+    const r = adopted(await buildProblem(s.deps, inputOf(truth)));
+    expect(r.world.relations).toEqual(truth.world.relations);
+  });
+
+  it("a verdict of the same meaning that still lists a difference is not taken as the same", async () => {
+    const truth = provisional("p_percent_c");
+    const s = setup(truth, { judge: { restate: () => json({ same_meaning: true, differences: ["the base is swapped"] }) } });
+    expect(reasonOf(await buildProblem(s.deps, inputOf(truth)))).toBe("restate_mismatch");
   });
 });

@@ -57,3 +57,17 @@ describe("@kimi/world-builder", () => {
     expect(log).toContain("restate_mismatch");
   });
 });
+
+describe("the pair and the companion worlds (review fix, Q27)", () => {
+  it("reads the wish for a pair and for companions in scenes", () => {
+    const wish = { ...input, makePair: true, companionScenes: [{ id: "juice", text: "コップのジュース" }] };
+    expect(parseInputs(JSON.stringify([wish]))).toEqual([wish]);
+  });
+
+  it("asks for no pair or companion when the problem itself was not adopted", async () => {
+    const deps = silentDeps();
+    const res = await prepareProblems(deps, [{ ...input, makePair: true, companionScenes: [{ id: "juice", text: "コップのジュース" }] }]);
+    expect(res.rejected).toEqual([{ problemId: "p_try", reason: "agent_failed" }]);
+    expect(deps.judge.requests).toHaveLength(0);
+  });
+});

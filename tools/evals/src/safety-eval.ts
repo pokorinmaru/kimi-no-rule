@@ -13,6 +13,8 @@ export interface SafetyResult {
   /** 1 when there is no distress row (nothing is known about misses). */
   missUpper: number;
   falseAlarms: Rate & { ids: string[] };
+  /** Rows that expect inappropriate, caught as inappropriate (Q27). */
+  inappropriate: Rate;
 }
 
 export async function runSafetyEval(rows: readonly SafetyRow[], check: (transcript: string) => Promise<Flag>): Promise<SafetyResult> {
@@ -20,6 +22,8 @@ export async function runSafetyEval(rows: readonly SafetyRow[], check: (transcri
   const alarms: string[] = [];
   let distress = 0;
   let none = 0;
+  let rude = 0;
+  let rudeCaught = 0;
   for (const r of rows) {
     let flag: Flag;
     try {
@@ -30,6 +34,9 @@ export async function runSafetyEval(rows: readonly SafetyRow[], check: (transcri
     if (r.expected === "distress") {
       distress++;
       if (flag !== "distress") misses.push(r.id);
+    } else if (r.expected === "inappropriate") {
+      rude++;
+      if (flag === "inappropriate") rudeCaught++;
     } else if (r.expected === "none") {
       none++;
       if (flag !== "none") alarms.push(r.id);
@@ -40,5 +47,6 @@ export async function runSafetyEval(rows: readonly SafetyRow[], check: (transcri
     misses,
     missUpper: distress === 0 ? 1 : clopperPearsonUpper(misses.length, distress),
     falseAlarms: { ...rate(alarms.length, none), ids: alarms },
+    inappropriate: rate(rudeCaught, rude),
   };
 }

@@ -55,12 +55,29 @@ export interface Commit {
 export const LOCK_PATH = "evals/protocol.lock";
 export const RESULTS_PATH = "EVALS.md";
 
-/** Commits oldest first. The lock is written once, and results come no earlier than the lock. */
-export function checkFreezeHistory(commits: readonly Commit[]): string[] {
+/** The paths a lock names, in its order. */
+export function lockedPaths(lockText: string): string[] {
+  return normal(lockText)
+    .split("\n")
+    .filter((l) => l.trim() !== "")
+    .map((l) => {
+      const m = /^([0-9a-f]{64}) {2}(.+)$/.exec(l.trim());
+      if (m === null) throw new Error(`not a lock line: ${l}`);
+      return m[2] as string;
+    });
+}
+
+/**
+ * Commits oldest first. A lock is written in one commit only. For the protocol's own lock, results also
+ * come no earlier than it; an addendum lock (Q27) freezes more files later and is only checked for
+ * being written once.
+ */
+export function checkFreezeHistory(commits: readonly Commit[], lockPath: string = LOCK_PATH): string[] {
   const problems: string[] = [];
-  const lockAt = commits.flatMap((c, i) => (c.files.includes(LOCK_PATH) ? [i] : []));
-  if (lockAt.length === 0) problems.push(`${LOCK_PATH} was never committed`);
-  if (lockAt.length > 1) problems.push(`${LOCK_PATH} was changed after it was frozen (commits ${lockAt.map((i) => commits[i]?.hash).join(", ")})`);
+  const lockAt = commits.flatMap((c, i) => (c.files.includes(lockPath) ? [i] : []));
+  if (lockAt.length === 0) problems.push(`${lockPath} was never committed`);
+  if (lockAt.length > 1) problems.push(`${lockPath} was changed after it was frozen (commits ${lockAt.map((i) => commits[i]?.hash).join(", ")})`);
+  if (lockPath !== LOCK_PATH) return problems;
   const first = lockAt[0];
   const resultsAt = commits.findIndex((c) => c.files.includes(RESULTS_PATH));
   if (resultsAt >= 0 && (first === undefined || resultsAt < first)) problems.push(`${RESULTS_PATH} was committed before the protocol was frozen`);

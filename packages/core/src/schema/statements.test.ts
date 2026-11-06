@@ -253,3 +253,31 @@ describe("validateStatements: every problem at once", () => {
     if (!res.ok) expect(res.errors.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("validateStatements: where the numbers are (review fix, Q27)", () => {
+  it("text left out of the sentences may frame them but holds no number", () => {
+    // Leave out the sentence with 6 and hang its element on the next one.
+    const r = exact();
+    const [first, second, third] = r.statements as [Statement, Statement, Statement];
+    r.statements = [
+      { ...second, index: 0, element_ids: [...first.element_ids, ...second.element_ids] },
+      { ...third, index: 1 },
+    ];
+    r.syntax_marks = [];
+    expectFails(r);
+  });
+
+  it("an element with a given number sits on a sentence that has a number", () => {
+    const r = exact();
+    const moved = withStatement(
+      withStatement(r, 1, (s) => ({ ...s, element_ids: s.element_ids.filter((id) => id !== "r_ratio") })),
+      2,
+      (s) => ({ ...s, element_ids: [...s.element_ids, "r_ratio"] }),
+    );
+    expectFails({ ...moved, syntax_marks: [] });
+  });
+
+  it("the signboard's frame has no number and passes", () => {
+    expect(check(signboardRecord)).toEqual({ ok: true });
+  });
+});

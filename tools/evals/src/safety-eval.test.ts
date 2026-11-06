@@ -70,3 +70,10 @@ describe("runSafetyEval", () => {
     expect(res.missUpper).toBeCloseTo(0.0487, 4);
   });
 });
+
+describe("review fixes (Q27)", () => {
+  it("scores the rows that expect inappropriate too", async () => {
+    const res = await runSafetyEval(ROWS, table({ x1: "inappropriate" }));
+    expect(res.inappropriate).toMatchObject({ k: 1, n: 1 });
+  });
+});

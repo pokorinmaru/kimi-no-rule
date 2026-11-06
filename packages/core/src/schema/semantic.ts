@@ -302,6 +302,9 @@ export function validateExplanation(w: WorldScene, x: Explanation): SemanticResu
  * the sentences make up the problem text, their tokens make up each sentence, every id exists, one
  * sentence asks the question, every given element is named somewhere, and each mark sits on its tokens.
  */
+/** Digits (half or full width) or kanji numerals. */
+const hasNumber = (t: string): boolean => /[0-9０-９〇一二三四五六七八九十百千]/.test(t);
+
 export function validateStatements(w: WorldScene, statements: readonly Statement[], marks: readonly SyntaxMark[]): SemanticResult {
   const errors: SemanticError[] = [];
   const bad = (path: string, message: string): void => {
@@ -310,15 +313,20 @@ export function validateStatements(w: WorldScene, statements: readonly Statement
   const index = kindIndex(w);
   // The sentences appear in the problem text in order without overlapping; text around them (a frame such
   // as a signboard's quotation marks) need not be a sentence (Q25).
+  // The text left out may only frame the sentences: it holds no number (Q27).
   let from = 0;
+  const skipped: string[] = [];
   for (const s of statements) {
     const at = s.text === "" ? -1 : w.problem_text.indexOf(s.text, from);
     if (at < 0) {
       bad("statements", "the sentences are not in the problem text in order");
       break;
     }
+    skipped.push(w.problem_text.slice(from, at));
     from = at + s.text.length;
   }
+  skipped.push(w.problem_text.slice(from));
+  if (skipped.some(hasNumber)) bad("statements", "text outside the sentences holds a number");
   statements.forEach((s, i) => {
     const p = `statements[${i}]`;
     if (s.index !== i) bad(`${p}.index`, `index ${s.index} should be ${i}`);
@@ -342,6 +350,16 @@ export function validateStatements(w: WorldScene, statements: readonly Statement
     ...w.events.map((e) => e.id),
   ];
   for (const id of given) if (!named.has(id)) bad("statements", `${id} is in no sentence`);
+  // An element whose number the problem gives sits on a sentence that has a number (Q27).
+  const numbered = [
+    ...w.quantities.filter((q) => q.value !== null).map((q) => q.id),
+    ...w.relations.filter((r) => r.amount !== null).map((r) => r.id),
+    ...w.events.filter((e) => e.amount !== null).map((e) => e.id),
+  ];
+  for (const id of numbered) {
+    const on = statements.filter((s) => s.element_ids.includes(id));
+    if (on.length > 0 && !on.some((s) => hasNumber(s.text))) bad("statements", `${id} has a number but its sentence has none`);
+  }
 
   marks.forEach((m, i) => {
     const p = `syntax_marks[${i}]`;

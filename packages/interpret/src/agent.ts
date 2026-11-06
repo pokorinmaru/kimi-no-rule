@@ -57,7 +57,7 @@ export async function runAgent(
   return { text: last.text, turns, stopReason: last.stopReason };
 }
 
-/** An AgentClient over the Anthropic SDK (strict tools, adaptive thinking at high effort). */
+/** An AgentClient over the Anthropic SDK (strict tools, high effort; no thinking parameter is sent, so the model default applies). */
 export function anthropicAgentClient(options: { apiKey?: string } = {}): AgentClient {
   const sdk = new Anthropic(options.apiKey === undefined ? {} : { apiKey: options.apiKey });
   return {

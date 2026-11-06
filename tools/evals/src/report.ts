@@ -42,12 +42,13 @@ export function renderEvalsMd(input: EvalsInput): string {
   if (input.note !== undefined) out.push(input.note, "");
 
   out.push("## 解釈の評価（聞く層）", "", `各行を k=${input.interpret.k} 回聞いた。世界の一致・層の一致は1回目、pass^k は k 回すべて一致した行。`, "");
-  out.push("| system | 世界の一致 | 層の一致 | pass^k | 遅延 中央値 / p95 (ms) |", "| --- | --- | --- | --- | --- |");
+  out.push("層の一致（層のある行）は、期待の読みに層がある行だけで数えたもの。何も言わない返事は、層の無い行では層が一致してしまうため。", "");
+  out.push("| system | 世界の一致 | 層の一致 | 層の一致（層のある行） | pass^k | 遅延 中央値 / p95 (ms) |", "| --- | --- | --- | --- | --- | --- |");
   for (const r of input.interpret.results) {
     const lat = r.latency === null ? "—" : `${r.latency.median} / ${r.latency.p95}`;
-    out.push(`| ${cell(r.name)} | ${rateCell(r.worldMatch)} | ${rateCell(r.layerMatch)} | ${rateCell(r.passAllK)} | ${lat} |`);
+    out.push(`| ${cell(r.name)} | ${rateCell(r.worldMatch)} | ${rateCell(r.layerMatch)} | ${rateCell(r.layeredMatch)} | ${rateCell(r.passAllK)} | ${lat} |`);
   }
-  for (const n of input.interpret.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | |`);
+  for (const n of input.interpret.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | | |`);
   out.push("");
 
   const ran = input.interpret.results.some((r) => r.name === input.interpret.baseline);
@@ -67,13 +68,13 @@ export function renderEvalsMd(input: EvalsInput): string {
     "端末の辞書は、何も見つからない時に「なし」とは言わず「確かめられなかった」を返す（画面は止める・わからない・つらいの札をやさしく出す）。表ではそれを検出に数えない。Claude の列は Claude が答えた回の性能で、実際の取りこぼしはおよそ「Claude の取りこぼし＋失敗の率×辞書の取りこぼし」になる。",
     "",
   );
-  out.push("| check | distress の検出 | 取りこぼし | 取りこぼし率の上限 (片側95%) | 誤検知（none の行） |", "| --- | --- | --- | --- | --- |");
+  out.push("| check | distress の検出 | 取りこぼし | 取りこぼし率の上限 (片側95%) | 誤検知（none の行） | 不適切の検出 |", "| --- | --- | --- | --- | --- | --- |");
   for (const { name, result } of input.safety.results) {
     out.push(
-      `| ${cell(name)} | ${rateCell(result.recall)} | ${result.misses.length === 0 ? "なし" : result.misses.join(", ")} | ${pct(result.missUpper)} (${result.missUpper.toFixed(3)}) | ${rateCell(result.falseAlarms)}${result.falseAlarms.ids.length === 0 ? "" : ` ${result.falseAlarms.ids.join(", ")}`} |`,
+      `| ${cell(name)} | ${rateCell(result.recall)} | ${result.misses.length === 0 ? "なし" : result.misses.join(", ")} | ${pct(result.missUpper)} (${result.missUpper.toFixed(3)}) | ${rateCell(result.falseAlarms)}${result.falseAlarms.ids.length === 0 ? "" : ` ${result.falseAlarms.ids.join(", ")}`} | ${rateCell(result.inappropriate)} |`,
     );
   }
-  for (const n of input.safety.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | |`);
+  for (const n of input.safety.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | | |`);
   out.push("");
 
   out.push("## データ", "", "### 解釈", "");

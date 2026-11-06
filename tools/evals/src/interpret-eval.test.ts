@@ -214,3 +214,25 @@ describe("lostToBaseline", () => {
     expect(() => lostToBaseline(res, "keyword")).toThrow();
   });
 });
+
+describe("review fixes (Q27)", () => {
+  it("also counts the layer match on the rows whose expected reading has a layer, where saying nothing cannot match", async () => {
+    const res = await runInterpretEval({ rows: rowsOf(ALL), records, systems: [silent, perfect()], k: 1 });
+    const s = resultOf(res, "silent");
+    const p = resultOf(res, "perfect");
+    expect(p.layeredMatch.n).toBe(s.layeredMatch.n);
+    expect(p.layeredMatch.k).toBe(p.layeredMatch.n);
+    expect(s.layeredMatch.k).toBe(0);
+  });
+
+  it("a run that throws still counts its time", async () => {
+    const throwing: System = {
+      name: "throwing",
+      run: async () => {
+        throw new Error("down");
+      },
+    };
+    const res = await runInterpretEval({ rows: rowsOf(["a"]), records, systems: [throwing], k: 1 });
+    expect(resultOf(res, "throwing").latency).not.toBeNull();
+  });
+});
