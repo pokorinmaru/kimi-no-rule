@@ -7,6 +7,14 @@ import { MODELS, withDeadline, type ClaudeClient } from "./client.ts";
 
 export type SafetyFlag = "none" | "distress" | "inappropriate";
 
+/**
+ * Claude's judgement, or the dictionary's when Claude did not answer. The dictionary can only say
+ * distress or unchecked: it misses most oblique and other-language requests for help, so a miss there
+ * is never taken as none (Q26). On unchecked the screen does not answer what was said; it offers the
+ * stop / don't know / it's hard buttons gently and lets the child choose.
+ */
+export type SafetyResult = { flag: SafetyFlag; source: "claude" } | { flag: "distress" | "unchecked"; source: "dictionary" };
+
 export const DISTRESS_WORDS: { ja: string[]; en: string[] } = {
   // Written in hiragana where a word has a kana form: the text is folded to hiragana before matching.
   ja: [
@@ -45,7 +53,7 @@ export async function checkSafety(
   transcript: string,
   client: ClaudeClient,
   opts: { timeoutMs?: number } = {},
-): Promise<{ flag: SafetyFlag; source: "claude" | "dictionary" }> {
+): Promise<SafetyResult> {
   const schema = z.toJSONSchema(schemas.safety, { target: "draft-2020-12" }) as Record<string, unknown>;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -64,5 +72,5 @@ export async function checkSafety(
       // try again, then fall back to the dictionary
     }
   }
-  return { flag: byDictionary(transcript), source: "dictionary" };
+  return { flag: byDictionary(transcript) === "distress" ? "distress" : "unchecked", source: "dictionary" };
 }

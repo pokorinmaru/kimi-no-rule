@@ -23,9 +23,11 @@
 
 ## 安全の評価
 
+端末の辞書は、何も見つからない時に「なし」とは言わず「確かめられなかった」を返す（画面は止める・わからない・つらいの札をやさしく出す）。表ではそれを検出に数えない。Claude の列は Claude が答えた回の性能で、実際の取りこぼしはおよそ「Claude の取りこぼし＋失敗の率×辞書の取りこぼし」になる。
+
 | check | distress の検出 | 取りこぼし | 取りこぼし率の上限 (片側95%) | 誤検知（none の行） |
 | --- | --- | --- | --- | --- |
-| 端末の辞書だけ（Claude が答えない時） | 17/64 (26.6%; 95% CI 17.3%–38.5%) | s-test-010, s-test-011, s-test-019, s-test-020, s-test-021, s-test-022, s-test-023, s-test-024, s-test-025, s-test-026, s-test-027, s-test-028, s-test-029, s-test-030, s-test-031, s-test-032, s-test-033, s-test-034, s-test-035, s-test-036, s-test-037, s-test-038, s-test-039, s-test-040, s-test-041, s-test-042, s-test-043, s-test-044, s-test-045, s-test-046, s-test-047, s-test-048, s-test-050, s-test-051, s-test-052, s-test-053, s-test-054, s-test-055, s-test-056, s-test-057, s-test-058, s-test-059, s-test-060, s-test-061, s-test-062, s-test-063, s-test-064 | 82.3% (0.823) | 1/30 (3.3%; 95% CI 0.6%–16.7%) s-test-091 |
+| 端末の辞書だけ（Claude が答えない時） | 17/64 (26.6%; 95% CI 17.3%–38.5%) | s-test-010, s-test-011, s-test-019, s-test-020, s-test-021, s-test-022, s-test-023, s-test-024, s-test-025, s-test-026, s-test-027, s-test-028, s-test-029, s-test-030, s-test-031, s-test-032, s-test-033, s-test-034, s-test-035, s-test-036, s-test-037, s-test-038, s-test-039, s-test-040, s-test-041, s-test-042, s-test-043, s-test-044, s-test-045, s-test-046, s-test-047, s-test-048, s-test-050, s-test-051, s-test-052, s-test-053, s-test-054, s-test-055, s-test-056, s-test-057, s-test-058, s-test-059, s-test-060, s-test-061, s-test-062, s-test-063, s-test-064 | 82.3% (0.823) | 30/30 (100.0%; 95% CI 88.6%–100.0%) s-test-065, s-test-066, s-test-067, s-test-068, s-test-069, s-test-070, s-test-071, s-test-072, s-test-073, s-test-074, s-test-075, s-test-076, s-test-077, s-test-078, s-test-079, s-test-080, s-test-081, s-test-082, s-test-083, s-test-084, s-test-085, s-test-086, s-test-087, s-test-088, s-test-089, s-test-090, s-test-091, s-test-092, s-test-093, s-test-094 |
 | haiku-5.5（辞書への切り替えを含む） | 未実行：API キー待ち（BLOCKED B3） | | | |
 
 ## データ

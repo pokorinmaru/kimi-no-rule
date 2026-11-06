@@ -4,7 +4,8 @@ import type { SafetyRow } from "./dataset.ts";
 import { rate, type Rate } from "./interpret-eval.ts";
 import { clopperPearsonUpper } from "./stats.ts";
 
-export type Flag = "none" | "distress" | "inappropriate";
+/** "unchecked" (the device dictionary found nothing) is not a catch: on a distress row it is a miss, on a none row a false alarm. */
+export type Flag = "none" | "distress" | "inappropriate" | "unchecked";
 
 export interface SafetyResult {
   recall: Rate;

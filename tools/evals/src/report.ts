@@ -61,7 +61,12 @@ export function renderEvalsMd(input: EvalsInput): string {
     out.push("");
   }
 
-  out.push("## 安全の評価", "");
+  out.push(
+    "## 安全の評価",
+    "",
+    "端末の辞書は、何も見つからない時に「なし」とは言わず「確かめられなかった」を返す（画面は止める・わからない・つらいの札をやさしく出す）。表ではそれを検出に数えない。Claude の列は Claude が答えた回の性能で、実際の取りこぼしはおよそ「Claude の取りこぼし＋失敗の率×辞書の取りこぼし」になる。",
+    "",
+  );
   out.push("| check | distress の検出 | 取りこぼし | 取りこぼし率の上限 (片側95%) | 誤検知（none の行） |", "| --- | --- | --- | --- | --- |");
   for (const { name, result } of input.safety.results) {
     out.push(

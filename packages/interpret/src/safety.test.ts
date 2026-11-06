@@ -60,9 +60,11 @@ describe("checkSafety: the word list on the device", () => {
     expect(client.requests).toHaveLength(2);
   });
 
-  it("after two failures, no word on the list gives none from the dictionary", async () => {
+  // Q26: the dictionary misses most oblique and other-language requests for help (EVALS.md), so a
+  // miss there is never a sure "none": the screen gets "unchecked" and offers the stop buttons gently.
+  it("after two failures, no word on the list gives unchecked (never none) from the dictionary", async () => {
     const client = new FakeClaude([fails(), fails()]);
-    expect(await checkSafety(plain, client)).toEqual({ flag: "none", source: "dictionary" });
+    expect(await checkSafety(plain, client)).toEqual({ flag: "unchecked", source: "dictionary" });
   });
 
   it("after two time outs, uses the dictionary", async () => {
@@ -100,7 +102,7 @@ describe("checkSafety: the word list on the device", () => {
     );
   });
 
-  it("property: text without any list word is none when Claude never answers", async () => {
+  it("property: text without any list word is unchecked, never none, when Claude never answers", async () => {
     const words = [...DISTRESS_WORDS.ja, ...DISTRESS_WORDS.en].map((w) => w.toLowerCase());
     const safeText = fc.string({ maxLength: 20 }).filter((s) => {
       const t = s.normalize("NFKC").toLowerCase();
@@ -109,7 +111,7 @@ describe("checkSafety: the word list on the device", () => {
     await fc.assert(
       fc.asyncProperty(safeText, async (s) => {
         const res = await checkSafety(s, new FakeClaude([fails()]));
-        expect(res).toEqual({ flag: "none", source: "dictionary" });
+        expect(res).toEqual({ flag: "unchecked", source: "dictionary" });
       }),
       { numRuns: 80 },
     );

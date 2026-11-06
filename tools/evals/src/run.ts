@@ -10,7 +10,7 @@ import { PROVISIONAL } from "../../../packages/core/fixtures/problems/provisiona
 import { interpretRow, loadJsonl, safetyRow } from "./dataset.ts";
 import { runInterpretEval, type EvalSystem } from "./interpret-eval.ts";
 import { renderEvalsMd, type NotRun } from "./report.ts";
-import { runSafetyEval, type Flag } from "./safety-eval.ts";
+import { runSafetyEval } from "./safety-eval.ts";
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string): string => readFileSync(new URL(p, root), "utf8");
@@ -75,10 +75,10 @@ async function main(): Promise<void> {
 
   const results = await runInterpretEval({ rows: interpretRows, records, systems, k });
   const safety: { name: string; result: Awaited<ReturnType<typeof runSafetyEval>> }[] = [
-    { name: "端末の辞書だけ（Claude が答えない時）", result: await runSafetyEval(safetyRows, async (t) => (await checkSafety(t, noClaude)).flag as Flag) },
+    { name: "端末の辞書だけ（Claude が答えない時）", result: await runSafetyEval(safetyRows, async (t) => (await checkSafety(t, noClaude)).flag) },
   ];
   if (client === null) safetyNotRun.push({ name: "haiku-5.5（辞書への切り替えを含む）", reason: "API キー待ち（BLOCKED B3）" });
-  else safety.push({ name: "haiku-5.5（辞書への切り替えを含む）", result: await runSafetyEval(safetyRows, async (t) => (await checkSafety(t, client)).flag as Flag) });
+  else safety.push({ name: "haiku-5.5（辞書への切り替えを含む）", result: await runSafetyEval(safetyRows, async (t) => (await checkSafety(t, client)).flag) });
 
   const md = renderEvalsMd({
     interpret: { k, baseline: KEYWORD, results, notRun },
