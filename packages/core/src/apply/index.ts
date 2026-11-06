@@ -408,6 +408,13 @@ function step(w: WorldScene, op: AnyOp, fresh: string | null): Step {
       }
       if (r.subject === op.reference) return done(swap(op.target_id));
       if (r.reference === null) throw new Discard(`${op.target_id} has no single reference`);
+      // The subject is the relation's other party (指示書 第5.1節, Q10): when the new reference belongs to
+      // the subject's holder, the old reference becomes the subject; for a third holder it stays.
+      const holderOf = (id: string): string | undefined => w.quantities.find((x) => x.id === id)?.holder;
+      const oldReference = r.reference;
+      if (holderOf(op.reference) === holderOf(r.subject)) {
+        return done(editRelation(op.target_id, (x) => ({ ...x, subject: oldReference, reference: op.reference })));
+      }
       return done(editRelation(op.target_id, (x) => ({ ...x, reference: op.reference })));
     }
     case "add_relation": {

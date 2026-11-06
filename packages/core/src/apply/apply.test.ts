@@ -211,7 +211,15 @@ describe("set_relation_reference (three cases)", () => {
     expect(res.discarded).toEqual([]);
   });
 
-  it("another quantity: only the reference is replaced, the subject stays (Q10)", () => {
+  it("a quantity of the subject's holder: the subject moves to the old reference's side (Q10)", () => {
+    // q_c2 belongs to h_c like the subject q_c, so the other party of r_2 is the old reference q_a.
+    const res = run({ ops: [op.setReference("r_2", "q_c2")] });
+    expect(relation(res.judgeWorld, "r_2")).toEqual({ ...relation(worldW(), "r_2"), subject: "q_a", reference: "q_c2" });
+    expect(res.discarded).toEqual([]);
+    expectValidWorld(res.judgeWorld);
+  });
+
+  it("a quantity of a third holder: only the reference is replaced, the subject stays (Q10)", () => {
     const res = run({ ops: [op.setReference("r_1", "q_c")] });
     expect(relation(res.judgeWorld, "r_1")).toEqual({ ...relation(worldW(), "r_1"), subject: "q_b", reference: "q_c" });
     expect(res.observedReferences).toEqual([]);
