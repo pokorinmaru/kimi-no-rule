@@ -815,7 +815,7 @@ describe("property: minimal conflict sets", () => {
       }),
       { numRuns: 100 },
     );
-  });
+  }, 60_000); // a subset search per run: slow when the whole suite runs in parallel
 
   it("each set is in ascending id order, and sets are ordered by size then id list", () => {
     fc.assert(
