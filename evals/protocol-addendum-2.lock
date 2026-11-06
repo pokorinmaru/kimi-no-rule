@@ -1,0 +1,5 @@
+bb0fbd1ccd684323bef7066f09f78fb20f00b0e533558e0e9c5bb423302dee4b  evals/PROTOCOL-ADDENDUM-2.md
+ffd0a0595cbd02bea72a6b10564ad7c827a1af78ebfa8bc807b95db911d17709  packages/core/fixtures/problems/fraction-bank.ts
+0a2f1d30f7838274a6af37e5032a93778fe45f10f57a905891786584ecff12a0  packages/core/src/research/common.ts
+112cc5cd02a44b485f434e8f51bf7b06153be294778af62feb2c2d542e872042  tools/evals/src/research-children.ts
+9a62a4fd6f66f1600cd29368e6deb33c653b692ba04cc52ce8673dfa50f97581  tools/evals/src/research-eval.ts
