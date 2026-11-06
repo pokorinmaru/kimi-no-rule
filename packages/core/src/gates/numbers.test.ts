@@ -169,3 +169,41 @@ describe("numbers written in kana (Q20)", () => {
     expect(values(text)).toEqual([]);
   });
 });
+
+describe("kana numbers found in review (Q20)", () => {
+  const values = (text: string) => numbersIn(text).map((r) => `${r.num}/${r.den}`);
+
+  it.each([
+    ["さんぶんのに", "2/3"],
+    ["にぶんのいち", "1/2"],
+    ["ごぶんのし", "4/5"],
+    ["ろっぴゃく", "600/1"],
+    ["はっぴゃく", "800/1"],
+    ["さんぜんろっぴゃく", "3600/1"],
+    ["はっせん", "8000/1"],
+    ["ごじゅっパーセント", "1/2"],
+    ["れいてんご", "1/2"],
+    ["はんぶん", "1/2"],
+    ["さんわり", "3/10"],
+  ])("%s reads as %s", (text, v) => {
+    expect(values(text)).toContain(v);
+  });
+
+  it.each([
+    "いっしょに絵本を見ませんか",
+    "わかりません",
+    "せんぱい",
+    "ぜんぶで",
+    "パーセント",
+    "まんなか",
+    "いちばん",
+    "いちど",
+    "とおい",
+    "じゅうぶん",
+    "ななめ",
+    "おしまい",
+    "にこにこ",
+  ])("%s holds no number", (text) => {
+    expect(values(text)).toEqual([]);
+  });
+});
