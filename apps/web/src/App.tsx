@@ -29,13 +29,20 @@ function Button(props: { onClick: () => void; children: ReactNode; kind?: "prima
 /** The three buttons every screen keeps (原則7): stop, don't know, it's hard. */
 function Always({ view, send }: { view: FlowView; send: Session["send"] }) {
   return (
-    <nav aria-label="いつでも使えるボタン" style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 24, borderTop: "1px solid #cbd2d9", paddingTop: 12 }}>
+    <nav
+      aria-label="いつでも使えるボタン"
+      data-testid="always"
+      style={{ position: "sticky", bottom: 0, display: "flex", gap: 12, flexWrap: "wrap", marginTop: 24, borderTop: "1px solid #cbd2d9", padding: "12px 0", background: "#fff" }}
+    >
       <Button onClick={() => send({ type: "STOP" })} highlight={view.highlightButtons} testId="btn-stop">
         {view.buttons.stop}
       </Button>
-      <Button onClick={() => send({ type: "DONT_KNOW" })} highlight={view.highlightButtons} testId="btn-dont-know">
-        {view.buttons.dontKnow}
-      </Button>
+      {/* The math has stopped on these screens: "don't know" would do nothing there (Q30). */}
+      {view.screen !== "hard" && view.screen !== "rest" && (
+        <Button onClick={() => send({ type: "DONT_KNOW" })} highlight={view.highlightButtons} testId="btn-dont-know">
+          {view.buttons.dontKnow}
+        </Button>
+      )}
       <Button onClick={() => send({ type: "HARD" })} highlight={view.highlightButtons} testId="btn-hard">
         {view.buttons.hard}
       </Button>
@@ -165,13 +172,14 @@ function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"
 }
 
 /** The grown-up's screen (F9): consent and deleting every record on this device. */
-function ParentScreen({ store, onClose }: { store: FlowStore; onClose: () => void }) {
+function ParentScreen({ onDelete, onClose }: { onDelete: () => Promise<void>; onClose: () => void }) {
   const [asked, setAsked] = useState(false);
   const [done, setDone] = useState(false);
   return (
     <section aria-label="おうちの人へ">
       <h2>おうちの人へ</h2>
       <p>このアプリの記録は、この端末の中にだけ保存されます。子どもの言葉の本文は保存しません。</p>
+      <p>後輩は AI（Anthropic の Claude）で、人ではありません。2問目からは、1問目の子どもの「1」の札の置き方から作った読み方や、よくある読み違いで問題を読みます。後輩は答えを知らされていません。</p>
       {!asked && <Button onClick={() => setAsked(true)}>記録をすべて消す</Button>}
       {asked && !done && (
         <>
@@ -180,7 +188,7 @@ function ParentScreen({ store, onClose }: { store: FlowStore; onClose: () => voi
             kind="primary"
             testId="btn-delete-all"
             onClick={() => {
-              void store.deleteAll().then(() => setDone(true));
+              void onDelete().then(() => setDone(true));
             }}
           >
             消す
@@ -265,6 +273,7 @@ export function App({ storeName = "kimi-no-rule", api }: { storeName?: string; a
   const [session, setSession] = useState<Session | null>(null);
   const [view, setView] = useState<FlowView | null>(null);
   const [parent, setParent] = useState(false);
+  const [restart, setRestart] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -286,7 +295,7 @@ export function App({ storeName = "kimi-no-rule", api }: { storeName?: string; a
       live = false;
       s?.stop();
     };
-  }, [storeName, api]);
+  }, [storeName, api, restart]);
 
   const send = useMemo<Session["send"]>(() => (e) => session?.send(e), [session]);
 
@@ -297,9 +306,20 @@ export function App({ storeName = "kimi-no-rule", api }: { storeName?: string; a
         <AiBadge />
       </header>
       {view === null && <p>じゅんびしています…</p>}
-      {view !== null && store !== null && parent && <ParentScreen store={store} onClose={() => setParent(false)} />}
+      {view !== null && store !== null && parent && (
+        <ParentScreen
+          onClose={() => setParent(false)}
+          onDelete={async () => {
+            // Stop the session and let its last writes land first, so nothing is written back after the delete.
+            session?.stop();
+            await session?.settle();
+            await store.deleteAll();
+            setRestart((n) => n + 1);
+          }}
+        />
+      )}
       {view !== null && !parent && <Screen view={view} send={send} />}
-      {view !== null && !parent && view.screen !== "ended" && <Always view={view} send={send} />}
+      {view !== null && view.screen !== "ended" && <Always view={view} send={send} />}
       {!parent && (view?.screen === "intro" || view?.screen === "consent" || view?.screen === "ended") && (
         <p style={{ marginTop: 24 }}>
           <Button onClick={() => setParent(true)} testId="btn-parent">

@@ -451,7 +451,8 @@ describe("stopping, not knowing and hard (F8)", () => {
     expect(v.screen).toBe("hard");
     const text = childTexts(v).join("\n");
     expect(text).toMatch(/大人/);
-    expect(text).toMatch(/たしかめ/);
+    // The helpline list is not yet checked by a person (B2): the child is told to say it to a grown-up nearby.
+    expect(text).toMatch(/近くにいる大人/);
     expect(text).not.toMatch(/[0-9０-９]{2,}/);
     // Nothing math-like is reachable from here.
     for (const e of [{ type: "NEXT" }, { type: "DONT_KNOW" }, { type: "RESUME" }, { type: "PLACE_ONE", quantityId: "q_ani" }] as FlowEvent[]) {

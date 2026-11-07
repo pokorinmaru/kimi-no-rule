@@ -11,6 +11,7 @@ test("app shell renders with the AI mark and the three buttons", async ({ page }
 });
 
 test("the signboard problem from the junior's misreading to the answer, then a second problem with the junior's card", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
@@ -24,6 +25,8 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   await expect(page.getByTestId("junior-line")).toContainText("弟");
   await page.getByTestId("btn-confirm-yes").click();
   await page.getByTestId("btn-next").click();
+  // The three buttons stay on screen while the child types a number (原則7).
+  await expect(page.getByTestId("btn-hard")).toBeInViewport();
   await page.getByTestId("pad-2").click();
   await page.getByTestId("pad-ok").click();
   await page.getByTestId("pad-8").click();
@@ -42,4 +45,11 @@ test("つらい stops the math from a problem and shows no phone number", async 
   await expect(page.getByTestId("screen-hard")).toBeVisible();
   await expect(page.locator('[data-role="tape"]')).toHaveCount(0);
   await expect(page.getByTestId("screen-hard")).not.toContainText(/\d{2,4}-\d{2,4}-\d{3,4}|0120/);
+});
+
+test("the three buttons stay on the parent screen too", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("btn-parent").click();
+  await expect(page.getByTestId("btn-stop")).toBeVisible();
+  await expect(page.getByTestId("btn-hard")).toBeVisible();
 });
