@@ -28,6 +28,11 @@ export function simEvent(snap: FlowSnapshot, child: TryChild, startProblemId: st
   if (snap.matches({ active: { problem: "looking" } })) return { type: "PLACE_ONE", quantityId: placementOf(child, p.record) };
   if (snap.matches({ active: { problem: "placed" } })) return { type: "CONFIRM_YES" };
   if (snap.matches({ active: { problem: "held" } })) return { type: "NEXT" };
+  // The junior's staged questions and the word book: the simulated child reads on and answers nothing it has no rule for.
+  if (snap.matches({ active: { problem: { help: "read" } } })) return { type: "NEXT" };
+  if (snap.matches({ active: { problem: { help: "order" } } })) return { type: "DONT_KNOW" };
+  if (snap.matches({ active: { problem: { help: "offer" } } })) return { type: "NEXT" };
+  if (snap.matches({ active: { problem: "wordbook" } })) return { type: "NEXT" };
   return "done";
 }
 

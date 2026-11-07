@@ -75,6 +75,8 @@ test("the child tells the junior by talking, sees the words live, and confirms t
   expect(interpretBodies).toEqual([{ problem_id: "p_signboard", transcript: SAID, lang: "ja" }]);
   expect(safetyBodies).toEqual([{ text: SAID }]);
   await page.getByTestId("btn-confirm-yes").click();
+  // The word book opens after the first fix on the session's first wording; closed, the flow goes on.
+  await page.getByTestId("btn-book-close").click();
   // The child's teaching rebuilds the junior's world; the flow goes on to the unit.
   await expect(page.getByTestId("btn-next")).toBeVisible();
   await expect(page.locator("main")).not.toContainText("8匹");

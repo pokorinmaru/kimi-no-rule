@@ -43,6 +43,9 @@ async function solveOnScreen(): Promise<void> {
     fireEvent.click(target);
   });
   fireEvent.click(await screen.findByTestId("btn-confirm-yes"));
+  // The word book opens after the first fix on a wording new in the session (指示書 第7.1節).
+  const close = screen.queryByTestId("btn-book-close");
+  if (close !== null) fireEvent.click(close);
   fireEvent.click(await screen.findByTestId("btn-next"));
   let unit = 0;
   let total = 0;

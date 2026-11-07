@@ -5,7 +5,7 @@
 // child's voice comes as VOICE_HEARD (the browser's final words, kept in memory only) and VOICE_OPS (the ops
 // the worker's /interpret returned); core validates the ops again here before any is used.
 // Every world, verdict and number comes from @kimi/core through problem.ts.
-import { and, assign, or, setup, stateIn } from "xstate";
+import { and, assign, not, or, setup, stateIn } from "xstate";
 import {
   CARD_RULES,
   CORRECT_READING_ID,
@@ -15,6 +15,7 @@ import {
   pickScenes,
   sceneAvoidValues,
   gate,
+  helpSentence,
   holderName,
   initialState,
   observe,
@@ -24,6 +25,8 @@ import {
   render,
   transcript,
   validateOps,
+  wordbookPage,
+  wordbookPagesOf,
   type AnyOp,
   type Hypothesis,
   type KohaiReading,
@@ -35,6 +38,7 @@ import {
   type ScenePair,
   type SlotValues,
   type TemplateKey,
+  type WordbookPageId,
   type WorldScene,
 } from "@kimi/core";
 import {
@@ -168,6 +172,18 @@ export interface ProblemState {
   totalTries: number;
   totalValue: Rational | null;
   logged: boolean;
+  /** The word book's pages for this problem's wordings (core wordbookPagesOf); the book opens on the first. */
+  pages: WordbookPageId[];
+  /** The problem's wording (its first page) did not come in an earlier problem of this session (指示書 第7.1節). */
+  newWording: boolean;
+  /** The number of fixes when the word book last opened on this problem (0: before any fix), or null. */
+  bookAt: number | null;
+  /** How many times the word book opened on this problem. */
+  bookOpens: number;
+  /** The child's answers to "which is longer?" (holder ids): observations only, never judged. */
+  orderGuesses: string[];
+  /** The sentence of the help's first step and its lit relation words (core helpSentence), while the help is open. */
+  help: { statementIndex: number; tokens: number[] } | null;
 }
 
 export type Outcome = "solved" | "held" | "stopped" | "hard" | "rest";
@@ -187,6 +203,10 @@ export interface ProblemLog {
   unitTries: number;
   totalTries: number;
   outcome: Outcome;
+  /** The child's answers to "which is longer?" in the help (holder ids; never judged). */
+  orderGuesses?: string[];
+  /** How many times the word book opened on this problem. */
+  bookOpens?: number;
 }
 
 /**
@@ -288,6 +308,8 @@ export interface FlowContext {
   /** The worker could not be reached (or has no key) for the voice: the mic is not offered for the rest of the session. */
   voiceOff: boolean;
   log: ProblemLog[];
+  /** The word book's pages opened in this session: a later first reading on a problem with one of them is not counted. */
+  wordbookOpened: WordbookPageId[];
   safetyLog: ("distress" | "hard_button" | "rest")[];
   endedBy: null | "stop" | "finished" | "consent_declined" | "hard" | "rest";
 }
@@ -313,6 +335,10 @@ export type FlowEvent =
   /** A proposal for the everyday scenes from the worker (choices only); core checks it again before it is used. */
   | { type: "SCENES_RESULT"; focusId: string; proposal: { breaks: SceneChoice; keeps: SceneChoice } | null; reason: string | null }
   | { type: "CLOSE" }
+  /** In the help: the child's answer to "which is longer?" (a holder of the relation). Recorded, never judged. */
+  | { type: "ORDER_GUESS"; holderId: string }
+  /** In the help: the child opens the word book. */
+  | { type: "OPEN_BOOK" }
   | { type: "KOHAI_LINE"; seq: number; text: string }
   | { type: "RESEARCH_RESULT"; pool: Hypothesis[] | null }
   /** The agent's pool arriving after the wait ended and the fallback was used. */
@@ -510,6 +536,11 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
   const { record, junior, reason } = pick;
   const rel = relationOf(record);
   if (rel === undefined) return { problem: null, ...noLine(ctx) };
+  const pages = pagesOf(record);
+  const earlier = new Set(ctx.done.flatMap((id) => {
+    const r = ctx.bank.find((b) => b.world.problem_id === id);
+    return r === undefined ? [] : pagesOf(r);
+  }));
   const session: SessionMisread =
     ctx.session ?? {
       id: junior.reading.sessionMisreadId ?? junior.reading.hypothesis.id,
@@ -541,6 +572,12 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     totalTries: 0,
     totalValue: null,
     logged: false,
+    pages,
+    newWording: pages[0] !== undefined && !earlier.has(pages[0]),
+    bookAt: null,
+    bookOpens: 0,
+    orderGuesses: [],
+    help: null,
   };
   const next = { ...ctx, problem };
   return {
@@ -595,14 +632,15 @@ function place(ctx: FlowContext, quantityId: string): Partial<FlowContext> {
 function confirmFirst(ctx: FlowContext): Partial<FlowContext> {
   const p = ctx.problem;
   if (p === null || p.placement === null || p.firstPlacement !== null) return {};
-  const reading = firstReading(p.record, p.relationId, p.placement);
+  // A reading after the word book showed one of this problem's wordings is not counted by core (countsAsObservation).
+  const reading = firstReading(p.record, p.relationId, p.placement, p.pages.some((pg) => ctx.wordbookOpened.includes(pg)));
   const research = reading === null ? ctx.research : observe(ctx.research, reading);
   const problem = { ...p, firstPlacement: p.placement };
   const firstOfSession = ctx.done.length === 1 && ctx.researchRequest === null && !ctx.researchApplied;
   // The worker takes the most recent readings only; the device keeps every one (第7.5節).
   const recent = research.readings.slice(-MAX_RESEARCH_READINGS);
   const researchRequest: ResearchRequest | null =
-    firstOfSession && reading !== null
+    firstOfSession && reading !== null && !reading.wordbookOpenedBefore
       ? {
           pool: research.pool,
           weights: research.weights,
@@ -667,6 +705,8 @@ function logOf(p: ProblemState, outcome: Outcome): ProblemLog {
     unitTries: p.unitTries,
     totalTries: p.totalTries,
     outcome,
+    orderGuesses: [...p.orderGuesses],
+    bookOpens: p.bookOpens,
   };
 }
 
@@ -848,6 +888,77 @@ function answerMiss(ctx: FlowContext, kind: "unit" | "total", value: Rational): 
 }
 
 // ---------------------------------------------------------------------------------------------
+// The help for a child who is stuck and the word book (指示書 第7.1節 手順4・5, 第11節 M7)
+// ---------------------------------------------------------------------------------------------
+
+function pagesOf(record: ProblemRecord): WordbookPageId[] {
+  try {
+    return wordbookPagesOf(record);
+  } catch {
+    return [];
+  }
+}
+
+/** The page the book opens on for this problem, when core lets it be shown here. */
+export function bookPageId(ctx: FlowContext): WordbookPageId | null {
+  const p = ctx.problem;
+  const id = p?.pages[0];
+  if (p === null || id === undefined) return null;
+  return wordbookPage(id, p.record, ctx.lang) === null ? null : id;
+}
+
+/**
+ * The book opens by itself after the first fix on a wording new in this session, and after the second fix when a
+ * sentence still does not fit (指示書 第7.1節 手順5); once for each fix.
+ */
+function bookNeeded(ctx: FlowContext): boolean {
+  const p = ctx.problem;
+  if (p === null || p.bookAt === p.fixes || bookPageId(ctx) === null) return false;
+  return (p.fixes === 1 && p.newWording) || (p.fixes === 2 && p.shown.failing.length > 0);
+}
+
+/** The help's first step: the relation words of a failing sentence lit, and the junior asks to read them again. */
+function startHelp(ctx: FlowContext): Partial<FlowContext> {
+  const p = ctx.problem;
+  if (p === null) return {};
+  let help: ProblemState["help"];
+  try {
+    help = helpSentence(p.record, p.shown.failing);
+  } catch {
+    help = null;
+  }
+  const problem = { ...p, help, placement: null, heard: null, listening: false };
+  return { problem, line: help === null ? null : lineOf({ ...ctx, problem }, "kohai.help_read", {}, null, null) };
+}
+
+/** The holders of the relation's two ends: the buttons of "which is longer?". */
+export function orderHolders(p: ProblemState): string[] {
+  const rel = p.record.world.relations.find((r) => r.id === p.relationId);
+  return [rel?.subject, rel?.reference].flatMap((q) => {
+    const h = q === undefined || q === null ? undefined : holderOf(p.record, q);
+    return h === undefined ? [] : [h];
+  });
+}
+
+function guessOrder(ctx: FlowContext, holderId: string): Partial<FlowContext> {
+  const p = ctx.problem;
+  if (p === null) return {};
+  return { problem: { ...p, orderGuesses: [...p.orderGuesses, holderId] } };
+}
+
+function openBook(ctx: FlowContext): Partial<FlowContext> {
+  const p = ctx.problem;
+  const id = bookPageId(ctx);
+  if (p === null || id === null) return {};
+  const problem = { ...p, bookAt: p.fixes, bookOpens: p.bookOpens + 1, help: null };
+  return {
+    problem,
+    wordbookOpened: ctx.wordbookOpened.includes(id) ? ctx.wordbookOpened : [...ctx.wordbookOpened, id],
+    line: lineOf({ ...ctx, problem }, "kohai.wordbook", {}, null, null),
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
 // The machine
 // ---------------------------------------------------------------------------------------------
 
@@ -896,6 +1007,10 @@ export const flowMachine = setup({
     voicePlaces: ({ context, event }) => event.type === "VOICE_OPS" && context.problem?.listening === true && voiceUse(context, event.ops) !== null,
     voicePending: ({ context, event }) => event.type === "VOICE_OPS" && context.problem?.listening === true,
     voiceOffline: ({ event }) => event.type === "VOICE_OPS" && event.offline === true,
+    bookNeeded: ({ context }) => bookNeeded(context),
+    helpWords: ({ context }) => context.problem?.help !== null && context.problem?.help !== undefined,
+    orderable: ({ context, event }) => event.type === "ORDER_GUESS" && context.problem !== null && orderHolders(context.problem).includes(event.holderId),
+    bookOpenable: ({ context }) => bookPageId(context) !== null,
     pickable: ({ context, event }) => event.type === "CARD_PICK" && context.ruleCard !== null && CARD_RULES.some((h) => h.id === event.ruleId),
   },
 }).createMachine({
@@ -926,6 +1041,7 @@ export const flowMachine = setup({
     highlight: false,
     voiceOff: false,
     log: [],
+    wordbookOpened: [],
     safetyLog: [],
     endedBy: null,
   }),
@@ -1011,6 +1127,8 @@ export const flowMachine = setup({
               // With nothing lit (a taught reading drawn as the order only) the junior keeps its reading line.
               entry: assign(({ context }) => (context.problem !== null && context.problem.shown.failing.length === 0 ? {} : { line: whichLine(context) })),
               on: {
+                // 「わからない」 here opens the junior's staged questions, not the waiting screen (指示書 第7.1節 手順4).
+                DONT_KNOW: "help",
                 PLACE_ONE: { guard: "placeable", target: "placed", actions: assign(({ context, event }) => (event.type === "PLACE_ONE" ? place(context, event.quantityId) : {})) },
                 TAP_WORD: { guard: "tappable", actions: assign(({ context, event }) => (event.type === "TAP_WORD" ? tapWord(context, event.statementIndex, event.token) : {})) },
                 VOICE_HEARD: { guard: "hearable", actions: assign(({ context, event }) => (event.type === "VOICE_HEARD" ? hear(context, event.transcript) : {})) },
@@ -1023,6 +1141,7 @@ export const flowMachine = setup({
             },
             placed: {
               on: {
+                DONT_KNOW: "help",
                 PLACE_ONE: {
                   guard: "placeable",
                   target: "placed",
@@ -1061,8 +1180,54 @@ export const flowMachine = setup({
                 ],
               },
             },
+            // After each fix: the word book when it must open (指示書 第7.1節 手順5, 第11節 M7), else every sentence fits,
+            // else the problem is held after the last fix, else the junior's staged questions.
             checking: {
-              always: [{ guard: "allHold", target: "rebuilt" }, { guard: "tooManyFixes", target: "held" }, { target: "looking" }],
+              always: [
+                { guard: "bookNeeded", target: "wordbook" },
+                { guard: "allHold", target: "rebuilt" },
+                { guard: "tooManyFixes", target: "held" },
+                { target: "help" },
+              ],
+            },
+            // The junior's staged questions (指示書 第7.1節 手順4・5): (a) the relation words of a failing sentence lit, read
+            // them again; (b) "which is longer?" with the two holders, recorded and never judged; (c) the word book offered.
+            // No answer, no operation, no correct world, and the junior never names who is taken as 1.
+            help: {
+              initial: "read",
+              entry: assign(({ context }) => startHelp(context)),
+              exit: assign(({ context }) => (context.problem === null ? {} : { problem: { ...context.problem, help: null } })),
+              states: {
+                read: {
+                  always: [{ guard: not("helpWords"), target: "order" }],
+                  on: { NEXT: "order", DONT_KNOW: "order" },
+                },
+                order: {
+                  entry: assign(({ context }) => ({ line: lineOf(context, "kohai.help_order", {}, null, null) })),
+                  on: {
+                    ORDER_GUESS: { guard: "orderable", target: "offer", actions: assign(({ context, event }) => (event.type === "ORDER_GUESS" ? guessOrder(context, event.holderId) : {})) },
+                    DONT_KNOW: "offer",
+                  },
+                },
+                offer: {
+                  always: [{ guard: not("bookOpenable"), target: "#flow.active.problem.looking" }],
+                  entry: assign(({ context }) => ({ line: lineOf(context, "kohai.wordbook", {}, null, null) })),
+                  on: {
+                    OPEN_BOOK: "#flow.active.problem.wordbook",
+                    NEXT: "#flow.active.problem.looking",
+                    DONT_KNOW: "#flow.stuck",
+                  },
+                },
+              },
+            },
+            // ことばの絵本 (指示書 第7.1節): one page for this problem's wording, an everyday example core keeps away from every
+            // number of the problem. Closed, the child goes on fixing (or on to the unit when every sentence already fits).
+            wordbook: {
+              entry: assign(({ context }) => openBook(context)),
+              on: {
+                NEXT: [{ guard: "allHold", target: "rebuilt" }, { target: "looking" }],
+                DONT_KNOW: "#flow.stuck",
+              },
             },
             rebuilt: {
               entry: assign(({ context }) => noLine(context)),

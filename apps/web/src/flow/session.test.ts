@@ -9,6 +9,7 @@ import { createHttpApi } from "./api.ts";
 import { openStore, type FlowStore } from "../store/store.ts";
 import { firstReading, judgeTotal, judgeUnit } from "./problem.ts";
 import { createApp } from "../../../worker/src/app.ts";
+import { passBook } from "./test-book.ts";
 
 let n = 0;
 const stores: FlowStore[] = [];
@@ -48,6 +49,7 @@ async function solveCurrent(s: Awaited<ReturnType<typeof startSession>>): Promis
   s.send({ type: "PREDICT", answer: "fits" });
   s.send({ type: "PLACE_ONE", quantityId: rel?.reference as string });
   s.send({ type: "CONFIRM_YES" });
+  passBook(s);
   s.send({ type: "NEXT" });
   const v = right(p.record);
   s.send({ type: "ANSWER_UNIT", value: v.unit });

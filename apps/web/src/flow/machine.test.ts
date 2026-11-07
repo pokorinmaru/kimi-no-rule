@@ -9,6 +9,7 @@ import { childTexts, viewOf } from "./view.ts";
 import { firstReading, judgeTotal, judgeUnit } from "./problem.ts";
 import { HELPLINES, hasForbiddenPhrase, helplineLine, helplinesFor, ui } from "./text.ts";
 import { checkText } from "../check/text.ts";
+import { passBook } from "./test-book.ts";
 
 /** The text with the checked helpline lines taken out (their numbers are allowed, nothing else). */
 const withoutHelplines = (t: string): string => HELPLINES.reduce((acc, h) => acc.replaceAll(helplineLine(h), ""), t);
@@ -53,6 +54,10 @@ function events(s: Snap, opts: { safety: boolean; research: boolean; voice?: boo
     for (const q of [rel?.subject, rel?.reference]) if (q !== undefined && q !== null) out.push({ type: "PLACE_ONE", quantityId: q });
     out.push({ type: "CONFIRM_YES" }, { type: "CONFIRM_NO" }, { type: "TAP_WORD", statementIndex: 0, token: 0 });
     out.push({ type: "PREDICT", answer: "fits" }, { type: "PREDICT", answer: "odd" }, { type: "PREDICT", answer: "unknown" });
+    // The junior's staged questions: one holder for "which is longer?", and opening the word book.
+    const firstEnd = p.record.world.quantities.find((q) => q.id === rel?.subject)?.holder;
+    if (firstEnd !== undefined) out.push({ type: "ORDER_GUESS", holderId: firstEnd });
+    out.push({ type: "OPEN_BOOK" });
     const v = values(s);
     if (v !== null) {
       out.push({ type: "ANSWER_UNIT", value: v.unitOk }, { type: "ANSWER_UNIT", value: v.unitNg });
@@ -123,6 +128,14 @@ function checkScreen(s: Snap): void {
     // The junior never reads with a reading that builds the correct world, unless the child left it on the rule card.
     if (p.reading.source !== "taught") expect(sameReading(runRule(p.reading.hypothesis, p.record), p.record.world, true)).toBe(false);
   }
+  // On the junior's staged questions and the word book, the junior's words never name a holder of the problem
+  // (so never the one taken as 1), and the book's page never shows the problem's holders.
+  if (p !== null && (view.screen === "help" || view.screen === "wordbook")) {
+    for (const h of p.record.world.holders) {
+      expect(view.line ?? "", view.line ?? "").not.toContain(h.label);
+      if (view.screen === "wordbook") expect((view.page?.lines ?? []).join(""), h.label).not.toContain(h.label);
+    }
+  }
   // The words heard stay in memory: never in the device's log or the research state (第9節).
   expect(JSON.stringify([s.context.log, s.context.research])).not.toContain("弟が1だよ");
   // The junior never reports that a taught reading held (Q30: no thanks line, even when it reads with the card the child left).
@@ -163,8 +176,12 @@ describe("the session machine: every state is reachable and every screen keeps t
       const hard = step(s, { type: "HARD" });
       expect(hard.matches("hard")).toBe(true);
       const dk = step(s, { type: "DONT_KNOW" });
-      // Inside the session it opens the "don't know" screen; on the safety and rest screens nothing math-like opens.
-      if (s.matches("active")) expect(dk.matches("stuck")).toBe(true);
+      // Inside the session it opens the junior's staged questions where the child moves the card (and moves on
+      // through them), else the "don't know" screen; on the safety and rest screens nothing math-like opens.
+      const onCard = s.matches({ active: { problem: "looking" } }) || s.matches({ active: { problem: "placed" } });
+      const earlyHelp = s.matches({ active: { problem: { help: "read" } } }) || s.matches({ active: { problem: { help: "order" } } });
+      if (onCard || earlyHelp) expect(dk.matches({ active: { problem: "help" } })).toBe(true);
+      else if (s.matches("active")) expect(dk.matches("stuck")).toBe(true);
       else expect(dk.matches("active")).toBe(false);
     }
   });
@@ -181,7 +198,7 @@ describe("the session machine: every state is reachable and every screen keeps t
 });
 
 /** The child's own moves on one problem (stop, hard and safety are walked by the shortest paths above). */
-const SIMPLE = new Set<FlowEvent["type"]>(["NEXT", "PREDICT", "PLACE_ONE", "CONFIRM_YES", "CONFIRM_NO", "ANSWER_UNIT", "ANSWER_TOTAL", "DONT_KNOW", "RESUME", "HOLD", "STOP"]);
+const SIMPLE = new Set<FlowEvent["type"]>(["NEXT", "PREDICT", "PLACE_ONE", "CONFIRM_YES", "CONFIRM_NO", "ANSWER_UNIT", "ANSWER_TOTAL", "DONT_KNOW", "RESUME", "HOLD", "STOP", "OPEN_BOOK"]);
 
 describe("simple paths through one problem", () => {
   it("every simple path keeps the rules (one problem, no safety events)", { timeout: 30_000 }, () => {
@@ -223,6 +240,7 @@ function solveProblem(actor: ReturnType<typeof run>): void {
   actor.send({ type: "PREDICT", answer: "fits" });
   place(actor, true);
   actor.send({ type: "CONFIRM_YES" });
+  passBook(actor);
   expect(actor.getSnapshot().matches({ active: { problem: "rebuilt" } })).toBe(true);
   actor.send({ type: "NEXT" });
   const v = values(actor.getSnapshot());
@@ -285,6 +303,7 @@ describe("the flow of one problem (F1)", () => {
     // A placement is the child's reading only once the child confirms it.
     expect(actor.getSnapshot().context.problem?.firstPlacement).toBeNull();
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     expect(actor.getSnapshot().context.problem?.firstPlacement).not.toBeNull();
     v = viewOf(actor.getSnapshot());
     expect(v.screen === "problem" && v.step).toBe("rebuilt");
@@ -297,10 +316,12 @@ describe("the flow of one problem (F1)", () => {
     for (let i = 0; i < 2; i++) {
       place(actor, false);
       actor.send({ type: "CONFIRM_YES" });
+      passBook(actor);
       expect(actor.getSnapshot().matches({ active: { problem: "looking" } })).toBe(true);
     }
     place(actor, false);
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     expect(actor.getSnapshot().matches({ active: { problem: "held" } })).toBe(true);
     expect(actor.getSnapshot().context.log.at(-1)?.outcome).toBe("held");
   });
@@ -326,6 +347,7 @@ describe("the flow of one problem (F1)", () => {
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, true);
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     actor.send({ type: "NEXT" });
     const v = values(actor.getSnapshot());
     actor.send({ type: "ANSWER_UNIT", value: v?.unitNg as Rational });
@@ -345,6 +367,7 @@ describe("the flow of one problem (F1)", () => {
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, true);
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     actor.send({ type: "NEXT" });
     return { actor, v: values(actor.getSnapshot()) as Values };
   }
@@ -592,11 +615,13 @@ describe("the research layer in the flow (F3)", () => {
     expect(actor.getSnapshot().context.research.readings).toHaveLength(0);
     expect(actor.getSnapshot().context.researchRequest).toBeNull();
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     const s1 = actor.getSnapshot();
     expect(s1.context.research.readings).toHaveLength(1);
     expect(s1.context.researchRequest).not.toBeNull();
     place(actor, true);
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     expect(actor.getSnapshot().context.research.readings).toHaveLength(1);
   });
 
@@ -610,6 +635,7 @@ describe("the research layer in the flow (F3)", () => {
     place(actor, false);
     actor.send({ type: "TAP_WORD", statementIndex: 1, token: 4 });
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     const s = actor.getSnapshot();
     expect(s.context.problem?.firstPlacement).toBe(rel?.subject);
     const req = s.context.researchRequest;
@@ -634,6 +660,7 @@ describe("the research layer in the flow (F3)", () => {
     actor.send({ type: "TAP_WORD", statementIndex: 1, token: 4 });
     place(actor, false);
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     const s = actor.getSnapshot();
     expect(s.context.research.readings).toHaveLength(16);
     const req = s.context.researchRequest;
@@ -648,8 +675,10 @@ describe("the research layer in the flow (F3)", () => {
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, false);
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     place(actor, true);
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     actor.send({ type: "NEXT" });
     const v = values(actor.getSnapshot());
     actor.send({ type: "ANSWER_UNIT", value: v?.unitOk as Rational });
@@ -671,8 +700,10 @@ describe("the research layer in the flow (F3)", () => {
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, false);
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     place(actor, true);
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     actor.send({ type: "NEXT" });
     const v = values(actor.getSnapshot());
     actor.send({ type: "ANSWER_UNIT", value: v?.unitOk as Rational });
@@ -713,8 +744,10 @@ describe("the research layer in the flow (F3)", () => {
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, false);
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     place(actor, true);
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     actor.send({ type: "NEXT" });
     const v = values(actor.getSnapshot());
     actor.send({ type: "ANSWER_UNIT", value: v?.unitOk as Rational });
@@ -729,14 +762,18 @@ describe("the research layer in the flow (F3)", () => {
 });
 
 describe("stopping, not knowing and hard (F8)", () => {
-  it("'don't know' opens a waiting screen that resumes where the child was, or holds the problem", () => {
+  it("'don't know' on the card opens the junior's staged questions; past them, a waiting screen that resumes where the child was, or holds the problem", () => {
     const actor = run();
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, true);
     actor.send({ type: "DONT_KNOW" });
+    expect(viewOf(actor.getSnapshot()).screen).toBe("help");
+    actor.send({ type: "DONT_KNOW" });
+    actor.send({ type: "DONT_KNOW" });
+    actor.send({ type: "DONT_KNOW" });
     expect(viewOf(actor.getSnapshot()).screen).toBe("stuck");
     actor.send({ type: "RESUME" });
-    expect(actor.getSnapshot().matches({ active: { problem: "placed" } })).toBe(true);
+    expect(actor.getSnapshot().matches({ active: { problem: { help: "offer" } } })).toBe(true);
     actor.send({ type: "DONT_KNOW" });
     actor.send({ type: "HOLD" });
     const s = actor.getSnapshot();
@@ -853,7 +890,12 @@ function checkScreenEn(s: Snap): void {
       : v.screen === "card"
         ? // The everyday scenes' sentences carry the scenes' own numbers, checked by core's gate show_scene.
           [...v.gallery.flatMap((g) => g.statements.map((x) => x.text)), ...(v.scenes?.items ?? []).flatMap((i) => i.lines)]
-        : [],
+        : v.screen === "help"
+          ? v.statements.map((x) => x.text)
+          : v.screen === "wordbook"
+            ? // The word book's sentences carry the page's own numbers, checked by core (wordbookPage).
+              (v.page?.lines ?? [])
+            : [],
   );
   for (const t of texts.filter((x) => !own.has(x))) {
     const plain = withoutCard(withoutEnHelplines(t));

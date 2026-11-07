@@ -8,7 +8,7 @@ import { SentenceList } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
 import { startSession, type Session } from "./flow/session.ts";
 import { bankFor } from "./flow/bank.ts";
-import { viewOf, type CardScreenView, type FlowSnapshot, type FlowView, type ProblemView } from "./flow/view.ts";
+import { viewOf, type CardScreenView, type FlowSnapshot, type FlowView, type HelpView, type ProblemView, type WordbookView } from "./flow/view.ts";
 import { helplineLine, ui, type UiText } from "./flow/text.ts";
 import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
 import { CheckMode } from "./check/CheckMode.tsx";
@@ -292,6 +292,139 @@ function CardScreen({ view, send }: { view: CardScreenView; send: Session["send"
   );
 }
 
+/** The junior's line with the AI mark, as on the problem screen. */
+function JuniorLine({ line, reading }: { line: string | null; reading: boolean }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
+      <AiBadge />
+      <p
+        data-testid="junior-line"
+        aria-live="polite"
+        data-reading={reading ? "true" : "false"}
+        style={{ margin: 0, ...(reading ? { outline: "4px solid #1f2933", outlineOffset: 2, background: "#fff6d5" } : {}) }}
+      >
+        {line ?? "…"}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * The junior's staged questions for a child who is stuck (指示書 第7.1節 手順4・5). (a) The relation words of one
+ * sentence are lit, all at the same strength, and the child may hear the sentence read; (b) "which is longer?"
+ * with the two holders as buttons: the answer is kept and never judged; (c) the word book is offered. No world is
+ * drawn here, and nothing names an answer or an operation.
+ */
+function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["send"]; reading: ReadingHooks }) {
+  const t = view.text.help;
+  const [readingIndex, setReadingIndex] = useState<number | null>(null);
+  const problemReadings = readingsFor(view.problemId);
+  const sentence = view.lit === null ? null : (view.statements.find((s) => s.index === view.lit?.statementIndex) ?? null);
+  const shown = sentence === null ? view.statements : [sentence];
+  const readLines: ReadLine[] = [
+    ...shown.map((s) => ({ text: spokenText(s.text, problemReadings), lang: "ja-JP" })),
+    ...(view.line === null ? [] : [{ text: view.lang === "ja" ? spokenText(view.line, {}) : view.line, lang: view.lang === "ja" ? "ja-JP" : "en-US" }]),
+  ];
+  const lit = new Set(view.lit?.tokens ?? []);
+  return (
+    <section aria-label={t.label} data-testid="screen-help" data-stage={view.stage}>
+      <ReadingTools lang={view.lang} lines={readLines} speaker={reading.speaker} onReading={setReadingIndex} furigana={reading.furigana} onFurigana={reading.onFurigana} />
+      <ol aria-label={view.text.problem.sentences} style={{ padding: 0, margin: 0 }}>
+        {shown.map((s, i) => (
+          <li
+            key={s.index}
+            data-statement={s.index}
+            style={{ listStyle: "none", fontSize: 22, padding: "4px 8px", ...(readingIndex === i ? { outline: "4px solid #1f2933", background: "#fff6d5" } : {}) }}
+          >
+            {s.tokens.map((tok, k) =>
+              view.lit !== null && s.index === view.lit.statementIndex && lit.has(k) ? (
+                // Every relation word of the sentence is lit the same way (no one of them stands out).
+                <mark key={k} data-role="lit-word" style={{ background: "#ffe08a", borderRadius: 4, padding: "0 2px", color: "#1f2933" }}>
+                  {tok}
+                </mark>
+              ) : (
+                <span key={k}>{tok}</span>
+              ),
+            )}
+          </li>
+        ))}
+      </ol>
+      <JuniorLine line={view.line} reading={readingIndex !== null && readingIndex === shown.length} />
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        {view.stage === "read" && (
+          <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-help-read">
+            {t.read}
+          </Button>
+        )}
+        {view.stage === "order" && (
+          // The two holders look alike; neither is chosen beforehand and nothing says which fits.
+          <div role="group" aria-label={t.orderLabel} data-testid="help-order" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {view.choices.map((c) => (
+              <Button key={c.holderId} onClick={() => send({ type: "ORDER_GUESS", holderId: c.holderId })} testId={`btn-order-${c.holderId}`}>
+                {c.label}
+              </Button>
+            ))}
+          </div>
+        )}
+        {view.stage === "offer" && (
+          <>
+            <Button kind="primary" onClick={() => send({ type: "OPEN_BOOK" })} testId="btn-open-book">
+              {t.open}
+            </Button>
+            <Button onClick={() => send({ type: "NEXT" })} testId="btn-help-later">
+              {t.later}
+            </Button>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * ことばの絵本 (指示書 第7.1節): one page for the problem's wording, an everyday example drawn as tapes with the "1"
+ * card on the holder the wording takes as 1. Its numbers and holders are never the problem's (core decides).
+ */
+function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Session["send"]; reading: ReadingHooks }) {
+  const t = view.text.wordbook;
+  const [readingIndex, setReadingIndex] = useState<number | null>(null);
+  const page = view.page;
+  const sayLang = view.lang === "ja" ? "ja-JP" : "en-US";
+  const say = (l: string): ReadLine => ({ text: view.lang === "ja" ? spokenText(l, {}) : l, lang: sayLang });
+  const readLines: ReadLine[] = [...(view.line === null ? [] : [say(view.line)]), ...(page === null ? [] : page.lines.map(say))];
+  const oneLabel = page?.world.holders.find((h) => h.id === page.oneHolderId)?.label ?? "";
+  const off = view.line === null ? 0 : 1;
+  const title = page === null ? "" : view.lang === "ja" ? "「" + page.title + "」" : ' "' + page.title + '"';
+  return (
+    <section aria-label={t.label} data-testid="screen-wordbook" data-page={page?.id ?? ""}>
+      <h2 style={{ fontSize: 20, margin: "0 0 8px" }}>
+        {t.label}
+        <span data-testid="wordbook-title">{title}</span>
+      </h2>
+      <ReadingTools lang={view.lang} lines={readLines} speaker={reading.speaker} onReading={setReadingIndex} furigana={reading.furigana} onFurigana={reading.onFurigana} />
+      <JuniorLine line={view.line} reading={readingIndex === 0 && off === 1} />
+      {page !== null && (
+        <>
+          {page.lines.map((l, i) => (
+            <p key={l} data-testid="wordbook-line" style={{ margin: "4px 0", ...(readingIndex === i + off ? { outline: "4px solid #1f2933", background: "#fff6d5" } : {}) }}>
+              <RubyText text={l} on={reading.furigana && view.lang === "ja"} />
+            </p>
+          ))}
+          <p data-testid="wordbook-one" style={{ fontWeight: 700 }}>
+            {t.one} {oneLabel}
+          </p>
+          <WorldView world={page.world} cardHolder={page.oneHolderId} label={view.text.draw.world} lang={view.lang} />
+        </>
+      )}
+      <p style={{ marginTop: 12 }}>
+        <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-book-close">
+          {t.close}
+        </Button>
+      </p>
+    </section>
+  );
+}
+
 /** The date and time of a check, for the grown-up (this device's clock). */
 export function checkDate(at: string): string {
   const d = new Date(at);
@@ -455,6 +588,10 @@ function Screen({
       return <ProblemScreen view={view} send={send} voice={voice} reading={reading} />;
     case "card":
       return <CardScreen view={view} send={send} />;
+    case "help":
+      return <HelpScreen view={view} send={send} reading={reading} />;
+    case "wordbook":
+      return <WordbookScreen view={view} send={send} reading={reading} />;
     case "research":
     case "finished":
       return (

@@ -53,6 +53,8 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   await page.locator('[data-drop-target="h_otouto"]').first().click();
   await expect(page.getByTestId("junior-line")).toContainText("弟");
   await page.getByTestId("btn-confirm-yes").click();
+  // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
+  await page.getByTestId("btn-book-close").click();
   await page.getByTestId("btn-next").click();
   // The three buttons stay on screen while the child types a number (原則7).
   await expect(page.getByTestId("btn-hard")).toBeInViewport();
@@ -105,6 +107,8 @@ test("axe-core finds no violation on the intro, consent, prediction and number-p
   await page.locator('[data-role="reference_mark"]').click();
   await page.locator('[data-drop-target="h_otouto"]').first().click();
   await page.getByTestId("btn-confirm-yes").click();
+  // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
+  await page.getByTestId("btn-book-close").click();
   await page.getByTestId("btn-next").click();
   await expect(page.getByTestId("pad-ok")).toBeVisible();
   await expectNoAxeViolations(page, "number pad");
@@ -119,6 +123,8 @@ test("a wrong unit gets the junior's words, never the right number; a second wro
   await page.locator('[data-role="reference_mark"]').click();
   await page.locator('[data-drop-target="h_otouto"]').first().click();
   await page.getByTestId("btn-confirm-yes").click();
+  // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
+  await page.getByTestId("btn-book-close").click();
   await page.getByTestId("btn-next").click();
   const before = await page.getByTestId("junior-line").textContent();
   await page.getByTestId("pad-5").click();
@@ -183,6 +189,8 @@ test("in English: switch on the intro, then the first problem with taps; the cho
   // The holder's name stays as in the problem.
   await expect(page.getByTestId("junior-line")).toContainText("弟");
   await page.getByTestId("btn-confirm-yes").click();
+  // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
+  await page.getByTestId("btn-book-close").click();
   await page.getByTestId("btn-next").click();
   await expect(page.getByTestId("btn-hard")).toHaveText("I feel bad");
   await page.getByTestId("pad-2").click();

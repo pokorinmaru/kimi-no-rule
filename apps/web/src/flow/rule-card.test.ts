@@ -23,6 +23,7 @@ import { flowMachine, type FlowInput } from "./machine.ts";
 import { childTexts, viewOf, type FlowView } from "./view.ts";
 import { judgeTotal, judgeUnit, selectNext } from "./problem.ts";
 import { hasForbiddenPhrase } from "./text.ts";
+import { passBook } from "./test-book.ts";
 
 type Actor = ReturnType<typeof run>;
 const avoid = sceneAvoidValues(FRACTION_BANK);
@@ -66,6 +67,7 @@ function solve(actor: Actor): void {
   actor.send({ type: "PREDICT", answer: "odd" });
   placeRight(actor);
   actor.send({ type: "CONFIRM_YES" });
+  passBook(actor);
   expect(actor.getSnapshot().matches({ active: { problem: "rebuilt" } })).toBe(true);
   actor.send({ type: "NEXT" });
   let unit: Rational | null = null;
@@ -84,7 +86,8 @@ function solve(actor: Actor): void {
 function hold(actor: Actor): void {
   settle(actor);
   actor.send({ type: "PREDICT", answer: "unknown" });
-  actor.send({ type: "DONT_KNOW" });
+  // Through the junior's staged questions to the waiting screen, then "later".
+  for (let i = 0; i < 5 && !actor.getSnapshot().matches("stuck"); i++) actor.send({ type: "DONT_KNOW" });
   actor.send({ type: "HOLD" });
 }
 
@@ -269,6 +272,7 @@ describe("the card the child leaves", () => {
     // The child still places the 1 first; the research observation is the child's own.
     placeRight(actor);
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     expect(actor.getSnapshot().context.problem?.firstPlacement).not.toBeNull();
     expect(actor.getSnapshot().matches({ active: { problem: "rebuilt" } })).toBe(true);
   });

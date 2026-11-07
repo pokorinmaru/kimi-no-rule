@@ -14,6 +14,7 @@ import { WorkerError, type InterpretReply, type SafetyReply } from "./api.ts";
 import { childTexts, viewOf } from "./view.ts";
 import { hasForbiddenPhrase } from "./text.ts";
 import { openStore, type FlowStore } from "../store/store.ts";
+import { passBook } from "./test-book.ts";
 
 const SAID = "弟が1だよ、弟の金魚の3/4だから";
 const toOtouto: AnyOp = { op: "set_relation_reference", target_id: "r_ratio", reference: "q_otouto", evidence: "" };
@@ -87,6 +88,7 @@ describe("the machine: the child's voice on the problem", () => {
     actor.send({ type: "VOICE_HEARD", transcript: SAID });
     actor.send({ type: "VOICE_OPS", ops: [toOtouto] });
     actor.send({ type: "CONFIRM_YES" });
+    passBook(actor);
     const s = actor.getSnapshot();
     expect(s.matches({ active: { problem: "rebuilt" } })).toBe(true);
     expect(s.context.researchRequest?.readings.at(-1)?.words).toEqual([SAID]);
@@ -328,6 +330,7 @@ describe("the session: what the child said goes to /safety and /interpret togeth
     await s.hear(heard);
     expect(s.actor.getSnapshot().context.line?.text).toContain("zzheard");
     s.send({ type: "CONFIRM_YES" });
+    passBook(s);
     s.send({ type: "NEXT" });
     s.send({ type: "ANSWER_UNIT", value: { num: 2, den: 1 } });
     s.send({ type: "ANSWER_TOTAL", value: { num: 8, den: 1 } });
@@ -357,6 +360,7 @@ describe("the session: safety review of the voice (Q46)", () => {
     await flush();
     expect(s.actor.getSnapshot().context.problem?.listening).toBe(true);
     s.send({ type: "CONFIRM_YES" });
+    passBook(s);
     await flush();
     const req = s.actor.getSnapshot().context.researchRequest;
     expect(req).not.toBeNull();
@@ -379,14 +383,14 @@ describe("the session: safety review of the voice (Q46)", () => {
     }
   });
 
-  it("a fixed don't-know word is handled on the device: the don't-know screen, with no /interpret", async () => {
+  it("a fixed don't-know word is handled on the device: the junior's staged questions, with no /interpret", async () => {
     for (const said of ["わからない", "分からない", "I don't know"]) {
       const st = await readyStore();
       const { api: a, calls } = api();
       const s = await startSession({ store: st, api: a });
       s.send({ type: "PREDICT", answer: "fits" });
       await s.hear(said);
-      expect(s.actor.getSnapshot().matches("stuck"), said).toBe(true);
+      expect(s.actor.getSnapshot().matches({ active: { problem: "help" } }), said).toBe(true);
       expect(calls.interpret).toEqual([]);
       s.stop();
     }

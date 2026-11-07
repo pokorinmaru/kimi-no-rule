@@ -21,6 +21,7 @@ import { flowMachine, type FlowInput } from "./machine.ts";
 import { childTexts, viewOf, type FlowView } from "./view.ts";
 import { judgeTotal, judgeUnit } from "./problem.ts";
 import { hasForbiddenPhrase } from "./text.ts";
+import { passBook } from "./test-book.ts";
 
 type CardView = Extract<FlowView, { screen: "card" }>;
 const r = (num: number): Rational => ({ num, den: 1 });
@@ -49,6 +50,7 @@ function solve(actor: Actor): void {
   actor.send({ type: "PLACE_ONE", quantityId: rel?.reference as string });
   actor.send({ type: "TAP_WORD", statementIndex: 0, token: 0 });
   actor.send({ type: "CONFIRM_YES" });
+  passBook(actor);
   actor.send({ type: "NEXT" });
   let unit: Rational | null = null;
   let total: Rational | null = null;

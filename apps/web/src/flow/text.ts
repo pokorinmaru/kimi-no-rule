@@ -139,6 +139,10 @@ export interface UiText {
   };
   finished: { label: string; lines: readonly string[]; end: string };
   stuck: { label: string; resume: string; hold: string };
+  /** The junior's staged questions (指示書 第7.1節 手順4・5): no word names an answer, an operation or a judgement. */
+  help: { label: string; read: string; orderLabel: string; open: string; later: string };
+  /** ことばの絵本 (指示書 第7.1節): the screen's name, the "1" mark's words and the close button. */
+  wordbook: { label: string; one: string; close: string };
   hard: { label: string; talk: string; close: string };
   rest: { label: string; first: string };
   helpline: HelplineText;
@@ -277,6 +281,8 @@ const JA: UiText = {
   },
   finished: { label: "おわり", lines: ["きょうは、ここまでです。", "「やめる」をおすと、おわります。"], end: "おわる" },
   stuck: { label: "まっています", resume: "つづける", hold: "この問題は、あとで" },
+  help: { label: "いっしょに読む", read: "読んだよ", orderLabel: "長いと思うほう", open: "絵本を見る", later: "あとで" },
+  wordbook: { label: "ことばの絵本", one: "「1」とみるのは", close: "とじる" },
   hard: { label: "つらいとき", talk: "家の人や先生など、信じられる大人に、いまのことを話してみてね。", close: "とじる" },
   rest: { label: "ひとやすみ", first: "ここで、ひと休みしよう。" },
   helpline: {
@@ -392,6 +398,8 @@ const EN: UiText = {
   },
   finished: { label: "The end", lines: ["That's all for today.", 'Press "Stop" to finish.'], end: "Finish" },
   stuck: { label: "Waiting", resume: "Keep going", hold: "Save this problem for later" },
+  help: { label: "Reading together", read: "I read it", orderLabel: "My guess: which is longer", open: "Open the picture book", later: "Not now" },
+  wordbook: { label: "Picture book of words", one: 'Taken as "1":', close: "Close" },
   hard: { label: "When you feel bad", talk: "Try telling a grown-up you trust, like someone at home or a teacher, about how you feel now.", close: "Close" },
   rest: { label: "Rest", first: "Let's take a break here." },
   helpline: {

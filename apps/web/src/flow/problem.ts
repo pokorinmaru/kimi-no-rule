@@ -31,7 +31,7 @@ import {
   type WorldScene,
 } from "@kimi/core";
 
-/** Tries at teaching on one problem before it is held for later (指示書 第7.1節 手順5, without the word book). */
+/** Tries at teaching on one problem before it is held for later (指示書 第7.1節 手順5: the word book after the second, then one more). */
 export const MAX_FIXES = 3;
 
 /** A world as shown on screen: checked by core, with the sentences that do not fit there. */
@@ -174,11 +174,11 @@ export function wordCueOp(statementIndex: number, token: number): AnyOp {
 }
 
 /** The child's first reading of the problem: the correct world with only the child's "1" placed (core apply). */
-export function firstReading(record: ProblemRecord, relationId: string, quantityId: string): FirstReading | null {
+export function firstReading(record: ProblemRecord, relationId: string, quantityId: string, wordbookOpenedBefore = false): FirstReading | null {
   try {
     const res = apply({ correct: record.world, ops: [referenceOp(relationId, quantityId)] });
     if (res.discarded.length > 0) return null;
-    return { record, childWorld: res.judgeWorld, referencePlaced: true, afterFix: false, wordbookOpenedBefore: false };
+    return { record, childWorld: res.judgeWorld, referencePlaced: true, afterFix: false, wordbookOpenedBefore };
   } catch {
     return null;
   }

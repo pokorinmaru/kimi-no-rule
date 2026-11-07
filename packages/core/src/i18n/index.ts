@@ -209,6 +209,18 @@ export const TEMPLATES = {
       "Can we look up this word in the picture book together?",
     ],
   },
+  // The help for a child who is stuck (指示書 第7.1節 手順4・5): read the lit words again, then the length order.
+  // Neither names a holder, an answer or an operation; neither judges.
+  "kohai.help_read": {
+    slots: [],
+    ja: ["光った言葉を、もう一度読んでみませんか", "光ったところを、いっしょに読みませんか", "この言葉のところを、読み直しませんか"],
+    en: ["Shall we read the lit words once more?", "Can we read the lit part together?", "Let's read around these words again."],
+  },
+  "kohai.help_order": {
+    slots: [],
+    ja: ["どっちが長いと思いますか？", "長いのは、どっちだと思いますか？", "どっちのテープが長いと思いますか？"],
+    en: ["Which one do you think is longer?", "Which seems longer to you?", "Whose tape do you think is longer?"],
+  },
   "kohai.wait": {
     slots: [],
     ja: ["ゆっくり考えていいですよ。待っています", "考える時間、たっぷりありますよ", "急がなくていいですよ。ぼくは待ってます"],

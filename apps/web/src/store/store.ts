@@ -29,6 +29,10 @@ export interface AttemptRow {
   unitTries: number;
   totalTries: number;
   outcome: ProblemLog["outcome"];
+  /** The child's answers to "which is longer?" in the help (holder ids; observations, never judged). */
+  orderGuesses?: string[];
+  /** How many times the word book opened on this problem. */
+  bookOpens?: number;
 }
 
 export interface GateRow {
@@ -207,6 +211,8 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
         unitTries: log.unitTries,
         totalTries: log.totalTries,
         outcome: log.outcome,
+        orderGuesses: [...(log.orderGuesses ?? [])],
+        bookOpens: log.bookOpens ?? 0,
       });
     },
     async listAttempts() {

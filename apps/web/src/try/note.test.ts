@@ -10,6 +10,7 @@ import { TRY_CHILDREN } from "./sim-children.ts";
 import { runSim } from "./sim.ts";
 import { startSession, type FlowApi } from "../flow/session.ts";
 import { openStore, type FlowStore } from "../store/store.ts";
+import { passBook } from "../flow/test-book.ts";
 
 const stores: FlowStore[] = [];
 let n = 0;
@@ -113,6 +114,7 @@ describe("researchNote", () => {
     s.send({ type: "PREDICT", answer: "odd" });
     s.send({ type: "PLACE_ONE", quantityId: rel?.reference as string });
     s.send({ type: "CONFIRM_YES" });
+    passBook(s);
     const after = researchNote(s.actor.getSnapshot().context, []);
     if (after.choice === null || after.choice.kind !== "chosen") throw new Error("chosen");
     const correctClass = after.choice.predictions.filter((p) => p.correct);

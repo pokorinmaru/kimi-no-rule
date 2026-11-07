@@ -10,6 +10,7 @@ import { createHttpApi } from "./api.ts";
 import { openStore, type FlowStore } from "../store/store.ts";
 import { judgeTotal, judgeUnit } from "./problem.ts";
 import { createApp, type WorkerDeps } from "../../../worker/src/app.ts";
+import { passBook } from "./test-book.ts";
 
 type ClaudeClient = NonNullable<ReturnType<WorkerDeps["client"]>>;
 type ClaudeRequest = Parameters<ClaudeClient["complete"]>[0];
@@ -36,6 +37,7 @@ async function solveCurrent(s: Awaited<ReturnType<typeof startSession>>): Promis
   s.send({ type: "PREDICT", answer: "fits" });
   s.send({ type: "PLACE_ONE", quantityId: rel?.reference as string });
   s.send({ type: "CONFIRM_YES" });
+  passBook(s);
   s.send({ type: "NEXT" });
   let unit: Rational | null = null;
   let total: Rational | null = null;

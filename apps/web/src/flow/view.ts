@@ -1,9 +1,9 @@
 // What each screen shows, from a snapshot of the session machine. The screens draw only this, so the
 // tests can read every word a child may see (childTexts) on every path.
 import type { SnapshotFrom } from "xstate";
-import { CARD_RULES, cardSlot, checkScene, gate, sceneAvoidValues, readingCard, render, viewScene, type GateContext, type Hypothesis, type Lang, type ProblemRecord, type Rational, type Scene, type WorldScene } from "@kimi/core";
+import { CARD_RULES, cardSlot, checkScene, gate, sceneAvoidValues, readingCard, render, viewScene, wordbookPage, type GateContext, type Hypothesis, type Lang, type ProblemRecord, type Rational, type Scene, type WordbookPageView, type WorldScene } from "@kimi/core";
 import type { CardScenes } from "./machine.ts";
-import { MAX_VOICE_TURNS, type PredictionAnswer, type flowMachine } from "./machine.ts";
+import { MAX_VOICE_TURNS, bookPageId, orderHolders, type PredictionAnswer, type flowMachine } from "./machine.ts";
 import { gateContext } from "./problem.ts";
 import { AI_MARK, hardLines, helplineLine, restLines, ui, type HelplineText, type UiText } from "./text.ts";
 
@@ -107,8 +107,35 @@ export interface CardScreenView extends Common {
   next: string;
 }
 
+/**
+ * The junior's staged questions for a child who is stuck (指示書 第7.1節 手順4・5): (a) "read" lights the relation
+ * words of one sentence; (b) "order" asks which is longer, with the two holders as buttons (never judged); (c)
+ * "offer" offers the word book. No world is drawn, no answer, no operation, no judging word.
+ */
+export interface HelpView extends Common {
+  screen: "help";
+  stage: "read" | "order" | "offer";
+  problemId: string;
+  statements: { index: number; text: string; tokens: string[]; isQuestion: boolean }[];
+  /** The sentence and its lit relation words (step a), or null. */
+  lit: { statementIndex: number; tokens: number[] } | null;
+  line: string | null;
+  /** Step b: the two holders of the relation, in the problem's order. */
+  choices: { holderId: string; label: string }[];
+}
+
+/** ことばの絵本 (指示書 第7.1節): the page core lets be shown on this problem, drawn with the "1" card on the holder it takes as 1. */
+export interface WordbookView extends Common {
+  screen: "wordbook";
+  problemId: string;
+  page: WordbookPageView | null;
+  line: string | null;
+}
+
 export type FlowView =
   | (Common & { screen: "intro"; lines: string[] })
+  | HelpView
+  | WordbookView
   | (Common & { screen: "consent"; lines: string[] })
   | ProblemView
   | CardScreenView
@@ -171,6 +198,27 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
     };
   }
   const p = c.problem;
+  const juniorLine = c.line === null || c.line.text === "" ? null : c.line.text;
+  if (p !== null && s.matches({ active: { problem: "help" } })) {
+    const stage = (["read", "order", "offer"] as const).find((x) => s.matches({ active: { problem: { help: x } } })) ?? "read";
+    return {
+      ...common,
+      screen: "help",
+      stage,
+      problemId: p.record.world.problem_id,
+      statements: p.record.statements.map((st) => ({ index: st.index, text: st.text, tokens: [...st.tokens], isQuestion: st.is_question })),
+      lit: stage === "read" ? p.help : null,
+      line: juniorLine,
+      choices:
+        stage === "order"
+          ? orderHolders(p).map((h) => ({ holderId: h, label: p.record.world.holders.find((x) => x.id === h)?.label ?? "" }))
+          : [],
+    };
+  }
+  if (p !== null && s.matches({ active: { problem: "wordbook" } })) {
+    const id = bookPageId({ ...c, lang });
+    return { ...common, screen: "wordbook", problemId: p.record.world.problem_id, page: id === null ? null : wordbookPage(id, p.record, lang), line: juniorLine };
+  }
   const step = STEPS.find((x) => s.matches({ active: { problem: x } }));
   if (p === null || step === undefined) return { ...common, screen: "research", lines: [t.research.wait] };
   // Sentences light only once the junior has shown its world and the child has answered or skipped the
@@ -202,7 +250,7 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
     orderOnly,
     placement: p.placement,
     tappedWords: [...p.words],
-    line: c.line === null || c.line.text === "" ? null : c.line.text,
+    line: juniorLine,
     card: p.card,
     predict,
     note: t.problem.note,
@@ -267,6 +315,18 @@ export function childTexts(v: FlowView): string[] {
       out.push(t.draw.sentences, t.draw.glow, t.draw.world, t.draw.cardAria, t.draw.cardHere, t.draw.odd);
       break;
     }
+    case "help":
+      out.push(t.help.label, t.help.read, t.help.orderLabel, t.help.open, t.help.later, t.problem.sentences);
+      out.push(...v.statements.map((s) => s.text), ...v.choices.map((c) => c.label));
+      if (v.line !== null) out.push(v.line);
+      out.push(t.reading.aloud, t.reading.stop, t.reading.furigana);
+      break;
+    case "wordbook":
+      out.push(t.wordbook.label, t.wordbook.one, t.wordbook.close, t.draw.world, t.draw.cardHere);
+      if (v.page !== null) out.push(v.page.title, ...v.page.lines, ...v.page.world.holders.map((h) => h.label));
+      if (v.line !== null) out.push(v.line);
+      out.push(t.reading.aloud, t.reading.stop, t.reading.furigana);
+      break;
     case "stuck":
       out.push(t.stuck.label, ...v.lines, v.resume);
       if (v.hold !== null) out.push(v.hold);

@@ -45,6 +45,7 @@ export {
 } from "./statements/index.ts";
 export {
   gate,
+  hasOperationName,
   isVerified,
   numbersIn,
   verifiedCorrectWorld,
@@ -141,6 +142,21 @@ export {
   type WordingCueId,
   type WordingTag,
 } from "./research/index.ts";
+export {
+  WORDBOOK_PAGES,
+  WORDBOOK_PAGE_IDS,
+  helpSentence,
+  isWordbookPageId,
+  pageNumbers,
+  relationWordTokens,
+  wordbookPage,
+  wordbookPagesOf,
+  wordbookWorld,
+  type WordbookPageData,
+  type WordbookPageId,
+  type WordbookPageView,
+} from "./wordbook/index.ts";
+export { countsAsObservation } from "./rules/weights.ts";
 export { FRACTION_BANK } from "../fixtures/problems/fraction-bank.ts";
 export { judgeAnswer, judgeUnitValue } from "./answers/index.ts";
 export {

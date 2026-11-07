@@ -47,6 +47,10 @@ async function solve(page: Page): Promise<void> {
   await page.locator('[data-role="reference_mark"]').click();
   await page.locator(`[data-drop-target="${String(holder)}"]`).first().click();
   await page.getByTestId("btn-confirm-yes").click();
+  // The word book opens by itself after the first fix on a wording new in the session (指示書 第7.1節).
+  const close = page.getByTestId("btn-book-close");
+  await expect(close.or(page.getByTestId("btn-next"))).toBeVisible();
+  if (await close.isVisible()) await close.click();
   await page.getByTestId("btn-next").click();
   const { unit, total } = rightNumbers(record);
   await typeNumber(page, unit);
