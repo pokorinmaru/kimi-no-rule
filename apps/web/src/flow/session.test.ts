@@ -125,11 +125,11 @@ describe("startSession", () => {
     await st.setIntroSeen(true);
     const research = vi.fn(() => never<{ kind: "failed" }>());
     const api: FlowApi = { kohai: () => never(), research, safety: () => never() };
-    const s = await startSession({ store: st, api, researchTimeoutMs: 30 });
+    const s = await startSession({ store: st, api, researchTimeoutMs: 1500 });
     await solveCurrent(s);
     expect(research).toHaveBeenCalledTimes(1);
     expect(s.actor.getSnapshot().matches({ active: "researching" })).toBe(true);
-    await new Promise((r) => setTimeout(r, 60));
+    await new Promise((r) => setTimeout(r, 1700));
     expect(s.actor.getSnapshot().matches({ active: { problem: "reading" } })).toBe(true);
     s.stop();
   });
