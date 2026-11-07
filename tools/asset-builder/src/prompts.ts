@@ -1,8 +1,8 @@
 // What Claude Opus is asked when it draws a picture part and when it looks at the drawing: the part, the style, the
 // contract (apps/web/src/draw/assets/spec.ts) and the rubric. The parts are for a math app for Japanese children of
 // about nine; they are drawn once, before the app runs, and a person picks among them.
-import { CONTAINER_INNER, OUTLINE_WIDTH, PALETTE, VIEWBOX, type PartId } from "../../../apps/web/src/draw/assets/spec.ts";
-import { kindOf } from "./spec-check.ts";
+import { CONTAINER_INNER, OUTLINE_WIDTH, PALETTE, type PartId } from "../../../apps/web/src/draw/assets/spec.ts";
+import { kindOf, viewBoxOf } from "./spec-check.ts";
 
 /** What each part is, in plain words (what a child must recognise at a glance). */
 export const PART_BRIEFS: Record<PartId, string> = {
@@ -22,11 +22,11 @@ export const PART_BRIEFS: Record<PartId, string> = {
   basket: "a wide, shallow woven fruit basket seen from above at an angle: the rim and outer sides show a clear basket weave and two small handles, so it clearly reads as a basket; the inside bottom (the things area) is plain light and empty",
   sheet: "a sticker book opened flat and seen from the front: a large plain light page with a coloured spine edge on the left, clearly a book page for stickers (no rings, no calendar look), nothing on the page",
   tray: "a wide, flat rounded tray seen from above at an angle, plain light surface with a raised edge, so many things can lie on it side by side; nothing on it",
-  yarn: "one length of knitting yarn laid out straight with a soft wave, thick and fuzzy-looking, both ends cut cleanly; one colour (red)",
-  bottle: "a clear glass juice bottle seen from the front, wide body and short neck, empty and transparent so a liquid level drawn inside is fully visible; the things area is the bottle's body",
-  pail: "a clear plastic water pail (bucket) seen from the front with a handle, transparent body so a water level drawn inside is fully visible; the things area is the pail's body",
-  yarn_ball: "a round ball of knitting yarn (red) with a loose end, sitting in a small shallow basket seen from the front; the things area above it is open and plain for cut lengths of yarn laid side by side",
-  cup: "a clear measuring cup seen from the front, straight sides and a small spout and handle, empty and transparent so a liquid level drawn inside is visible; no marks, numbers or scale lines",
+  yarn: "one cut length of thick red knitting yarn lying flat and straight with a gentle curve, clearly made of twisted wool strands (visible twist lines), both ends cut with a few loose fibres; it must not look like a worm, a snake or a ribbon",
+  cup: "one clear measuring cup seen from the front, taller than wide (it fills a 100×130 viewBox), straight sides, a small spout at the top left and a handle on the right, transparent and empty so a liquid level drawn inside is fully visible; no marks, numbers or scale lines. The inside of the cup (where liquid goes) is the area between its walls from just under the rim to the bottom",
+  kohai_read: "the junior: a small, round, friendly character shaped like a little closed picture book standing upright, with a short ribbon bookmark hanging like a tail, two small round dot eyes on the cover and NO mouth, NO nose, NO eyebrows, NO human face, NO arms with hands (at most two short stubby tabs). Its colours: cover blueLight with a blue spine, bookmark orange. It must never show a feeling (not happy, sad, surprised or worried): only what it is doing. Pose: it is READING — the book is opened a little and it looks down into its own pages.",
+  kohai_look: "the junior: a small, round, friendly character shaped like a little closed picture book standing upright, with a short ribbon bookmark hanging like a tail, two small round dot eyes on the cover and NO mouth, NO nose, NO eyebrows, NO human face, NO arms with hands (at most two short stubby tabs). Its colours: cover blueLight with a blue spine, bookmark orange. It must never show a feeling (not happy, sad, surprised or worried): only what it is doing. Pose: it is LOOKING at something to its right — the body turned slightly right, the dot eyes looking right.",
+  kohai_listen: "the junior: a small, round, friendly character shaped like a little closed picture book standing upright, with a short ribbon bookmark hanging like a tail, two small round dot eyes on the cover and NO mouth, NO nose, NO eyebrows, NO human face, NO arms with hands (at most two short stubby tabs). Its colours: cover blueLight with a blue spine, bookmark orange. It must never show a feeling (not happy, sad, surprised or worried): only what it is doing. Pose: it is LISTENING — upright, facing the viewer, the bookmark tail lifted a little like an ear, eyes open and calm.",
   plate: "a shallow round dish seen from slightly above, wide and flat",
 };
 
@@ -73,7 +73,7 @@ export function drawSystem(): string {
       String(CONTAINER_INNER.w) +
       " h " +
       String(CONTAINER_INNER.h) +
-      ", so keep that area open and plain in the back layer (never draw anything there that a child could count as one of the things: no plants, sprouts, pebbles, bubbles or small shapes): up to 60 things are drawn there side by side, and every one of them must stay fully visible (the front layer is only a thin rim or edge along the very bottom, or a faint glass tint). A dish (group part) uses the 160×60 viewBox.",
+      ", so keep that area open and plain in the back layer (never draw anything there that a child could count as one of the things: no plants, sprouts, pebbles, bubbles or small shapes): up to 60 things are drawn there side by side, and every one of them must stay fully visible (the front layer is only a thin rim or edge along the very bottom, or a faint glass tint). A dish (group part) uses the 160×60 viewBox. A character uses the 120×120 viewBox, centred with a margin of about 8.",
     `When the style has outlines, use stroke ${PALETTE.outline} with stroke-width ${String(OUTLINE_WIDTH.item)} for items, ${String(OUTLINE_WIDTH.container)} for containers and ${String(OUTLINE_WIDTH.group)} for dishes, with round line joins and caps.`,
     "Answer with the JSON object only: svg (the whole SVG text) and notes (one short sentence on what you changed or chose).",
   ].join("\n");
@@ -81,11 +81,11 @@ export function drawSystem(): string {
 
 export function drawUser(part: PartId, style: StyleBrief, opts: { references: number; problems?: string[]; fixes?: string[]; previous?: string }): string {
   const kind = kindOf(part);
-  const vb = VIEWBOX[kind];
+  const vb = viewBoxOf(part);
   return [
     `Part: ${part} (${kind}, viewBox 0 0 ${String(vb.w)} ${String(vb.h)}). Draw: ${PART_BRIEFS[part]}.`,
     `Style: ${style.text}`,
-    opts.references > 0 ? `The ${String(opts.references)} image(s) above are parts already chosen in this style: match their outline weight, colours, roundness and level of detail exactly, so the new part belongs to the same set.` : "",
+    opts.references > 0 ? `The ${String(opts.references)} image(s) above are parts already chosen in this style: match their outline weight, colours, roundness and level of detail exactly, so the new part belongs to the same set.${kind === "character" ? " One of them is the junior itself: draw exactly the same character (same body, cover star, eyes, bookmark, feet and colours), only in the new pose." : ""}` : "",
     opts.previous === undefined ? "" : `Your previous SVG:\n${opts.previous}`,
     opts.problems === undefined || opts.problems.length === 0 ? "" : `The code check refused it for: ${opts.problems.join(", ")}. Fix exactly these.`,
     opts.fixes === undefined || opts.fixes.length === 0 ? "" : `A reviewer looked at the rendered picture and asks for these changes:\n- ${opts.fixes.join("\n- ")}`,
@@ -99,7 +99,7 @@ export const RUBRIC = [
   ["style_match", "It follows the style text (and the reference parts, when given): outline weight, colours, roundness, detail."],
   ["clean", "Clean construction: no stray or broken shapes, nothing cut off by the viewBox, good balance, centred, pleasant proportions."],
   ["cut_readable", "For an item: the left-half crop still reads as half of that thing. For a container: the things area is open and the front layer only covers the lower rim. For a dish: flat and wide enough to hold things."],
-  ["child_appropriate", "Friendly and calm for a child; no scary or sad look, no words or numbers, no human face."],
+  ["child_appropriate", "Friendly and calm for a child; no scary or sad look, no words or numbers, no human face. For a character: clearly not a human, and it shows what it is doing, never a feeling."],
   ["quality", "Overall it looks like a professional illustration from a well-made children's app, not like a quick programmer drawing."],
 ] as const;
 

@@ -11,7 +11,7 @@ import { PALETTE, shareStyleOf, type ItemPart, type ShareStyle } from "./assets/
 import { holderColors } from "./holder-colors.ts";
 import { MOTION } from "./motion-tokens.ts";
 import { useReducedMotion } from "./motion.ts";
-import { PANEL, THING_FILL, layoutStage, partBoxOf, pieceKeepOf, type StageHolderLayout, type StageLayout, type ThingLayout } from "./stage-layout.ts";
+import { CUP_BOTTOM, CUP_INNER, PANEL, THING_FILL, layoutStage, liquidOf, partBoxOf, pieceKeepOf, type StageHolderLayout, type StageItem, type StageLayout, type ThingLayout } from "./stage-layout.ts";
 import { COLORS, FONT } from "./theme.ts";
 
 export interface ObjectSceneProps {
@@ -23,6 +23,10 @@ export interface ObjectSceneProps {
   label?: string;
   /** How a piece of a thing is drawn, per thing (default: the contract's setting, assets/spec.ts ITEM_SHARE). */
   shareStyle?: (item: ItemPart) => ShareStyle;
+  /** Draw things without a part of their own as plain round counters (the word book's everyday examples). */
+  counters?: boolean;
+  /** A small picture beside another (the word book's contrasting cases): smaller things on the dishes. */
+  compact?: boolean;
 }
 
 const srOnly = {
@@ -39,6 +43,7 @@ const STAGGER = { step: 150, total: 1200 } as const;
 
 /** What is drawn, said in words: the counts as drawn, the dishes, a cut thing. Never a verdict, never a hidden value. */
 export function describeStage(scene: ObjectScene, layout: StageLayout, lang: Lang = "ja", shareStyle: (item: ItemPart) => ShareStyle = shareStyleOf): string {
+  const styleOf = (item: StageItem): ShareStyle => (item === "cup" || item === "token" ? "cut" : shareStyle(item));
   const w = ui(lang).draw;
   const { noun, counter } = scene.item;
   const parts = scene.holders.flatMap((h) => {
@@ -47,7 +52,10 @@ export function describeStage(scene: ObjectScene, layout: StageLayout, lang: Lan
     const out = [w.stageHolder(h.label, noun, w.amount(h.count.wholes, h.count.piece, counter))];
     const drawn = layout.holders.find((x) => x.holderId === h.holderId);
     if (scene.share !== null && drawn !== undefined && drawn.dishes.length > 0) {
-      out.push(w.stageDishes(h.label, noun, drawn.dishes.length), w.stageEach(w.amount(scene.share.wholes, scene.share.piece, counter)));
+      const each = w.amount(scene.share.wholes, scene.share.piece, counter);
+      if (drawn.item === "cup") out.push(w.stagePoured(h.label, noun, drawn.dishes.length), w.stageEachGroup(each));
+      else if (drawn.item === "yarn") out.push(w.stageMeasured(h.label, noun, drawn.dishes.length), w.stageEachGroup(each));
+      else out.push(w.stageDishes(h.label, noun, drawn.dishes.length), w.stageEach(each));
     }
     return out;
   });
@@ -62,11 +70,36 @@ export function describeStage(scene: ObjectScene, layout: StageLayout, lang: Lan
   const cutHolders = layout.holders.filter((h) => h.things.some((t) => t.piece !== null));
   const pieces = cutHolders.flatMap((h) => h.things.filter((t) => t.piece !== null));
   const first = cutHolders[0];
-  if (first !== undefined) parts.push(w.stageCut(noun, pieces.every((t) => t.pieceText === "1/2"), shareStyle(first.item) === "ghost"));
+  const half = pieces.every((t) => t.pieceText === "1/2");
+  if (first !== undefined) parts.push(first.item === "cup" ? w.stageCupPart(noun, half) : w.stageCut(noun, half, styleOf(first.item) === "ghost"));
   return w.join(parts);
 }
 
 const safeId = (s: string): string => s.replace(/[^a-zA-Z0-9_-]/g, "");
+
+const LIQUID_COLOR: Readonly<Record<"juice" | "water", string>> = { juice: PALETTE.orange, water: PALETTE.blue };
+
+/** A cup filled to its share (a whole cup is full): the liquid a rectangle rising from the cup's foot, clipped inside. */
+function Cup({ t, holderId, liquid, clipId }: { t: ThingLayout; holderId: string; liquid: "juice" | "water"; clipId: string }) {
+  const cup = groupSvg("cup");
+  const fill = t.piece ?? 1;
+  const h = t.size * THING_FILL;
+  const w = (h * 100) / 130;
+  const level = CUP_INNER.y + (CUP_BOTTOM - CUP_INNER.y) * (1 - fill);
+  return (
+    <g data-role="thing" data-holder={holderId} data-part="cup" data-place={t.place} data-dish={String(t.dish)} data-piece={t.pieceText} data-fill={String(fill)} data-dx={String(t.fromX - t.x)} data-dy={String(t.fromY - t.y)}>
+      <svg x={t.x + (t.size - w) / 2} y={t.y + t.size - h} width={w} height={h} viewBox={cup.viewBox} overflow="visible">
+        <clipPath id={clipId}>
+          <rect x={CUP_INNER.x} y={CUP_INNER.y} width={CUP_INNER.w} height={CUP_BOTTOM - CUP_INNER.y} rx={12} />
+        </clipPath>
+        <g dangerouslySetInnerHTML={{ __html: cup.body }} />
+        <rect data-role="liquid" x={CUP_INNER.x} y={level} width={CUP_INNER.w} height={CUP_BOTTOM - level} fill={LIQUID_COLOR[liquid]} opacity={0.85} clipPath={`url(#${clipId})`} />
+        {/* The liquid's top: a straight line in the outline colour, so a part-filled cup reads as a level. */}
+        {t.piece !== null && <line data-role="liquid-level" x1={CUP_INNER.x} y1={level} x2={CUP_INNER.x + CUP_INNER.w} y2={level} stroke={PALETTE.outline} strokeWidth={4} />}
+      </svg>
+    </g>
+  );
+}
 
 function Thing({ t, holderId, part, clipId, style }: { t: ThingLayout; holderId: string; part: ReturnType<typeof itemSvg> & { id: string }; clipId: string; style: ShareStyle }) {
   // The kept part is t.piece of the drawing's own width (PART_BOX: half a fish is half of the fish you see), from its
@@ -133,11 +166,11 @@ function Thing({ t, holderId, part, clipId, style }: { t: ThingLayout; holderId:
   );
 }
 
-export function ObjectSceneView({ scene, reducedMotion, lang = "ja", label, shareStyle = shareStyleOf }: ObjectSceneProps) {
+export function ObjectSceneView({ scene, reducedMotion, lang = "ja", label, shareStyle = shareStyleOf, counters = false, compact = false }: ObjectSceneProps) {
   const words = ui(lang).draw;
   const reduced = useReducedMotion(reducedMotion);
   const uid = safeId(useId());
-  const layout = useMemo(() => layoutStage(scene), [scene]);
+  const layout = useMemo(() => layoutStage(scene, undefined, { counters, compact }), [scene, counters, compact]);
   const desc = useMemo(() => (layout === null ? "" : describeStage(scene, layout, lang, shareStyle)), [scene, layout, lang, shareStyle]);
   const root = useRef<HTMLDivElement>(null);
   const colors = useMemo(() => new Map(holderColors(scene.holders.map((h) => ({ id: h.holderId, label: h.label }))).map((c) => [c.id, c.color])), [scene]);
@@ -169,14 +202,15 @@ export function ObjectSceneView({ scene, reducedMotion, lang = "ja", label, shar
   if (layout === null) return null;
   const plate = groupSvg();
   const drawHolder = (h: StageHolderLayout, layer: "back" | "front" | "all" = "all") => {
-    const box = containerSvg(h.container);
-    const part = { ...itemSvg(h.item), id: h.item };
+    const box = h.container === null ? null : containerSvg(h.container);
+    const part = h.item === "cup" ? null : { ...itemSvg(h.item), id: h.item };
+    const liquid = liquidOf(scene.item.noun) ?? "water";
     const color = colors.get(h.holderId);
     const back = layer !== "front";
     const front = layer !== "back";
     return (
       <>
-        {back && h.box !== null && (
+        {back && h.box !== null && box !== null && (
           <svg data-role="container" x={h.box.x} y={h.box.y} width={h.box.w} height={h.box.h} viewBox={box.viewBox}>
             <g dangerouslySetInnerHTML={{ __html: box.back }} />
           </svg>
@@ -184,15 +218,23 @@ export function ObjectSceneView({ scene, reducedMotion, lang = "ja", label, shar
         {back && h.soil.map((b, k) => (
           <rect key={`s${String(k)}`} data-role="soil" x={b.x} y={b.y} width={b.w} height={b.h} rx={b.h / 2} fill={PALETTE.brown} stroke={PALETTE.outline} strokeWidth={3} />
         ))}
+        {back && h.groups.map((g, k) => (
+          <rect key={`g${String(k)}`} data-role="share-group" data-holder={h.holderId} x={g.x} y={g.y} width={g.w} height={g.h} rx={14} fill={PALETTE.greyLight} stroke={PALETTE.grey} strokeWidth={3} />
+        ))}
         {back && h.plates.map((d, k) => (
           <svg key={`p${String(k)}`} data-role="dish" data-holder={h.holderId} x={d.x} y={d.y} width={d.w} height={d.h} viewBox={plate.viewBox} preserveAspectRatio="none" overflow="visible">
             <g dangerouslySetInnerHTML={{ __html: plate.body }} />
           </svg>
         ))}
-        {front && h.things.map((t, i) => (
-          <Thing key={i} t={t} holderId={h.holderId} part={part} clipId={`${uid}-${h.holderId}-${String(i)}`} style={shareStyle(h.item)} />
-        ))}
-        {front && h.box !== null && (
+        {front &&
+          h.things.map((t, i) =>
+            part === null ? (
+              <Cup key={i} t={t} holderId={h.holderId} liquid={liquid} clipId={`${uid}-${h.holderId}-${String(i)}`} />
+            ) : (
+              <Thing key={i} t={t} holderId={h.holderId} part={part} clipId={`${uid}-${h.holderId}-${String(i)}`} style={h.item === "token" ? "cut" : shareStyle(h.item as ItemPart)} />
+            ),
+          )}
+        {front && h.box !== null && box !== null && (
           <svg x={h.box.x} y={h.box.y} width={h.box.w} height={h.box.h} viewBox={box.viewBox} pointerEvents="none">
             <g dangerouslySetInnerHTML={{ __html: box.front }} />
           </svg>
@@ -235,7 +277,10 @@ export function ObjectSceneView({ scene, reducedMotion, lang = "ja", label, shar
     <div data-role="stage" data-breaks={scene.breaks ? "true" : "false"} style={{ position: "relative", marginBottom: 8 }}>
       {/* A ghost piece: every shape of the part as a dashed outline in the outline colour, unfilled, so it reads as a
           thing that is not there (CSS wins over the part's own presentation attributes). */}
-      <style>{`.stage-ghost * { fill: none; stroke: ${PALETTE.outline}; stroke-width: 5; stroke-dasharray: 9 7; }`}</style>
+      {/* Only when a ghost piece is drawn (no stray signs in the page's text otherwise). */}
+      {layout.holders.some((h) => h.item !== "cup" && h.item !== "token" && shareStyle(h.item) === "ghost" && h.things.some((t) => t.piece !== null)) && (
+        <style>{`.stage-ghost :is(path, circle, ellipse, rect, polygon, polyline, line) { fill: none; stroke: ${PALETTE.outline}; stroke-width: 5; stroke-dasharray: 9 7; }`}</style>
+      )}
       <div
         ref={root}
         role="img"

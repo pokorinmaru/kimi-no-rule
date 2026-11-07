@@ -1,7 +1,7 @@
 // The code checks of a picture part against apps/web/src/draw/assets/spec.ts, before Claude looks at the picture:
 // the part's viewBox, no fixed size, no text, images, scripts, styles or filters, no outside reference, only the
 // palette's colours, a container's back and front layers, and a size that loads fast.
-import { CONTAINER_PARTS, GROUP_PARTS, ITEM_PARTS, PALETTE, VIEWBOX, type PartId } from "../../../apps/web/src/draw/assets/spec.ts";
+import { CHARACTER_PARTS, CONTAINER_PARTS, GROUP_PARTS, ITEM_PARTS, PALETTE, PART_VIEWBOX, VIEWBOX, type PartId } from "../../../apps/web/src/draw/assets/spec.ts";
 
 export type PartKind = keyof typeof VIEWBOX;
 export type PartProblem = "not_svg" | "viewbox" | "fixed_size" | "forbidden_element" | "outside_reference" | "off_palette" | "layers" | "too_large";
@@ -12,11 +12,15 @@ export function kindOf(id: PartId): PartKind {
   if ((ITEM_PARTS as readonly string[]).includes(id)) return "item";
   if ((CONTAINER_PARTS as readonly string[]).includes(id)) return "container";
   if ((GROUP_PARTS as readonly string[]).includes(id)) return "group";
+  if ((CHARACTER_PARTS as readonly string[]).includes(id)) return "character";
   throw new Error(`unknown part ${id}`);
 }
 
 const ALLOWED = new Set(Object.values(PALETTE).map((c) => c.toLowerCase()));
 const COLOUR_WORDS = new Set(["none", "transparent", "currentcolor", "inherit"]);
+
+/** A part's own viewBox: its kind's, unless the contract gives the part its own shape. */
+export const viewBoxOf = (id: PartId): { w: number; h: number } => PART_VIEWBOX[id] ?? VIEWBOX[kindOf(id)];
 
 export function checkPart(id: PartId, svg: string): PartProblem[] {
   const out = new Set<PartProblem>();
@@ -24,7 +28,7 @@ export function checkPart(id: PartId, svg: string): PartProblem[] {
   const root = /^<svg\b[^>]*>/i.exec(text);
   if (root === null || !/<\/svg>\s*$/i.test(text)) return ["not_svg"];
   const head = root[0];
-  const { w, h } = VIEWBOX[kindOf(id)];
+  const { w, h } = viewBoxOf(id);
   const vb = /\bviewBox="([^"]+)"/.exec(head)?.[1]?.trim().split(/[\s,]+/).map(Number);
   if (vb === undefined || vb.length !== 4 || vb[0] !== 0 || vb[1] !== 0 || vb[2] !== w || vb[3] !== h) out.add("viewbox");
   if (/\s(width|height)="/.test(head)) out.add("fixed_size");

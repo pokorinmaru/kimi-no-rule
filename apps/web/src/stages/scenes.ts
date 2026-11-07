@@ -47,3 +47,11 @@ export function sceneCases(bank: readonly ProblemRecord[] = FRACTION_BANK): Scen
   }
   return out;
 }
+
+/**
+ * The stored problems of a continuous unit (juice dL, water L, yarn m), for listing their scenes too:
+ * `sceneCases(continuousRecords(STORED_PROBLEMS))` (the bank has none; added for the continuous stage pictures, 2026-11-08).
+ */
+export function continuousRecords(records: readonly ProblemRecord[]): ProblemRecord[] {
+  return records.filter((r) => r.world.item_kinds.some((k) => !k.countable));
+}

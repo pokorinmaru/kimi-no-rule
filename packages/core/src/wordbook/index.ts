@@ -10,6 +10,7 @@ import { gate, hasOperationName, numbersIn, type GateContext } from "../gates/in
 import { worldValues } from "../scenes/values.ts";
 import { eq, fromSchema } from "../rational/index.ts";
 import { WORDBOOK_PAGES, WORDBOOK_PAGE_IDS, type WordbookNumbers, type WordbookPageData, type WordbookPageId } from "./pages.ts";
+import { drawnValues, objectScene, type ObjectScene } from "../stage/index.ts";
 
 export { WORDBOOK_PAGES, WORDBOOK_PAGE_IDS, WORDBOOK_READINGS, type WordbookNumbers, type WordbookPageData, type WordbookPageId } from "./pages.ts";
 
@@ -107,6 +108,45 @@ export interface WordbookPageView {
   /** The page's world, labelled in the screen's language (drawn with the "1" card on oneHolderId). */
   world: WorldScene;
   oneHolderId: string;
+  /**
+   * The page's example drawn twice, as contrasting cases: read as the wording says (the "1" holder's things dealt
+   * onto as many dishes as the fraction's bottom, all whole), and read with the other holder as 1 (dealt the same
+   * way: it breaks). Each has a short neutral caption, never a verdict. Null when the page draws no stage
+   * picture; otherAsOne null when it cannot be drawn without a number of the problem.
+   */
+  contrast: WordbookContrast | null;
+}
+
+export interface WordbookContrast {
+  asWorded: ObjectScene;
+  otherAsOne: ObjectScene | null;
+  captions: [string, string | null];
+}
+
+/** A short neutral caption: which holder is taken as 1 (no verdict). */
+export function contrastCaption(holder: string, lang: Lang): string {
+  return lang === "ja" ? `${holder}を「1」とみると` : `Taking ${holder} as "1"`;
+}
+
+/** The page's world read with the other holder as 1: the other holder's count kept, the "1" holder's derived. */
+function otherAsOneWorld(w: WorldScene): WorldScene {
+  return {
+    ...w,
+    quantities: w.quantities.map((q) => (q.id === "q_one" ? { ...q, value: null } : q)),
+    relations: w.relations.map((r) => ({ ...r, subject: "q_one", reference: "q_other" })),
+    question: { target_type: "quantity", target_id: "q_one" },
+  };
+}
+
+/** The two pictures of a page's world, or null when the first does not deal into whole things or any drawn number is the problem's. */
+function contrastOf(world: WorldScene, record: ProblemRecord, theirs: readonly Rational[], lang: Lang): WordbookContrast | null {
+  const clean = (sc: ObjectScene | null): sc is ObjectScene => sc !== null && !drawnValues(sc).some((d) => theirs.some((t) => same(d, t)));
+  const asWorded = objectScene(world, record.world, { values: [] });
+  if (!clean(asWorded) || asWorded.share === null || asWorded.share.piece !== null) return null;
+  const swapped = objectScene(otherAsOneWorld(world), record.world, { values: [] });
+  const otherAsOne = clean(swapped) && swapped.share !== null ? swapped : null;
+  const label = (id: string): string => world.holders.find((h) => h.id === id)?.label ?? "";
+  return { asWorded, otherAsOne, captions: [contrastCaption(label("h_one"), lang), otherAsOne === null ? null : contrastCaption(label("h_other"), lang)] };
 }
 
 /**
@@ -128,6 +168,8 @@ export function wordbookPage(id: WordbookPageId, record: ProblemRecord, lang: La
       interpretationRecorded: true,
       prediction: "disabled",
     };
+    // The first set of numbers kept apart from the problem; a later set when only it lets both pictures be drawn.
+    let first: WordbookPageView | null = null;
     for (let i = 0; i < p.numbers.length; i++) {
       const n = p.numbers[i] as WordbookNumbers;
       if (numbersOf(p, n).some((x) => theirs.some((t) => same(x, t)))) continue;
@@ -135,9 +177,11 @@ export function wordbookPage(id: WordbookPageId, record: ProblemRecord, lang: La
       if ([p.words[lang], ...lines].some((t) => hasOperationName(t) || !gate({ kind: "say", text: withoutTheOne(t) }, ctx).ok)) continue;
       const world = wordbookWorld(id, lang, i);
       if (!validateWorld(world).ok) return null;
-      return { id, title: p.words[lang], lines, world, oneHolderId: "h_one" };
+      const view: WordbookPageView = { id, title: p.words[lang], lines, world, oneHolderId: "h_one", contrast: contrastOf(world, record, theirs, lang) };
+      if (view.contrast?.otherAsOne != null) return view;
+      first ??= view;
     }
-    return null;
+    return first;
   } catch {
     return null;
   }

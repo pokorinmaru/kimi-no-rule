@@ -28,6 +28,7 @@ import {
   wordbookWorld,
   helpSentence,
 } from "./index.ts";
+import { drawnValues } from "../stage/index.ts";
 
 const contentDir = fileURLToPath(new URL("../../../../content/problems/", import.meta.url));
 
@@ -267,5 +268,41 @@ describe("the word book's furigana (run-through, 2026-11-08)", () => {
       { text: "玉", ruby: "だま" },
     ]);
     for (const kana of Object.values(WORDBOOK_READINGS)) expect(kana).toMatch(/^[ぁ-ゖー|]+$/);
+  });
+});
+
+describe("the page's contrasting pictures (the wording as written, and the other holder taken as 1)", () => {
+  it.each(WORDBOOK_PAGE_IDS)("%s on the signboard: as worded, the 1 is dealt into whole things; with the other as 1 it breaks", (id) => {
+    const v = wordbookPage(id, signboardRecord, "ja");
+    const c = v?.contrast;
+    if (c === undefined || c === null) throw new Error(`${id} contrast`);
+    const one = c.asWorded.holders.find((h) => h.holderId === "h_one");
+    expect(one?.isOne).toBe(true);
+    expect(c.asWorded.share?.piece ?? null).toBeNull();
+    expect(c.asWorded.breaks).toBe(false);
+    expect(c.asWorded.holders.every((h) => h.dishes > 0 && h.count !== null)).toBe(true);
+    const other = c.otherAsOne;
+    if (other === null) throw new Error(`${id} other`);
+    expect(other.holders.find((h) => h.holderId === "h_other")?.isOne).toBe(true);
+    // It breaks: a cut piece, or the count the page says does not come back.
+    const pageOne = v?.world.quantities.find((q) => q.id === "q_one")?.value?.num;
+    const drawnOne = other.holders.find((h) => h.holderId === "h_one")?.count;
+    expect(other.breaks || drawnOne?.piece != null || drawnOne?.wholes !== pageOne).toBe(true);
+    expect(c.captions[0]).toBe(`${v?.world.holders.find((h) => h.id === "h_one")?.label ?? ""}を「1」とみると`);
+    expect(c.captions[1]).toBe(`${v?.world.holders.find((h) => h.id === "h_other")?.label ?? ""}を「1」とみると`);
+    for (const cap of c.captions) if (cap !== null) for (const w of ["正しい", "まちがい", "ただしい"]) expect(cap).not.toContain(w);
+  });
+
+  it("no number either picture draws is a value of the problem, on every problem and page, in both languages", () => {
+    for (const r of ALL)
+      for (const id of WORDBOOK_PAGE_IDS)
+        for (const lang of ["ja", "en"] as const) {
+          const c = wordbookPage(id, r, lang)?.contrast;
+          if (c === undefined || c === null) continue;
+          const theirs = [...numbersIn(r.world.problem_text), ...worldValues(r.world).map((x) => ({ num: Number(x.num), den: Number(x.den) })), ...(r.expected_answer === null ? [] : [r.expected_answer])];
+          for (const s of [c.asWorded, c.otherAsOne])
+            if (s !== null)
+              for (const d of drawnValues(s)) expect(theirs.some((t) => eq(fromSchema(t), fromSchema(d))), `${id} ${r.world.problem_id} ${String(d.num)}/${String(d.den)}`).toBe(false);
+        }
   });
 });

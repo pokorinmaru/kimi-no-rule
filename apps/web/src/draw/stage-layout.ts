@@ -11,6 +11,17 @@ export interface Box {
   h: number;
 }
 
+/**
+ * What draws a holder's things: an item part, or (a liquid: ジュース, 水) a measuring cup, filled to the amount.
+ * Liquids and yarn have no container: they are laid out under the holder's name (assets/spec.ts).
+ */
+export type StageItem = ItemPart | "cup" | "token";
+export const LIQUID_NOUNS: Readonly<Record<string, "juice" | "water">> = { ジュース: "juice", 水: "water" };
+export const liquidOf = (noun: string): "juice" | "water" | null => LIQUID_NOUNS[noun] ?? null;
+const OPEN: readonly string[] = ["cup", "yarn"];
+/** Things laid out without a container: liquids in cups, and yarn. */
+export const isOpen = (item: string): boolean => OPEN.includes(item);
+
 export interface ThingLayout {
   x: number;
   y: number;
@@ -19,7 +30,8 @@ export interface ThingLayout {
   piece: number | null;
   /** The piece as core gave it, "num/den", for tests and the description; "" for a whole thing. */
   pieceText: string;
-  place: "container" | "dish";
+  /** container: kept in its container; row: kept without one (cups, yarn); dish: dealt onto a plate; group: poured into a group of cups. */
+  place: "container" | "dish" | "row" | "group";
   /** The dish it sits on (0-based), or -1 in the container. */
   dish: number;
   /** Where it starts when dealt: the middle of its container (top-left of the thing). */
@@ -30,8 +42,9 @@ export interface ThingLayout {
 export interface StageHolderLayout {
   holderId: string;
   label: string;
-  item: ItemPart;
-  container: ContainerPart;
+  item: StageItem;
+  /** The container part; null for things laid out without one (cups, yarn). */
+  container: ContainerPart | null;
   /** The holder's own panel is `width` (StageLayout) by `height`, in its own units; everything below is inside it. */
   height: number;
   /** The container; null once its things are dealt (an empty container has no purpose: only the name and dishes). */
@@ -42,8 +55,10 @@ export interface StageHolderLayout {
   unknown: { x: number; y: number } | null;
   /** Each dish: the whole cell, things above and the plate at its foot. */
   dishes: Box[];
-  /** The plate of each dish (inside its cell). */
+  /** The plate of each dish (inside its cell); empty for poured cups. */
   plates: Box[];
+  /** A soft band behind each group a liquid is poured into, or yarn is measured out into (one per "dish"); empty otherwise. */
+  groups: Box[];
   /** Soil bands behind each row of flowers in a flower bed, so every row stands on soil; empty for other things. */
   soil: Box[];
   things: ThingLayout[];
@@ -56,6 +71,8 @@ export interface StageLayout {
   height: number;
   /** The holders one above the other at full width (side by side could not keep every thing large enough). */
   stacked: boolean;
+  /** A small picture beside another (the word book's contrasting cases): things on dishes at PANEL.compactPx. */
+  compact: boolean;
   holders: StageHolderLayout[];
   /**
    * An additive reading drawn as a one-to-one pairing: both holders in ONE panel, one above the other (holder i at
@@ -110,8 +127,12 @@ export const PANEL = {
   /** On a dish, each thing's drawing keeps at least this shorter side (px): 3 things or fewer, and more. */
   dishFewPx: 56,
   dishManyPx: 40,
+  /** On a dish of a compact picture (the word book's contrasting cases). */
+  compactPx: 30,
   /** A plate is this much wider than the things standing across it. */
   plateMargin: 1.08,
+  /** Around a group of cups (panel units). */
+  groupPad: 8,
   /** The widest plate, in panel units. */
   maxPlate: 720,
   /** A plate may stretch up to this many times its own height, to hold rows of things. */
@@ -137,8 +158,23 @@ export const PART_NARROW: Readonly<Record<string, number>> = {
   mikan: 0.95,
   apple: 0.77,
   card: 0.68,
+  yarn: 0.31,
 };
-export const narrowOf = (item: string): number => PART_NARROW[item] ?? 0.5;
+export const narrowOf = (item: string): number => (item === "cup" ? CUP_NARROW : item === "token" ? TOKEN_NARROW : (PART_NARROW[item] ?? 0.5));
+
+/** The round counter (a placeholder drawn by parts.ts: a circle of radius 38 + outline in its 100 box). */
+export const TOKEN_NARROW = 0.8;
+
+/**
+ * The clear inside of the cup part where the liquid goes, in its viewBox (PART_VIEWBOX cup: 100 by 130): between its
+ * walls, from just under the rim to the bottom (measured: e2e/parts.spec.ts).
+ */
+export const CUP_INNER: Box = { x: 21, y: 27, w: 48, h: 78 };
+/** The liquid fills down to the cup's rounded bottom (inside its outline), clipped with rounded corners. */
+export const CUP_BOTTOM = 117;
+
+/** A measuring cup (PART_VIEWBOX: 100 wide, 130 tall) drawn in a square cell: its width is its shorter side. */
+export const CUP_NARROW = 0.7;
 
 /**
  * Where each item part's drawing lies across its 100-unit box (measured with getBBox: e2e/parts.spec.ts). A piece is
@@ -155,6 +191,7 @@ export const PART_BOX: Readonly<Record<string, { x: number; w: number }>> = {
   mikan: { x: 0, w: 100 },
   apple: { x: 11.7, w: 76.5 },
   card: { x: 17.3, w: 68.2 },
+  yarn: { x: 5.5, w: 89 },
 };
 export const partBoxOf = (item: string): { x: number; w: number } => PART_BOX[item] ?? { x: 0, w: 100 };
 
@@ -179,7 +216,13 @@ export const PIECE_KEEP: Readonly<Record<string, "left" | "right">> = { goldfish
 export const pieceKeepOf = (item: string): "left" | "right" => PIECE_KEEP[item] ?? "left";
 
 /** The shorter side of a thing's drawing, in px on a 1024 screen, for a cell of `size` units. */
-export const drawnSide = (l: { stacked: boolean; width: number }, item: string, size: number): number => size * THING_FILL * narrowOf(item) * pxPerUnit(l);
+export const drawnSide = (l: { stacked: boolean; width: number }, item: string, size: number): number => size * THING_FILL * sizingNarrowOf(item) * pxPerUnit(l);
+
+/**
+ * The share a thing's size is judged on. A length of yarn is thin by nature: it reads by its length, so it is
+ * judged on its box (its drawing's own shorter side stays PART_NARROW.yarn).
+ */
+export const sizingNarrowOf = (item: string): number => (item === "yarn" ? 1 : narrowOf(item));
 
 /** px per panel unit on a 1024 screen, for the layout's arrangement. */
 export function pxPerUnit(l: { stacked: boolean; width: number }): number {
@@ -308,18 +351,28 @@ const FLOWERS: readonly string[] = ["tulip", "flower_white", "flower_red"];
 /** How many dishes side by side, at most. */
 const dishCols = (d: number, stacked: boolean): number => (stacked ? (d <= 5 ? d : Math.ceil(d / 2)) : d <= 2 ? d : d <= 4 ? 2 : 3);
 
+/** Options: `counters` draws things without a part of their own (the word book's everyday things) as plain round counters. */
+export interface StageOptions {
+  counters?: boolean;
+  /** A small picture shown beside another: things on dishes kept at PANEL.compactPx, not the problem screen's sizes. */
+  compact?: boolean;
+}
+
 /**
  * Null when a holder's things have no part (the screen then shows the tape only). Without `mode`, the holders
  * stand side by side when every thing keeps PANEL.sideMinPx there, else one above the other at full width.
  */
-export function layoutStage(scene: ObjectScene, mode?: "side" | "stacked"): StageLayout | null {
-  const found = scene.holders.map((h) => itemPartFor(scene.item.noun, h.label));
+export function layoutStage(scene: ObjectScene, mode?: "side" | "stacked", opts: StageOptions = {}): StageLayout | null {
+  const found: (StageItem | null)[] = scene.holders.map((h) =>
+    liquidOf(scene.item.noun) !== null ? "cup" : (itemPartFor(scene.item.noun, h.label) ?? (opts.counters === true ? "token" : null)),
+  );
   if (found.some((p) => p === null)) return null;
-  const parts = found as ItemPart[];
-  if (scene.pairing !== null) return paired(arrange(scene, parts, true), scene.pairing);
-  if (mode !== undefined) return arrange(scene, parts, mode === "stacked");
-  const side = arrange(scene, parts, false);
-  const stacked = arrange(scene, parts, true);
+  const parts = found as StageItem[];
+  const compact = opts.compact === true;
+  if (scene.pairing !== null) return paired(arrange(scene, parts, true, compact), scene.pairing);
+  if (mode !== undefined) return arrange(scene, parts, mode === "stacked", compact);
+  const side = arrange(scene, parts, false, compact);
+  const stacked = arrange(scene, parts, true, compact);
   if (!meetsSizes(side)) return stacked;
   if (meetsSizes(stacked) && heightPx(stacked) < heightPx(side)) return stacked;
   return side;
@@ -364,6 +417,7 @@ export function leastPxFor(l: StageLayout, t: ThingLayout): number {
   // Every dish holds the same share; count one dish of any dealt holder.
   const first = l.holders.find((h) => h.things.some((x) => x.place === "dish"));
   const n = first === undefined ? onDish.length : first.things.filter((x) => x.place === "dish" && x.dish === 0).length;
+  if (l.compact) return PANEL.compactPx;
   return n <= 3 ? PANEL.dishFewPx : PANEL.dishManyPx;
 }
 
@@ -380,17 +434,20 @@ export function heightPx(l: StageLayout): number {
 
 type Holder = ObjectScene["holders"][number];
 
-function arrange(scene: ObjectScene, parts: ItemPart[], stacked: boolean): StageLayout {
+function arrange(scene: ObjectScene, parts: StageItem[], stacked: boolean, compact = false): StageLayout {
   const W = stacked ? PANEL.stacked : PANEL.side;
   const unitPx = pxPerUnit({ stacked, width: W });
   // The smallest cell that still draws the scene's narrowest thing at PANEL.leastPx or more.
-  const narrow = Math.min(...parts.map(narrowOf));
+  const narrow = Math.min(...parts.map(sizingNarrowOf));
   const minThing = PANEL.leastPx / (THING_FILL * narrow * unitPx) + 0.5;
   const isDealt = (h: Holder): boolean => h.count !== null && h.dishes > 0 && scene.share !== null;
 
   // One grid for every holder whose things stay in its container: one container scale, one thing size and one
   // column count, fitting the largest count in the smallest plain inside (so the two holders' rows compare).
-  const keptHolders = scene.holders.map((h, i) => ({ h, part: containerPartFor(parts[i] as ItemPart) })).filter((x) => !isDealt(x.h) && x.h.count !== null);
+  const keptHolders = scene.holders
+    .map((h, i) => ({ h, item: parts[i] as StageItem }))
+    .filter((x) => !isDealt(x.h) && x.h.count !== null && !isOpen(x.item))
+    .map((x) => ({ h: x.h, part: x.item === "token" ? ("tray" as const) : containerPartFor(x.item as ItemPart) }));
   const need = Math.max(0, ...keptHolders.map((x) => thingsOf(x.h.count as StageAmount).length + (x.h.count?.piece != null ? 1 : 0)));
   const most = Math.max(0, ...keptHolders.map((x) => thingsOf(x.h.count as StageAmount).length));
   const innerW = Math.min(VIEWBOX.container.w, ...keptHolders.map((x) => containerInnerOf(x.part).w));
@@ -421,13 +478,21 @@ function arrange(scene: ObjectScene, parts: ItemPart[], stacked: boolean): Stage
     }
   }
 
+  // Things laid out without a container (cups, yarn): one row per holder when it fits at a roomy size, else rows of
+  // the least size; the same size and columns for both holders.
+  const openW = W - 32;
+  const openMost = Math.max(1, ...scene.holders.map((h, i) => (isOpen(parts[i] as StageItem) && !isDealt(h) && h.count !== null ? thingsOf(h.count).length + (h.count.piece !== null ? 1 : 0) : 0)));
+  const openRow = Math.min(PANEL.maxThing, openW / openMost);
+  const openSize = openRow >= Math.max(minThing, PANEL.roomyThing) ? openRow : Math.max(minThing, Math.min(PANEL.maxThing, openRow));
+  const openCols = Math.max(1, Math.min(openMost, Math.floor(openW / openSize + 1e-9)));
+
   // One pile for every dish (every dish gets the same share): things at least PANEL.dishFewPx (3 or fewer) or
   // PANEL.dishManyPx, as many dishes side by side as keep that, each plate only as wide as its things.
   const each = scene.share === null ? [] : thingsOf(scene.share);
   const sharePiece = scene.share?.piece != null;
   const maxDishes = Math.max(1, ...scene.holders.filter(isDealt).map((h) => h.dishes));
-  const dishNarrow = Math.min(...scene.holders.filter(isDealt).map((h) => narrowOf(parts[scene.holders.indexOf(h)] as ItemPart)), 1);
-  const wantPx = each.length <= 3 ? PANEL.dishFewPx : PANEL.dishManyPx;
+  const dishNarrow = Math.min(...scene.holders.filter(isDealt).map((h) => sizingNarrowOf(parts[scene.holders.indexOf(h)] as StageItem)), 1);
+  const wantPx = compact ? PANEL.compactPx : each.length <= 3 ? PANEL.dishFewPx : PANEL.dishManyPx;
   const want = (wantPx / (THING_FILL * dishNarrow * unitPx)) * 1.02;
   let cols = dishCols(maxDishes, stacked);
   const plateW = (c: number): number => Math.min((W - (c - 1) * PANEL.dishGap) / c, PANEL.maxPlate);
@@ -437,25 +502,73 @@ function arrange(scene: ObjectScene, parts: ItemPart[], stacked: boolean): Stage
     pile = dishPile(each.length, sharePiece, plateW(cols), want);
   }
   const P = pile.plateW;
+  // A liquid is poured: each "dish" is a group of cups in a row, the share's whole cups and its part-filled cup.
+  // A group holds the share in one row: as large as the dish target asks, never wider than the panel.
+  const cupSize = Math.min(PANEL.maxThing * 1.2, Math.max(want, minThing), (W - 2 * PANEL.groupPad) / Math.max(1, each.length));
+  const groupW = Math.max(1, each.length) * cupSize + 2 * PANEL.groupPad;
+  const groupCols = Math.max(1, Math.min(maxDishes, Math.floor((W + PANEL.dishGap) / (groupW + PANEL.dishGap))));
 
   const holders = scene.holders.map((h, i): StageHolderLayout => {
-    const item = parts[i] as ItemPart;
-    const container = containerPartFor(item);
+    const item = parts[i] as StageItem;
+    const open = isOpen(item);
+    const container = open ? null : item === "token" ? "tray" : containerPartFor(item as ItemPart);
     const dealt = isDealt(h);
+    // Things without a container: the name tag at the top, the things in rows under it.
+    const openRows = h.count === null ? 1 : Math.ceil((thingsOf(h.count).length + (h.count.piece !== null ? 1 : 0)) / openCols);
     const kk = dealt ? PANEL.dealtContainer / VIEWBOX.container.w : k;
-    const box: Box = { x: (W - VIEWBOX.container.w * kk) / 2, y: 0, w: VIEWBOX.container.w * kk, h: VIEWBOX.container.h * kk };
-    const own = containerInnerOf(container);
-    const inner: Box = { x: box.x + own.x * kk, y: box.y + own.y * kk, w: own.w * kk, h: own.h * kk };
+    const box: Box = open
+      ? { x: 16, y: PANEL.tagGap * 2 + 6, w: openW, h: Math.max(1, openRows) * openSize }
+      : { x: (W - VIEWBOX.container.w * kk) / 2, y: 0, w: VIEWBOX.container.w * kk, h: VIEWBOX.container.h * kk };
+    const own = container === null ? { x: 0, y: 0, w: box.w / kk, h: box.h / kk } : containerInnerOf(container);
+    const inner: Box = open ? box : { x: box.x + own.x * kk, y: box.y + own.y * kk, w: own.w * kk, h: own.h * kk };
     const mid = { x: inner.x + inner.w / 2, y: inner.y + inner.h / 2 };
     // Once dealt there is no container: the name tag stands at the top and the dishes get the room.
-    const tag = { x: W / 2, y: dealt ? PANEL.tagGap : box.y + box.h + PANEL.tagGap };
-    let height = tag.y + PANEL.tagGap + PANEL.bottom;
+    const tag = { x: W / 2, y: dealt || open ? PANEL.tagGap : box.y + box.h + PANEL.tagGap };
+    let height = (open && !dealt ? box.y + box.h : tag.y + PANEL.tagGap) + PANEL.bottom;
     const dishes: Box[] = [];
     const plates: Box[] = [];
+    const groups: Box[] = [];
     const soil: Box[] = [];
     const flower = FLOWERS.includes(item);
     let things: ThingLayout[] = [];
-    if (dealt && h.count !== null && scene.share !== null) {
+    if (dealt && open && h.count !== null && scene.share !== null) {
+      // Poured (cups) or measured out (yarn): each group holds the share in a row, the groups in rows under the name.
+      const top = tag.y + PANEL.tagGap + 6;
+      const gh = cupSize + 2 * PANEL.groupPad;
+      for (let d = 0; d < h.dishes; d++) {
+        const row = Math.floor(d / groupCols);
+        const inRow = Math.min(groupCols, h.dishes - row * groupCols);
+        const x0 = (W - (inRow * groupW + (inRow - 1) * PANEL.dishGap)) / 2;
+        const g: Box = { x: x0 + (d % groupCols) * (groupW + PANEL.dishGap), y: top + row * (gh + PANEL.dishGap), w: groupW, h: gh };
+        groups.push(g);
+        dishes.push(g);
+      }
+      things = groups.flatMap((g, k2) =>
+        each.map((e, j) => ({
+          x: g.x + PANEL.groupPad + j * cupSize,
+          y: g.y + PANEL.groupPad,
+          size: cupSize,
+          ...e,
+          place: "group" as const,
+          dish: k2,
+          fromX: W / 2 - cupSize / 2,
+          fromY: -cupSize,
+        })),
+      );
+      const last = groups[groups.length - 1];
+      height = (last === undefined ? height : last.y + last.h) + PANEL.bottom;
+    } else if (open && !dealt && h.count !== null) {
+      const all = thingsOf(h.count);
+      const cells = containerGrid(all.length, h.count.piece !== null, inner, openSize, openCols);
+      things = cells.map((g, j) => ({
+        ...g,
+        ...(all[j] ?? { piece: null, pieceText: "" }),
+        place: "row" as const,
+        dish: -1,
+        fromX: g.x,
+        fromY: -g.size,
+      }));
+    } else if (dealt && h.count !== null && scene.share !== null) {
       // Each dish: the plate, and above it the back row's things standing in it.
       const backFoot = PLATE_INNER.cy + (pile.rows > 1 ? FEET.back : FEET.single) * PLATE_INNER.ry;
       const lift = pile.size - (pile.plateH * backFoot) / VIEWBOX.group.h;
@@ -507,15 +620,16 @@ function arrange(scene: ObjectScene, parts: ItemPart[], stacked: boolean): Stage
       item,
       container,
       height,
-      box: dealt ? null : box,
+      box: dealt || open ? null : box,
       tag,
       hidden: h.hidden,
       unknown: h.hidden ? mid : null,
       dishes,
       plates,
+      groups,
       soil,
       things,
     };
   });
-  return { width: W, height: Math.max(0, ...holders.map((h) => h.height)), stacked, holders, pairing: null };
+  return { width: W, height: Math.max(0, ...holders.map((h) => h.height)), stacked, compact, holders, pairing: null };
 }

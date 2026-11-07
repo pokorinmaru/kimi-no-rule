@@ -1,5 +1,8 @@
 // The stage picture's numbers (指示書 第8節 舞台の絵): each holder's things, the dishes the relation deals them
 // onto, and the gate that no value of the correct world the child has not said is ever drawn as things.
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { FRACTION_BANK } from "../../fixtures/problems/fraction-bank.ts";
@@ -55,7 +58,7 @@ describe("objectScene on the signboard", () => {
     expect(oto.impossible).toBe(true);
     expect(s.share).toEqual({ wholes: 1, piece: n(1, 2) });
     expect(s.breaks).toBe(true);
-    expect(s.item).toEqual({ id: "k_kingyo", noun: "金魚", counter: "匹" });
+    expect(s.item).toEqual({ id: "k_kingyo", noun: "金魚", counter: "匹", continuous: false });
   });
 
   it("hides the correct answer and the correct one segment until the child says them", () => {
@@ -123,10 +126,44 @@ describe("whole things a child can count are gated too", () => {
 });
 
 describe("objectScene refuses what it does not draw", () => {
-  it("returns null for a continuous unit", () => {
+  it("draws a continuous unit too: a piece of it is possible, so nothing is impossible and no dealing breaks", () => {
     const r = bank("p_signboard");
     const w: WorldScene = { ...r.world, item_kinds: r.world.item_kinds.map((k) => ({ ...k, countable: false })) };
-    expect(objectScene(w, w, { values: [] })).toBeNull();
+    const misread = asDrawn(runRule(rule("c_known_whole"), { ...r, world: w }));
+    const s = objectScene(misread, w, { values: [] });
+    if (s === null) throw new Error("scene");
+    expect(s.item.continuous).toBe(true);
+    expect(s.holders.find((h) => h.holderId === "h_otouto")?.count).toEqual({ wholes: 4, piece: n(1, 2) });
+    expect(s.holders.every((h) => !h.impossible)).toBe(true);
+    expect(s.share).toEqual({ wholes: 1, piece: n(1, 2) });
+    expect(s.breaks).toBe(false);
+    expect(objectScene(asDrawn(r.world), r.world, { values: [] })?.item.continuous).toBe(false);
+  });
+});
+
+describe("the stored continuous problems (juice dL, water L, yarn m) keep the gate", () => {
+  const dir = fileURLToPath(new URL("../../../../content/problems/", import.meta.url));
+  const stored: ProblemRecord[] = ["discriminating", "transfer"].flatMap((d) =>
+    readdirSync(join(dir, d))
+      .filter((f) => /^p_.*\.json$/.test(f))
+      .map((f) => JSON.parse(readFileSync(join(dir, d, f), "utf8")) as ProblemRecord),
+  );
+  const continuous = stored.filter((r) => r.world.item_kinds.some((k) => !k.countable));
+
+  it("are there: juice, water and yarn", () => {
+    expect(continuous.map((r) => r.world.problem_id).sort()).toEqual(
+      ["p_disc_c_first_whole_s_motoni_plain_2", "p_transfer_c_additive_different_1", "p_transfer_c_swap_different_1", "p_transfer_c_swap_same_1"].sort(),
+    );
+  });
+
+  it.each(continuous.map((r) => [r.world.problem_id, r] as const))("%s: every common reading draws no hidden correct value", (_id, r) => {
+    for (const h of COMMON_FRACTION_READINGS) {
+      const s = objectScene(asDrawn(runRule(h, r)), r.world, { values: [] });
+      if (s === null) throw new Error(`${r.world.problem_id} ${h.id}`);
+      expect(s.item.continuous).toBe(true);
+      expect(isHidden(s, r.expected_answer as Rational)).toBe(true);
+      assertNoHiddenDrawn(s, `${r.world.problem_id} ${h.id}`);
+    }
   });
 });
 

@@ -1,11 +1,23 @@
 // The code checks of a picture part (apps/web/src/draw/assets/spec.ts): what a part may and may not hold, decided
 // by code before Claude looks at the picture. Written before the implementation.
 import { describe, expect, it } from "vitest";
-import { PALETTE } from "../../../apps/web/src/draw/assets/spec.ts";
+import { ALL_PARTS, PALETTE, VIEWBOX } from "../../../apps/web/src/draw/assets/spec.ts";
 import { checkPart, kindOf } from "./spec-check.ts";
+import { PART_BRIEFS } from "./prompts.ts";
+
+const PART_BRIEF_IDS = Object.keys(PART_BRIEFS);
 
 const item = (body: string, extra = ""): string => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"${extra}>${body}</svg>`;
 const fish = `<path d="M10 50 Q50 10 90 50 Q50 90 10 50Z" fill="${PALETTE.orange}" stroke="${PALETTE.outline}" stroke-width="3.5"/>`;
+
+describe("ALL_PARTS", () => {
+  it("lists every part of every kind, so a tool never misses a kind added later", () => {
+    const kinds = new Set(ALL_PARTS.map((p) => kindOf(p)));
+    expect([...kinds].sort()).toEqual(Object.keys(VIEWBOX).sort());
+    expect(PART_BRIEF_IDS.every((id) => (ALL_PARTS as readonly string[]).includes(id))).toBe(true);
+    expect(ALL_PARTS.every((id) => PART_BRIEF_IDS.includes(id))).toBe(true);
+  });
+});
 
 describe("kindOf", () => {
   it("knows each part's kind", () => {
@@ -56,6 +68,12 @@ describe("checkPart", () => {
     const front = `<g id="front"><rect x="20" y="140" width="200" height="30" fill="${PALETTE.blue}"/></g>`;
     expect(checkPart("tank", box(back + front))).toEqual([]);
     expect(checkPart("tank", box(back))).toContain("layers");
+  });
+
+  it("takes a part's own shape when the contract gives one (a tall measuring cup)", () => {
+    const cup = (vb: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}"><rect x="10" y="10" width="80" height="110" fill="${PALETTE.water}"/></svg>`;
+    expect(checkPart("cup", cup("0 0 100 130"))).toEqual([]);
+    expect(checkPart("cup", cup("0 0 160 60"))).toContain("viewbox");
   });
 
   it("refuses a part that is too large to load fast", () => {

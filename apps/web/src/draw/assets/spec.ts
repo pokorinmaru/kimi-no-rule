@@ -36,7 +36,7 @@ export const shareStyleOf = (item: ItemPart): ShareStyle => ITEM_SHARE[item] ?? 
 /** Where a holder keeps its things. Drawn in two layers so the things sit inside: back, then things, then front. */
 // Each shows every thing inside, side by side and countable, up to MAX_THINGS (the bank's largest count across the
 // worlds the app can show is 54 cards): a clear wide tank, a flower bed, baskets and trays seen from above, a sheet.
-export const CONTAINER_PARTS = ["tank", "cooler", "flowerbed", "basket", "sheet", "tray", "bottle", "pail", "yarn_ball"] as const;
+export const CONTAINER_PARTS = ["tank", "cooler", "flowerbed", "basket", "sheet", "tray"] as const;
 export type ContainerPart = (typeof CONTAINER_PARTS)[number];
 
 /** The dish the things are dealt onto, one per segment of the relation (the "1" is so many dishes). */
@@ -44,13 +44,34 @@ export type ContainerPart = (typeof CONTAINER_PARTS)[number];
 export const GROUP_PARTS = ["plate", "cup"] as const;
 export type GroupPart = (typeof GROUP_PARTS)[number];
 
-export type PartId = ItemPart | ContainerPart | GroupPart;
+/**
+ * The junior (後輩), drawn as a small friendly non-human character (a little book with a bookmark tail), never a
+ * human face, never showing feelings: one picture per thing it is doing (the app tells the child the junior is an
+ * AI with no feelings; research on children and AI warns against over-human designs). The AI mark stays beside it.
+ */
+export const CHARACTER_PARTS = ["kohai_read", "kohai_look", "kohai_listen"] as const;
+export type CharacterPart = (typeof CHARACTER_PARTS)[number];
+
+export type PartId = ItemPart | ContainerPart | GroupPart | CharacterPart;
+
+/** Every part id, of every kind: tools take their list from here (a kind added later was once missed, 2026-11-08). */
+export const ALL_PARTS: readonly PartId[] = [...ITEM_PARTS, ...CONTAINER_PARTS, ...GROUP_PARTS, ...CHARACTER_PARTS];
 
 export const VIEWBOX = {
   item: { w: 100, h: 100 },
   container: { w: 360, h: 240 },
   group: { w: 160, h: 60 },
+  character: { w: 120, h: 120 },
 } as const;
+
+/**
+ * A part whose shape is not the kind's: a measuring cup is tall (scene check, 2026-11-08: a tall thing squeezed
+ * into a wide box looked like a box). Liquids are never kept in a container: they are poured into these cups
+ * under the holder's name, and a cup part-filled is the piece.
+ */
+export const PART_VIEWBOX: Partial<Record<PartId, { w: number; h: number }>> = {
+  cup: { w: 100, h: 130 },
+};
 
 /**
  * The area of a container where the things go, in its viewBox. The back layer is drawn behind it and the front
@@ -106,6 +127,5 @@ export function containerPartFor(item: ItemPart): ContainerPart {
   if (item === "tulip" || item === "flower_white" || item === "flower_red") return "flowerbed";
   if (item === "mikan" || item === "apple") return "basket";
   if (item === "sticker") return "sheet";
-  if (item === "yarn") return "yarn_ball";
   return "tray";
 }

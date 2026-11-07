@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { CONTAINER_INNER, CONTAINER_PARTS, ITEM_PARTS } from "../src/draw/assets/spec.ts";
-import { CONTAINER_INNER_OF, PART_BOX, PART_NARROW } from "../src/draw/stage-layout.ts";
+import { CONTAINER_INNER_OF, CUP_INNER, PART_BOX, PART_NARROW } from "../src/draw/stage-layout.ts";
 
 const partFile = (id: string): string => fileURLToPath(new URL(`../src/draw/assets/parts/${id}.svg`, import.meta.url));
 
@@ -154,4 +154,79 @@ test("PART_BOX matches where every item part's drawing lies across its box", asy
     expect(Math.abs(t.x - m.x), `${id} x: measured ${String(m.x)}`).toBeLessThanOrEqual(3);
     expect(Math.abs(t.w - m.w), `${id} w: measured ${String(m.w)}`).toBeLessThanOrEqual(3);
   }
+});
+
+/**
+ * The cup's clear inside, measured from the real cup.svg on a canvas: the largest rectangle of the cup's own opaque
+ * pixels that are not its outline colour, below the rim's lower edge (cells of 2 units). CUP_INNER (stage-layout.ts)
+ * must lie inside it and cover most of it, so the liquid stays inside the glass. To update: run this spec, then
+ * copy the measured rectangle it prints.
+ */
+test("CUP_INNER lies inside the cup part's clear inside", async ({ page }) => {
+  let svg: string;
+  try {
+    svg = readFileSync(partFile("cup"), "utf8");
+  } catch {
+    return; // the placeholder cup is drawn to CUP_INNER by construction
+  }
+  await page.setContent("<!doctype html><body></body>");
+  const m = await page.evaluate(async (text) => {
+    const S = 4;
+    const W = 100 * S;
+    const H = 130 * S;
+    const img = new Image();
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(text.replace(/^<svg\b/, `<svg width="${String(W)}" height="${String(H)}"`))}`;
+    await img.decode();
+    const c = document.createElement("canvas");
+    c.width = W;
+    c.height = H;
+    const g = c.getContext("2d") as CanvasRenderingContext2D;
+    g.drawImage(img, 0, 0);
+    const px = g.getImageData(0, 0, W, H).data;
+    const outline = [0x3b, 0x35, 0x52];
+    const inside = (x: number, y: number): boolean => {
+      const i = (y * W + x) * 4;
+      if ((px[i + 3] ?? 0) < 40) return false;
+      return !outline.every((v, k) => Math.abs((px[i + k] ?? 0) - v) <= 40);
+    };
+    const CELL = 2;
+    const cols = 100 / CELL;
+    const rows = 130 / CELL;
+    const ok: boolean[][] = [];
+    for (let r = 0; r < rows; r++) {
+      const row: boolean[] = [];
+      for (let q = 0; q < cols; q++) {
+        let good = 0;
+        let all = 0;
+        for (let y = r * CELL * S; y < (r + 1) * CELL * S; y++)
+          for (let x = q * CELL * S; x < (q + 1) * CELL * S; x++) {
+            all++;
+            if (inside(x, y)) good++;
+          }
+        row.push(good / all >= 0.98);
+      }
+      ok.push(row);
+    }
+    const hgt = new Array<number>(cols).fill(0);
+    let best = { x: 0, y: 0, w: 0, h: 0 };
+    for (let r = 0; r < rows; r++) {
+      for (let q = 0; q < cols; q++) hgt[q] = ok[r]?.[q] ? (hgt[q] ?? 0) + 1 : 0;
+      for (let q = 0; q < cols; q++) {
+        let h = Infinity;
+        for (let e = q; e < cols; e++) {
+          h = Math.min(h, hgt[e] ?? 0);
+          if (h === 0) break;
+          if ((e - q + 1) * h > best.w * best.h) best = { x: q, y: r - h + 1, w: e - q + 1, h };
+        }
+      }
+    }
+    return { x: best.x * CELL, y: best.y * CELL, w: best.w * CELL, h: best.h * CELL };
+  }, svg);
+  console.log(`measured CUP_INNER: ${JSON.stringify(m)}`);
+  const tol = 2;
+  expect(CUP_INNER.x).toBeGreaterThanOrEqual(m.x - tol);
+  expect(CUP_INNER.y).toBeGreaterThanOrEqual(m.y - tol);
+  expect(CUP_INNER.x + CUP_INNER.w).toBeLessThanOrEqual(m.x + m.w + tol);
+  expect(CUP_INNER.y + CUP_INNER.h).toBeLessThanOrEqual(m.y + m.h + tol);
+  expect((CUP_INNER.w * CUP_INNER.h) / (m.w * m.h)).toBeGreaterThanOrEqual(0.8);
 });

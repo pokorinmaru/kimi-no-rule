@@ -88,6 +88,18 @@ describe("the junior's staged questions on the screen", () => {
     const tapes = book.querySelectorAll('[data-role="tape"]');
     expect(tapes.length).toBe(2);
     expect(book.querySelector('[data-role="tape"][data-unit="true"]')?.getAttribute("data-holder")).toBe("h_one");
+    // Two contrasting stage pictures: as the wording says (the 1 holder dealt into whole things), and the other
+    // holder taken as 1 (it breaks); each with a neutral caption, never a verdict.
+    const pics = [...book.querySelectorAll('[data-testid="wordbook-contrast"]')];
+    expect(pics).toHaveLength(2);
+    expect(pics[0]?.querySelectorAll('[data-role="thing"][data-piece="1/2"], [data-role="thing"]:not([data-piece=""])').length).toBe(0);
+    expect(pics[0]?.querySelector('[data-role="dish"]')).not.toBeNull();
+    expect(pics[1]?.querySelector('[data-role="dish"]')).not.toBeNull();
+    const caps = pics.map((x) => x.querySelector('[data-testid="wordbook-caption"]')?.textContent ?? "");
+    expect(caps[0]).toContain(lang === "ja" ? "とみると" : "as");
+    for (const c of caps) for (const w of ["正しい", "まちがい", "right", "wrong"]) expect(c).not.toContain(w);
+    // The holders' names in the page's lines carry the picture's colours.
+    expect(book.querySelector('[data-testid="wordbook-line"] [data-role="holder-name"]')).not.toBeNull();
     keepsTheRules(lang);
     fireEvent.click(screen.getByTestId("btn-book-close"));
     expect(await screen.findByTestId("looking-line")).toBeTruthy();

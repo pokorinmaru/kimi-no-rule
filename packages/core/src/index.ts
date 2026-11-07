@@ -173,6 +173,8 @@ export {
   type WordbookPageData,
   type WordbookPageId,
   type WordbookPageView,
+  type WordbookContrast,
+  contrastCaption,
 } from "./wordbook/index.ts";
 export { countsAsObservation } from "./rules/weights.ts";
 export { FRACTION_BANK } from "../fixtures/problems/fraction-bank.ts";

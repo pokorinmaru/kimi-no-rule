@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { SceneView } from "./draw/SceneView.tsx";
-import { SentenceList } from "./draw/SentenceList.tsx";
+import { SentenceList, splitByHolders } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
 import { ObjectSceneView } from "./draw/ObjectScene.tsx";
 import { holderColors } from "./draw/holder-colors.ts";
@@ -496,6 +496,8 @@ function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Ses
   const say = (l: string): ReadLine => ({ text: view.lang === "ja" ? spokenText(l, bookReadings) : l, lang: sayLang });
   const readLines: ReadLine[] = [...(view.line === null ? [] : [say(view.line)]), ...(page === null ? [] : page.lines.map(say))];
   const oneLabel = page?.world.holders.find((h) => h.id === page.oneHolderId)?.label ?? "";
+  const bookHolders = page === null ? [] : holderColors(page.world.holders);
+  const oneColor = bookHolders.find((h) => h.id === page?.oneHolderId)?.color;
   const off = view.line === null ? 0 : 1;
   const title = page === null ? "" : view.lang === "ja" ? "「" + page.title + "」" : ' "' + page.title + '"';
   return (
@@ -510,12 +512,38 @@ function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Ses
         <>
           {page.lines.map((l, i) => (
             <p key={l} data-testid="wordbook-line" style={{ margin: "4px 0", ...(readingIndex === i + off ? { outline: "4px solid #1f2933", background: "#fff6d5" } : {}) }}>
-              <RubyText text={l} on={reading.furigana && view.lang === "ja"} readings={bookReadings} />
+              {/* The holders' names in the stage picture's colours, as on the problem screen. */}
+              {splitByHolders(l, bookHolders).map((part, k) =>
+                part.holder === null ? (
+                  <RubyText key={k} text={part.text} on={reading.furigana && view.lang === "ja"} readings={bookReadings} />
+                ) : (
+                  <span key={k} data-role="holder-name" style={{ color: part.holder.color.ink, borderBottom: `3px solid ${part.holder.color.fill}` }}>
+                    <RubyText text={part.text} on={reading.furigana && view.lang === "ja"} readings={bookReadings} />
+                  </span>
+                ),
+              )}
             </p>
           ))}
           <p data-testid="wordbook-one" style={{ fontWeight: 700 }}>
-            {t.one} {oneLabel}
+            {t.one} <span style={{ color: oneColor?.ink, borderBottom: oneColor === undefined ? undefined : `3px solid ${oneColor.fill}` }}>{oneLabel}</span>
           </p>
+          {page.contrast !== null && (
+            // Contrasting cases (指示書 第7.1節 ことばの絵本): the page's example read as the wording says, and read with the
+            // other holder as 1. Each is captioned by which holder is taken as 1, never by a verdict.
+            <div data-testid="wordbook-contrasts" style={{ display: "flex", flexWrap: "wrap", gap: 16, margin: "8px 0" }}>
+              {[
+                { scene: page.contrast.asWorded, caption: page.contrast.captions[0] },
+                ...(page.contrast.otherAsOne === null ? [] : [{ scene: page.contrast.otherAsOne, caption: page.contrast.captions[1] ?? "" }]),
+              ].map((c) => (
+                <figure key={c.caption} data-testid="wordbook-contrast" style={{ flex: "1 1 700px", margin: 0 }}>
+                  <figcaption data-testid="wordbook-caption" style={{ fontWeight: 700, margin: "0 0 4px" }}>
+                    <RubyText text={c.caption} on={reading.furigana && view.lang === "ja"} readings={bookReadings} />
+                  </figcaption>
+                  <ObjectSceneView scene={c.scene} lang={view.lang} counters compact label={c.caption} />
+                </figure>
+              ))}
+            </div>
+          )}
           <WorldView world={page.world} cardHolder={page.oneHolderId} label={view.text.draw.world} lang={view.lang} />
         </>
       )}

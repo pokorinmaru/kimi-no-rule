@@ -1,6 +1,6 @@
 // The stage picture's numbers (指示書 第8節 舞台の絵, above the tape). Pure functions only.
 //
-// A world of countable things is drawn as each holder's things in a container, dealt onto dishes by the
+// A world of things (countable, or a continuous unit such as dL, L or m) is drawn as each holder's things in a container, dealt onto dishes by the
 // multiple: the holder the relation takes as 1 is dealt onto q dishes and the other holder has p dishes
 // (the multiple p/q in lowest terms, both at most 10). A misread world is drawn with its own values, cut
 // pieces included (a goldfish cut in half): that is how the misreading shows (user decision, 2026-11-08).
@@ -38,7 +38,8 @@ export interface StageHolder {
 }
 
 export interface ObjectScene {
-  item: { id: string; noun: string; counter: string };
+  /** `continuous`: a unit like dL, L or m (poured into cups or cut in lengths; a piece is possible). */
+  item: { id: string; noun: string; counter: string; continuous: boolean };
   /** In the world's order of holders. */
   holders: StageHolder[];
   /** What one dish gets; null when nothing is dealt (no multiple, or the share is hidden). */
@@ -109,12 +110,14 @@ function hiddenValues(correct: WorldScene, said: readonly Rational[]): Exact[] {
 
 /**
  * The things of `shown` (the world on the screen, verified by core), drawn against the `correct` world, with
- * the numbers the child has said. Null when the world is not of countable things, two holders and one kind,
- * or does not solve to one value per holder (the screen then shows the tape only).
+ * the numbers the child has said. Null when the world is not of two holders and one kind of thing (countable or a
+ * continuous unit), or does not solve to one value per holder (the screen then shows the tape only).
  */
 export function objectScene(shown: WorldScene, correct: WorldScene, said: { values: readonly Rational[] }): ObjectScene | null {
   const kind = shown.item_kinds[0];
-  if (shown.item_kinds.length !== 1 || kind === undefined || !kind.countable) return null;
+  if (shown.item_kinds.length !== 1 || kind === undefined) return null;
+  // A continuous unit (dL, L, m) may come in pieces: a piece is then no impossible world.
+  const countable = kind.countable;
   if (shown.holders.length !== 2 || shown.events.length > 0) return null;
   const res = solve(shown);
   if (res.kind !== "unique") return null;
@@ -148,7 +151,7 @@ export function objectScene(shown: WorldScene, correct: WorldScene, said: { valu
       if (isOne) dishes = Number(amount.den);
       else if (m.subject === q.id) dishes = Number(amount.num);
     }
-    holders.push({ holderId: h.id, label: h.label, quantityId: q.id, count, hidden: hide, given: isGiven, isOne, dishes, impossible: negative || !isInteger(v) });
+    holders.push({ holderId: h.id, label: h.label, quantityId: q.id, count, hidden: hide, given: isGiven, isOne, dishes, impossible: negative || (countable && !isInteger(v)) });
   }
 
   // One dish's share: the "1" holder's value cut in q. When the share, or a count of whole things the dealing
@@ -170,7 +173,7 @@ export function objectScene(shown: WorldScene, correct: WorldScene, said: { valu
       for (const x of holders) x.dishes = 0;
     } else {
       share = a;
-      breaks = !isInteger(s);
+      breaks = countable && !isInteger(s);
     }
   } else {
     for (const x of holders) x.dishes = 0;
@@ -194,7 +197,7 @@ export function objectScene(shown: WorldScene, correct: WorldScene, said: { valu
   }
 
   return {
-    item: { id: kind.id, noun: kind.noun, counter: kind.counter },
+    item: { id: kind.id, noun: kind.noun, counter: kind.counter, continuous: !countable },
     holders,
     share,
     pairing,

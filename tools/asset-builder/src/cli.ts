@@ -8,7 +8,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CONTAINER_PARTS, GROUP_PARTS, ITEM_PARTS, type PartId } from "../../../apps/web/src/draw/assets/spec.ts";
+import { ALL_PARTS, type PartId } from "../../../apps/web/src/draw/assets/spec.ts";
 import { mapPool } from "../../evals/src/runner/pool.ts";
 import { fileSink } from "../../evals/src/runner/progress.ts";
 import { buildCandidate, minScore, type CandidateResult } from "./build.ts";
@@ -19,7 +19,7 @@ import { kindOf } from "./spec-check.ts";
 
 const OUT = fileURLToPath(new URL("../out/", import.meta.url));
 const LOG = fileURLToPath(new URL("../../../evals/results/progress.log", import.meta.url));
-const ALL: readonly PartId[] = [...ITEM_PARTS, ...CONTAINER_PARTS, ...GROUP_PARTS];
+const ALL: readonly PartId[] = ALL_PARTS;
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
 const opt = (name: string): string | undefined => {

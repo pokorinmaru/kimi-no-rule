@@ -220,6 +220,11 @@ export interface UiText {
     amount: (wholes: number, piece: { num: number; den: number } | null, counter: string) => string;
     /** An additive reading drawn as a one-to-one pairing: what is lined up, and the things without a partner. */
     stagePaired: (smaller: string, larger: string, noun: string) => string;
+    /** A liquid poured into groups of cups, each group's amount, and a cup filled part way. */
+    stagePoured: (label: string, noun: string, groups: number) => string;
+    stageEachGroup: (amount: string) => string;
+    stageMeasured: (label: string, noun: string, groups: number) => string;
+    stageCupPart: (noun: string, half: boolean) => string;
     stageUnpaired: (label: string, noun: string, count: string) => string;
   };
 }
@@ -405,6 +410,10 @@ const JA: UiText = {
     stageCut: (noun, half, ghost) =>
       ghost ? (half ? `はんぶんだけの ${noun}が あります` : `かけた ${noun}が あります`) : half ? `はんぶんに きれた ${noun}が あります` : `きれた ${noun}が あります`,
     stagePaired: (smaller, larger, noun) => `${smaller}の ${noun}と ${larger}の ${noun}を、ひとつずつ ならべています`,
+    stagePoured: (label, noun, groups) => `${label}の ${noun}を ${String(groups)}つに わけて、カップに いれています`,
+    stageEachGroup: (amount) => `ひとつぶんは ${amount}`,
+    stageMeasured: (label, noun, groups) => `${label}の ${noun}を ${String(groups)}つに わけています`,
+    stageCupPart: (noun, half) => (half ? `${noun}が はんぶん はいった カップが あります` : `${noun}が とちゅうまで はいった カップが あります`),
     stageUnpaired: (label, noun, count) => `${label}の ${noun}のうち ${count}は、あいてが いません`,
     amount: (wholes, piece, counter) => {
       const p = piece === null ? "" : piece.num * 2 === piece.den ? "はんぶん" : `${String(piece.den)}ぶんの${String(piece.num)}`;
@@ -563,6 +572,10 @@ const EN: UiText = {
     stageCut: (noun, half, ghost) =>
       ghost ? (half ? `There is half a ${noun}` : `There is part of a ${noun}`) : half ? `There is a ${noun} cut in half` : `There is a cut ${noun}`,
     stagePaired: (smaller, larger, noun) => `${smaller}'s ${noun} and ${larger}'s ${noun} are lined up one to one`,
+    stagePoured: (label, noun, groups) => `${label}'s ${noun} is poured into cups in ${String(groups)} groups`,
+    stageEachGroup: (amount) => `${amount} in each group`,
+    stageMeasured: (label, noun, groups) => `${label}'s ${noun} is shared into ${String(groups)} groups`,
+    stageCupPart: (noun, half) => (half ? `There is a cup half full of ${noun}` : `There is a cup part full of ${noun}`),
     stageUnpaired: (label, noun, count) => `${count} of ${label}'s ${noun} have no partner`,
     amount: (wholes, piece, counter) => {
       const p = piece === null ? "" : piece.num * 2 === piece.den ? "a half" : `${String(piece.num)}/${String(piece.den)}`;

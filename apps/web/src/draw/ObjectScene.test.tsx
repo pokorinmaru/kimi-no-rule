@@ -11,6 +11,7 @@ import {
   UI_READINGS,
   eq,
   fromSchema,
+  hasOperationName,
   numbersIn,
   objectScene,
   rat,
@@ -27,6 +28,7 @@ import { groupInner, innerOf, sourceOf } from "./parts.ts";
 import { FOOT_SPAN, PART_BOX, PIECE_GAP, PLATE_INNER, THING_FILL, drawnSide, containerInnerOf, heightPx, layoutStage, meetsSizes, pxPerUnit, type StageLayout } from "./stage-layout.ts";
 import { CONTAINER_PARTS, MAX_THINGS, PALETTE, VIEWBOX, containerPartFor } from "./assets/spec.ts";
 import { ui } from "../flow/text.ts";
+import { STORED_PROBLEMS } from "../flow/bank.ts";
 
 afterEach(() => {
   cleanup();
@@ -105,9 +107,14 @@ describe("the junior's misread signboard (6 goldfish dealt onto 4 dishes)", () =
   });
 
   it("the ghost half is an outline, not a white thing: no fill, a dashed stroke in the outline colour", () => {
-    const { container } = render(<ObjectSceneView scene={scene} reducedMotion />);
+    const plain = render(<ObjectSceneView scene={scene} reducedMotion />);
+    // No style sheet (and no stray sign in the page's text) while nothing is drawn as a ghost.
+    expect(plain.container.querySelector("style")).toBeNull();
+    plain.unmount();
+    const { container } = render(<ObjectSceneView scene={scene} reducedMotion shareStyle={() => "ghost"} />);
     const css = container.querySelector("style")?.textContent ?? "";
-    expect(css).toMatch(/\.stage-ghost \*[^}]*fill: none/);
+    expect(css).toMatch(/\.stage-ghost [^{]*\{[^}]*fill: none/);
+    expect(hasOperationName(css)).toBe(false);
     expect(css).toContain(`stroke: ${PALETTE.outline}`);
     expect(css).toMatch(/stroke-dasharray: \d+ \d+/);
   });
@@ -413,7 +420,7 @@ describe("the parts loader", () => {
           const box = x.box;
           if (box === null) throw new Error("kept things have a container");
           const k = box.w / VIEWBOX.container.w;
-          const own = containerInnerOf(x.container);
+          const own = containerInnerOf(x.container ?? "");
           const inner = { x: box.x + own.x * k, y: box.y + own.y * k, w: own.w * k, h: own.h * k };
           for (const t of kept) {
             expect(t.x).toBeGreaterThanOrEqual(inner.x - 1e-9);
@@ -596,7 +603,93 @@ describe("an additive reading is drawn as a one-to-one pairing", () => {
 
   it("the pairing's words have readings for every kanji", () => {
     const w = ui("ja").draw;
-    for (const line of [w.stagePaired("A", "B", "C"), w.stageUnpaired("A", "B", "3C")])
+    for (const line of [w.stagePaired("A", "B", "C"), w.stageUnpaired("A", "B", "3C"), w.stagePoured("A", "B", 3), w.stageMeasured("A", "B", 3), w.stageEachGroup("C"), w.stageCupPart("B", true), w.stageCupPart("B", false)])
       for (const seg of rubySegments(line, UI_READINGS)) if (seg.ruby === null) expect(/[一-鿿]/.test(seg.text), `${seg.text} in ${line}`).toBe(false);
   });
+});
+
+describe("continuous quantities: liquids in cups, yarn in lengths, no container", () => {
+  const cont = STORED_PROBLEMS.filter((x) => x.world.item_kinds.some((k) => !k.countable));
+  const stored = (id: string): ProblemRecord => {
+    const r = cont.find((x) => x.world.problem_id === id);
+    if (r === undefined) throw new Error(id);
+    return r;
+  };
+
+  it("juice in dL: the small bottle's 6 dL are 6 full cups, poured into 5 groups of 1 cup and a cup one fifth full", () => {
+    const r = stored("p_disc_c_first_whole_s_motoni_plain_2");
+    const s = sceneOf(r, runRule(rule("c_swap"), r));
+    const l = layoutStage(s);
+    if (l === null) throw new Error("layout");
+    for (const h of l.holders) {
+      expect(h.item).toBe("cup");
+      expect(h.box).toBeNull();
+    }
+    const { container } = render(<ObjectSceneView scene={s} reducedMotion />);
+    expect(q(container, '[data-role="container"]')).toHaveLength(0);
+    const small = q(container, '[data-role="thing"][data-holder="h_small"]');
+    expect(small.every((t) => t.getAttribute("data-part") === "cup")).toBe(true);
+    expect(q(container, '[data-role="share-group"][data-holder="h_small"]')).toHaveLength(5);
+    expect(small.filter((t) => t.getAttribute("data-fill") === "1")).toHaveLength(5);
+    expect(small.filter((t) => t.getAttribute("data-piece") === "1/5")).toHaveLength(5);
+    const part = small.find((t) => t.getAttribute("data-piece") === "1/5");
+    expect(Number(part?.getAttribute("data-fill"))).toBeCloseTo(0.2, 9);
+    expect(part?.querySelector('[data-role="liquid-level"]')).not.toBeNull();
+    const desc = container.querySelector('[data-role="stage-description"]')?.textContent ?? "";
+    expect(desc).toContain("カップに いれています");
+    expect(desc).toContain("とちゅうまで はいった カップが あります");
+    expect(desc).not.toContain("きれた");
+  });
+
+  it("the correct juice world keeps the asked bottle 「？」 and draws the given 6 dL as 6 full cups in a row", () => {
+    const r = stored("p_disc_c_first_whole_s_motoni_plain_2");
+    const { container } = render(<ObjectSceneView scene={sceneOf(r, r.world)} reducedMotion />);
+    expect(q(container, '[data-role="thing"][data-holder="h_small"]')).toHaveLength(6);
+    expect(container.querySelector('[data-role="stage-unknown"][data-holder="h_large"]')?.textContent).toBe("？");
+    expect(q(container, '[data-role="thing"][data-holder="h_large"]')).toHaveLength(0);
+  });
+
+  it("yarn in m: lengths laid side by side under the name, no container; a misreading measures them out into groups with a cut length", () => {
+    const r = stored("p_transfer_c_additive_different_1");
+    const kept = layoutStage(sceneOf(r, r.world));
+    for (const h of kept?.holders ?? []) {
+      expect(h.item).toBe("yarn");
+      expect(h.box).toBeNull();
+      for (const t of h.things) expect(t.place).toBe("row");
+    }
+    const { container } = render(<ObjectSceneView scene={sceneOf(r, runRule(rule("c_swap"), r))} reducedMotion />);
+    expect(q(container, '[data-role="container"]')).toHaveLength(0);
+    const cut = container.querySelector('[data-role="thing"][data-part="yarn"][data-piece="2/3"]');
+    expect(cut?.querySelector('[data-role="cut-edge"]')).not.toBeNull();
+    expect(q(container, '[data-role="dish"]')).toHaveLength(0);
+    expect(q(container, '[data-role="share-group"]')).toHaveLength(7);
+    expect(container.querySelector('[data-role="stage-description"]')?.textContent ?? "").toContain("つに わけています");
+  });
+
+  it("the additive yarn reading pairs the lengths one to one", () => {
+    const r = stored("p_transfer_c_additive_different_1");
+    const l = layoutStage(sceneOf(r, runRule(rule("c_additive"), r)));
+    expect(l?.pairing?.lines).toHaveLength(17);
+    const [a, b] = l?.holders ?? [];
+    for (let i = 0; i < 17; i++) expect(a?.things[i]?.x).toBeCloseTo(b?.things[i]?.x ?? NaN, 9);
+  });
+
+  for (const r of cont)
+    for (const h of COMMON_FRACTION_READINGS)
+      it(`${r.world.problem_id} ${h.id}: no hidden correct value as text or as a count of whole cups or lengths`, () => {
+        const s = sceneOf(r, runRule(h, r));
+        const hidden = s.hidden.map(fromSchema);
+        const isHidden = (n: number): boolean => hidden.some((x) => eq(x, rat(n)));
+        const { container, unmount } = render(<ObjectSceneView scene={s} reducedMotion />);
+        const dishCounts = s.holders.map((x) => x.dishes).filter((d) => d > 0);
+        for (const t of textNodes(container))
+          for (const v of numbersIn(t.replace(/(\d+)(まいの おさら|つに わけて)/g, (m, d: string) => (dishCounts.includes(Number(d)) ? "" : m))))
+            expect(hidden.some((x) => eq(x, fromSchema(v))), `${t}`).toBe(false);
+        for (const holder of s.holders) {
+          if (holder.given) continue;
+          const wholes = q(container, `[data-role="thing"][data-holder="${holder.holderId}"][data-piece=""]`).length;
+          if (wholes > 0) expect(isHidden(wholes), `${holder.label} ${String(wholes)}`).toBe(false);
+        }
+        unmount();
+      });
 });

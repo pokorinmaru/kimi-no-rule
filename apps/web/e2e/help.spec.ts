@@ -53,6 +53,9 @@ test("「わからない」 opens the staged questions, and the word book draws 
   await expect(page.getByTestId("screen-wordbook")).toHaveAttribute("data-page", "no");
   await expect(page.getByTestId("screen-wordbook").locator('[data-role="tape"]')).toHaveCount(2);
   await expect(page.getByTestId("screen-wordbook").locator('[data-role="tape"][data-unit="true"]')).toHaveAttribute("data-holder", "h_one");
+  // The page's two contrasting stage pictures, each captioned by which holder is taken as 1.
+  await expect(page.getByTestId("wordbook-contrast")).toHaveCount(2);
+  await expect(page.getByTestId("wordbook-caption").first()).toContainText("とみると");
   await keepsTheRules(page);
   await expectNoAxeViolations(page, "word book");
   await page.getByTestId("btn-book-close").click();
