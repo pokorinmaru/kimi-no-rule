@@ -12,6 +12,7 @@ import {
   PALETTE,
   PART_VIEWBOX,
   VIEWBOX,
+  type CharacterPart,
   type ContainerPart,
   type GroupPart,
   type ItemPart,
@@ -47,6 +48,11 @@ const ITEM_FILL: Record<string, [string, string] | undefined> = {
   mikan: [PALETTE.orange, PALETTE.green],
   apple: [PALETTE.red, PALETTE.green],
   card: [PALETTE.greyLight, PALETTE.blue],
+  candy: [PALETTE.red, PALETTE.white],
+  marble: [PALETTE.blueLight, PALETTE.white],
+  bead: [PALETTE.yellow, PALETTE.white],
+  acorn: [PALETTE.brown, PALETTE.brownLight],
+  senbei: [PALETTE.brownLight, PALETTE.brown],
 };
 
 /** A plain stand-in for a part not drawn yet: a shape and the palette only. */
@@ -54,6 +60,9 @@ export function placeholder(part: PartId | "token"): string {
   // A plain string, so the shapes below keep compiling when a part id is renamed (the ids are the contract's).
   const id: string = part;
   const sw = (k: keyof typeof OUTLINE_WIDTH) => `stroke="${O}" stroke-width="${String(OUTLINE_WIDTH[k])}"`;
+  // The junior until its part is drawn: a small blue book with a bookmark tail (no face, no feelings).
+  if (id.startsWith("kohai_"))
+    return svg(VIEWBOX.character.w, VIEWBOX.character.h, `<rect x="24" y="16" width="72" height="80" rx="10" fill="${PALETTE.blue}" ${sw("group")}/><rect x="56" y="92" width="8" height="18" fill="${PALETTE.orange}" ${sw("group")}/><circle cx="48" cy="52" r="4" fill="${O}"/><circle cx="72" cy="52" r="4" fill="${O}"/>`);
   // A plain round counter: a thing that has no part of its own (the word book's everyday examples).
   if (id === "token") return svg(VIEWBOX.item.w, VIEWBOX.item.h, `<circle cx="50" cy="50" r="38" fill="${PALETTE.yellow}" ${sw("item")}/><circle cx="50" cy="50" r="18" fill="none" stroke="${PALETTE.orange}" stroke-width="5"/>`);
   if ((ITEM_PARTS as readonly string[]).includes(id)) {
@@ -63,6 +72,9 @@ export function placeholder(part: PartId | "token"): string {
       return svg(w, h, `<path d="M74 50 L96 30 L96 70 Z" fill="${accent}" ${sw("item")}/><ellipse cx="44" cy="50" rx="36" ry="24" fill="${main}" ${sw("item")}/><circle cx="26" cy="45" r="4" fill="${O}"/>`);
     if (id === "card" || id === "sticker") return svg(w, h, `<rect x="16" y="10" width="68" height="80" rx="10" fill="${main}" ${sw("item")}/><circle cx="50" cy="50" r="14" fill="${accent}"/>`);
     if (id === "ribbon") return svg(w, h, `<path d="M50 50 L12 26 L12 74 Z M50 50 L88 26 L88 74 Z" fill="${main}" ${sw("item")}/><circle cx="50" cy="50" r="10" fill="${accent}" ${sw("item")}/>`);
+    if (id === "candy" || id === "marble" || id === "bead" || id === "acorn" || id === "senbei")
+      // A round thing (the word book's everyday things) until its part is drawn.
+      return svg(w, h, `<circle cx="50" cy="50" r="38" fill="${main}" ${sw("item")}/><circle cx="38" cy="38" r="9" fill="${accent}"/>`);
     if (id === "yarn")
       // A length of yarn: a thick wavy strand from end to end (a shorter length is its piece).
       return svg(w, h, `<path d="M8 50 C24 30 38 70 54 50 S80 30 92 50" fill="none" stroke="${O}" stroke-width="22" stroke-linecap="round"/><path d="M8 50 C24 30 38 70 54 50 S80 30 92 50" fill="none" stroke="${PALETTE.red}" stroke-width="15" stroke-linecap="round"/>`);
@@ -151,6 +163,16 @@ export function groupSvg(id: GroupPart = GROUP_PARTS[0]): PartSvg {
   if (got !== undefined) return got as PartSvg;
   const src = sourceOf(id);
   const p = { viewBox: viewBoxOf(src, PART_VIEWBOX[id] ?? VIEWBOX.group), body: innerOf(src) };
+  cache.set(id, p);
+  return p;
+}
+
+/** The junior character in one of its poses (kind "character", viewBox 120 by 120). */
+export function characterSvg(id: CharacterPart): PartSvg {
+  const got = cache.get(id);
+  if (got !== undefined) return got as PartSvg;
+  const src = sourceOf(id);
+  const p = { viewBox: viewBoxOf(src, VIEWBOX.character), body: innerOf(src) };
   cache.set(id, p);
   return p;
 }

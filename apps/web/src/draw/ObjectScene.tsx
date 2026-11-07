@@ -27,6 +27,8 @@ export interface ObjectSceneProps {
   counters?: boolean;
   /** A small picture beside another (the word book's contrasting cases): smaller things on the dishes. */
   compact?: boolean;
+  /** The width the picture is drawn at on a 1024 screen (px), when narrower than the page. */
+  pagePx?: number;
 }
 
 const srOnly = {
@@ -166,11 +168,11 @@ function Thing({ t, holderId, part, clipId, style }: { t: ThingLayout; holderId:
   );
 }
 
-export function ObjectSceneView({ scene, reducedMotion, lang = "ja", label, shareStyle = shareStyleOf, counters = false, compact = false }: ObjectSceneProps) {
+export function ObjectSceneView({ scene, reducedMotion, lang = "ja", label, shareStyle = shareStyleOf, counters = false, compact = false, pagePx }: ObjectSceneProps) {
   const words = ui(lang).draw;
   const reduced = useReducedMotion(reducedMotion);
   const uid = safeId(useId());
-  const layout = useMemo(() => layoutStage(scene, undefined, { counters, compact }), [scene, counters, compact]);
+  const layout = useMemo(() => layoutStage(scene, undefined, { counters, compact, ...(pagePx === undefined ? {} : { pagePx }) }), [scene, counters, compact, pagePx]);
   const desc = useMemo(() => (layout === null ? "" : describeStage(scene, layout, lang, shareStyle)), [scene, layout, lang, shareStyle]);
   const root = useRef<HTMLDivElement>(null);
   const colors = useMemo(() => new Map(holderColors(scene.holders.map((h) => ({ id: h.holderId, label: h.label }))).map((c) => [c.id, c.color])), [scene]);
@@ -303,7 +305,7 @@ export function ObjectSceneView({ scene, reducedMotion, lang = "ja", label, shar
                 // A frame in the holder's colour keeps each holder's dishes apart from the other's.
                 style={{
                   // Side by side, two panels share the row (stacked below about 704 px); stacked, each takes the full width.
-                  flex: layout.stacked ? "1 1 100%" : `1 1 ${String(PANEL.minPx)}px`,
+                  flex: layout.stacked ? "1 1 100%" : `1 1 ${String((PANEL.minPx * layout.pagePx) / PANEL.pagePx)}px`,
                   minWidth: 0,
                   maxWidth: layout.stacked ? PANEL.stackedMaxPx : PANEL.maxPx,
                   display: "block",

@@ -41,6 +41,14 @@ function keepsTheRules(lang: Lang): void {
   expect(text).not.toMatch(/8匹|8 匹|2匹/);
   expect(hasOperationName(text)).toBe(false);
   expect(hasForbiddenPhrase(text)).toBe(false);
+  // Every junior line has the junior beside it (decorative for screen readers) and the AI mark next to it.
+  for (const l of [...document.querySelectorAll('[data-testid="junior-line"]')]) {
+    const row = l.closest('[data-role="junior-row"]');
+    expect(row?.querySelector('[data-role="ai-badge"]')?.textContent).toBe("AI");
+    const kohai = row?.querySelector('[data-role="kohai"]');
+    expect(kohai?.getAttribute("aria-hidden")).toBe("true");
+    expect(["read", "look", "listen"]).toContain(kohai?.getAttribute("data-pose"));
+  }
   // The junior's line never names who is taken as 1 (弟) or the other holder.
   const line = screen.getByTestId("junior-line").textContent ?? "";
   expect(line).not.toMatch(/弟|兄/);
@@ -77,12 +85,16 @@ describe("the junior's staged questions on the screen", () => {
     expect(holders.sort()).toEqual(["兄", "弟"]);
     keepsTheRules(lang);
     fireEvent.click(screen.getByTestId("btn-order-h_otouto"));
+    // On the help screen the junior looks at the sentences with the child.
+    expect(screen.getByTestId("screen-help").querySelector('[data-role="kohai"]')?.getAttribute("data-pose")).toBe("look");
     // (c) The word book is offered.
     expect(screen.getByTestId("screen-help").getAttribute("data-stage")).toBe("offer");
     keepsTheRules(lang);
     fireEvent.click(screen.getByTestId("btn-open-book"));
     const book = await screen.findByTestId("screen-wordbook");
     expect(book.getAttribute("data-page")).toBe("no");
+    // The junior reads the word book with the child.
+    expect(book.querySelector('[data-role="kohai"]')?.getAttribute("data-pose")).toBe("read");
     expect(screen.getByTestId("wordbook-title").textContent).toContain(lang === "ja" ? "の" : "of");
     // Drawn with the tapes, the "1" card on the holder the wording takes as 1.
     const tapes = book.querySelectorAll('[data-role="tape"]');
@@ -92,6 +104,9 @@ describe("the junior's staged questions on the screen", () => {
     // holder taken as 1 (it breaks); each with a neutral caption, never a verdict.
     const pics = [...book.querySelectorAll('[data-testid="wordbook-contrast"]')];
     expect(pics).toHaveLength(2);
+    // Side by side when both keep the size rules at half the page; the second shows a cut piece.
+    expect(book.querySelector('[data-testid="wordbook-contrasts"]')?.getAttribute("data-side-by-side")).toBe("true");
+    expect(pics[1]?.querySelector('[data-role="thing"][data-piece="1/2"]')).not.toBeNull();
     expect(pics[0]?.querySelectorAll('[data-role="thing"][data-piece="1/2"], [data-role="thing"]:not([data-piece=""])').length).toBe(0);
     expect(pics[0]?.querySelector('[data-role="dish"]')).not.toBeNull();
     expect(pics[1]?.querySelector('[data-role="dish"]')).not.toBeNull();

@@ -138,9 +138,15 @@ function otherAsOneWorld(w: WorldScene): WorldScene {
   };
 }
 
-/** The two pictures of a page's world, or null when the first does not deal into whole things or any drawn number is the problem's. */
+/** The two pictures of a page's world, or null when the first does not deal into whole things or draws a hidden value. */
 function contrastOf(world: WorldScene, record: ProblemRecord, theirs: readonly Rational[], lang: Lang): WordbookContrast | null {
-  const clean = (sc: ObjectScene | null): sc is ObjectScene => sc !== null && !drawnValues(sc).some((d) => theirs.some((t) => same(d, t)));
+  // The problem's values it does not write (its answer, values on the way): never drawn here.
+  const given = numbersIn(record.world.problem_text);
+  const unsaid = theirs.filter((t) => !given.some((g) => same(g, t)));
+  // Neither picture draws a hidden value of the problem (its answer, a value on the way, one part) nor hides a holder.
+  // A number the problem's text gives may be drawn: it is on the problem's screen already.
+  const clean = (sc: ObjectScene | null): sc is ObjectScene =>
+    sc !== null && sc.holders.every((h) => !h.hidden) && !drawnValues(sc).some((d) => sc.hidden.some((t) => same(d, t)) || unsaid.some((t) => same(d, t)));
   const asWorded = objectScene(world, record.world, { values: [] });
   if (!clean(asWorded) || asWorded.share === null || asWorded.share.piece !== null) return null;
   const swapped = objectScene(otherAsOneWorld(world), record.world, { values: [] });
@@ -178,7 +184,8 @@ export function wordbookPage(id: WordbookPageId, record: ProblemRecord, lang: La
       const world = wordbookWorld(id, lang, i);
       if (!validateWorld(world).ok) return null;
       const view: WordbookPageView = { id, title: p.words[lang], lines, world, oneHolderId: "h_one", contrast: contrastOf(world, record, theirs, lang) };
-      if (view.contrast?.otherAsOne != null) return view;
+      // The second picture must break visibly (a cut piece), else a later set is tried.
+      if (view.contrast?.otherAsOne != null && view.contrast.otherAsOne.breaks) return view;
       first ??= view;
     }
     return first;

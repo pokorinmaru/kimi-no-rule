@@ -5,6 +5,7 @@ import { CARD_RULES, apply, cardSlot, checkScene, fromSchema, gate, objectScene,
 import type { CardScenes } from "./machine.ts";
 import { MAX_VOICE_TURNS, bookPageId, guessHolders, helpHolders, type PredictionAnswer, type ProblemState, type flowMachine } from "./machine.ts";
 import { gateContext } from "./problem.ts";
+import { kohaiPose, type KohaiPose } from "./pose.ts";
 import { AI_MARK, hardLines, helplineLine, restLines, ui, type HelplineText, type UiText } from "./text.ts";
 
 export type FlowSnapshot = SnapshotFrom<typeof flowMachine>;
@@ -21,6 +22,8 @@ interface Common {
   highlightButtons: boolean;
   /** The always-visible "AI" mark next to the junior (第9節). */
   aiMark: string;
+  /** What the junior is doing now, for its picture beside its line (flow/pose.ts); never a feeling. */
+  pose: KohaiPose;
 }
 
 export interface ProblemView extends Common {
@@ -222,7 +225,10 @@ const rotate = <T,>(xs: readonly T[], k: number): T[] => xs.map((_, i) => xs[(i 
 export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
   const c = s.context;
   const t = ui(lang);
-  const common: Common = { lang, text: t, buttons: t.buttons, highlightButtons: c.highlight, aiMark: AI_MARK };
+  const stepNow = STEPS.find((x) => s.matches({ active: { problem: x } })) ?? null;
+  const screenNow = s.matches({ active: { problem: "help" } }) ? "help" : s.matches({ active: { problem: "wordbook" } }) ? "wordbook" : s.matches({ active: "card" }) ? "card" : "problem";
+  const pose = kohaiPose({ screen: screenNow, step: stepNow, intent: c.line?.intent ?? null, listening: c.problem?.listening === true || (c.problem?.heard ?? null) !== null });
+  const common: Common = { lang, text: t, buttons: t.buttons, highlightButtons: c.highlight, aiMark: AI_MARK, pose };
   if (s.status === "done" || s.matches("ended")) return { ...common, screen: "ended" };
   if (s.matches("hard")) return { ...common, screen: "hard", lines: hardLines(lang), helpline: t.helpline };
   if (s.matches("rest")) return { ...common, screen: "rest", lines: restLines(lang), helpline: t.helpline };

@@ -141,15 +141,15 @@ describe("the word book's pages", () => {
 
   it("a problem that meets a page's first numbers gets the page with other numbers, never its own", () => {
     const r = structuredClone(signboardRecord);
-    // A problem whose given number is the page's first count (32).
+    // A problem whose given number is the page's first count (14).
     const q = r.world.quantities.find((x) => x.id === "q_ani");
     if (q === undefined) throw new Error("no q");
-    q.value = { num: 32, den: 1 };
-    r.world.problem_text = r.world.problem_text.replace("6匹", "32匹");
+    q.value = { num: 14, den: 1 };
+    r.world.problem_text = r.world.problem_text.replace("6匹", "14匹");
     const v = wordbookPage("no", r, "ja");
     expect(v).not.toBeNull();
-    expect(numbersIn(v?.lines.join("") ?? "").some((n) => n.num === 32 && n.den === 1)).toBe(false);
-    expect(v?.world.quantities.map((x) => x.value?.num)).not.toContain(32);
+    expect(numbersIn(v?.lines.join("") ?? "").some((n) => n.num === 14 && n.den === 1)).toBe(false);
+    expect(v?.world.quantities.map((x) => x.value?.num)).not.toContain(14);
   });
 
   it.each(WORDBOOK_PAGE_IDS)("%s: at least three sets of numbers, each with other = amount of the one taken as 1", (id) => {
@@ -293,16 +293,50 @@ describe("the page's contrasting pictures (the wording as written, and the other
     for (const cap of c.captions) if (cap !== null) for (const w of ["正しい", "まちがい", "ただしい"]) expect(cap).not.toContain(w);
   });
 
-  it("no number either picture draws is a value of the problem, on every problem and page, in both languages", () => {
+  it("no number either picture draws is a value of the problem it does not give (its answer, a value on the way), on every problem and page", () => {
     for (const r of ALL)
       for (const id of WORDBOOK_PAGE_IDS)
         for (const lang of ["ja", "en"] as const) {
           const c = wordbookPage(id, r, lang)?.contrast;
           if (c === undefined || c === null) continue;
-          const theirs = [...numbersIn(r.world.problem_text), ...worldValues(r.world).map((x) => ({ num: Number(x.num), den: Number(x.den) })), ...(r.expected_answer === null ? [] : [r.expected_answer])];
+          // A number the problem's text gives may be drawn (it is on its screen already); nothing else of the problem.
+          const given = numbersIn(r.world.problem_text);
+          const theirs = [...worldValues(r.world).map((x) => ({ num: Number(x.num), den: Number(x.den) })), ...(r.expected_answer === null ? [] : [r.expected_answer])].filter(
+            (v) => !given.some((g) => eq(fromSchema(g), fromSchema(v))),
+          );
           for (const s of [c.asWorded, c.otherAsOne])
             if (s !== null)
               for (const d of drawnValues(s)) expect(theirs.some((t) => eq(fromSchema(t), fromSchema(d))), `${id} ${r.world.problem_id} ${String(d.num)}/${String(d.den)}`).toBe(false);
         }
+  });
+});
+
+describe("the page's numbers are small and its second picture breaks", () => {
+  it.each(WORDBOOK_PAGE_IDS)("%s: small counts, sets in ascending size; the 1 holder deals into whole things, the other holder does not", (id) => {
+    const page = WORDBOOK_PAGES.find((p) => p.id === id);
+    if (page === undefined) throw new Error(id);
+    // Small: every count at most 40 (the only counts of 12 or less that no problem uses are 7 and 11).
+    const sizes = page.numbers.map((n) => Math.max(n.one, n.other));
+    expect(sizes).toEqual([...sizes].sort((a, b) => a - b));
+    for (const n of page.numbers) {
+      expect(Math.max(n.one, n.other)).toBeLessThanOrEqual(40);
+      expect(n.one % n.amount.den).toBe(0);
+      // Taking the other holder as 1, its things on as many dishes as the bottom do not come out whole.
+      expect(n.other % n.amount.den).not.toBe(0);
+    }
+  });
+
+  it("on every problem, the page takes its smallest set whose second picture breaks visibly", () => {
+    for (const r of ALL)
+      for (const id of WORDBOOK_PAGE_IDS) {
+        const v = wordbookPage(id, r, "ja");
+        const other = v?.contrast?.otherAsOne;
+        if (v === null || other === undefined || other === null) throw new Error(`${id} on ${r.world.problem_id}`);
+        expect(other.breaks, `${id} on ${r.world.problem_id}`).toBe(true);
+        expect(other.holders.some((h) => h.count?.piece != null)).toBe(true);
+      }
+    // With nothing to avoid, the smallest set.
+    const sign = wordbookPage("no", signboardRecord, "ja");
+    expect(sign?.world.quantities.find((q) => q.id === "q_one")?.value?.num).toBe(14);
   });
 });

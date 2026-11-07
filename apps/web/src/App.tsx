@@ -3,10 +3,13 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
+import { Kohai } from "./draw/Kohai.tsx";
+import type { KohaiPose } from "./flow/pose.ts";
 import { SceneView } from "./draw/SceneView.tsx";
 import { SentenceList, splitByHolders } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
 import { ObjectSceneView } from "./draw/ObjectScene.tsx";
+import { layoutStage, meetsSizes } from "./draw/stage-layout.ts";
 import { holderColors } from "./draw/holder-colors.ts";
 import { startSession, type Session } from "./flow/session.ts";
 import { TRANSFER_LINKS, bankFor } from "./flow/bank.ts";
@@ -126,7 +129,8 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
       />
       {/* No line, no row: a "…" would look like the junior thinking where it says nothing (Q30; run-through, 2026-11-08). */}
       {view.line !== null && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+        <div data-role="junior-row" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+          <Kohai pose={view.pose} />
           <AiBadge />
           <p
             data-testid="junior-line"
@@ -303,7 +307,8 @@ function CardScreen({ view, send }: { view: CardScreenView; send: Session["send"
   return (
     <section aria-label={t.ruleCard.label} data-testid="screen-card">
       <h2 style={{ fontSize: 20, margin: "0 0 8px" }}>{t.ruleCard.label}</h2>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div data-role="junior-row" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Kohai pose={view.pose} />
         <AiBadge />
         <div>
           {view.lines.map((l) => (
@@ -389,10 +394,11 @@ function CardScreen({ view, send }: { view: CardScreenView; send: Session["send"
 }
 
 /** The junior's line with the AI mark, as on the problem screen. */
-function JuniorLine({ line, reading }: { line: string | null; reading: boolean }) {
+function JuniorLine({ line, reading, pose }: { line: string | null; reading: boolean; pose: KohaiPose }) {
   if (line === null) return null;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
+    <div data-role="junior-row" style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
+      <Kohai pose={pose} />
       <AiBadge />
       <p
         data-testid="junior-line"
@@ -449,7 +455,7 @@ function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["se
           </li>
         ))}
       </ol>
-      <JuniorLine line={view.line} reading={readingIndex !== null && readingIndex === shown.length} />
+      <JuniorLine line={view.line} reading={readingIndex !== null && readingIndex === shown.length} pose={view.pose} />
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         {view.stage === "read" && (
           <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-help-read">
@@ -488,6 +494,10 @@ function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["se
 /** The word book's furigana: the app's own words and the pages' kanji (core's readings; run-through, 2026-11-08). */
 const bookReadings = { ...UI_READINGS, ...WORDBOOK_READINGS };
 
+/** The word book's two contrasting pictures side by side: each half of the page's 728 px less the gap. */
+const CONTRAST_GAP = 16;
+const CONTRAST_PX = (728 - CONTRAST_GAP) / 2;
+
 function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Session["send"]; reading: ReadingHooks }) {
   const t = view.text.wordbook;
   const [readingIndex, setReadingIndex] = useState<number | null>(null);
@@ -497,6 +507,12 @@ function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Ses
   const readLines: ReadLine[] = [...(view.line === null ? [] : [say(view.line)]), ...(page === null ? [] : page.lines.map(say))];
   const oneLabel = page?.world.holders.find((h) => h.id === page.oneHolderId)?.label ?? "";
   const bookHolders = page === null ? [] : holderColors(page.world.holders);
+  // The two contrasting pictures side by side when both keep the size rules at half the page, else one above the other.
+  const contrastScenes = page?.contrast == null ? [] : [page.contrast.asWorded, ...(page.contrast.otherAsOne === null ? [] : [page.contrast.otherAsOne])];
+  const contrastSide = contrastScenes.length === 2 && contrastScenes.every((sc) => {
+    const l = layoutStage(sc, undefined, { counters: true, compact: true, pagePx: CONTRAST_PX });
+    return l !== null && meetsSizes(l);
+  });
   const oneColor = bookHolders.find((h) => h.id === page?.oneHolderId)?.color;
   const off = view.line === null ? 0 : 1;
   const title = page === null ? "" : view.lang === "ja" ? "「" + page.title + "」" : ' "' + page.title + '"';
@@ -507,7 +523,7 @@ function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Ses
         <span data-testid="wordbook-title">{title}</span>
       </h2>
       <ReadingTools lang={view.lang} lines={readLines} speaker={reading.speaker} onReading={setReadingIndex} furigana={reading.furigana} onFurigana={reading.onFurigana} />
-      <JuniorLine line={view.line} reading={readingIndex === 0 && off === 1} />
+      <JuniorLine line={view.line} reading={readingIndex === 0 && off === 1} pose={view.pose} />
       {page !== null && (
         <>
           {page.lines.map((l, i) => (
@@ -530,16 +546,16 @@ function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Ses
           {page.contrast !== null && (
             // Contrasting cases (指示書 第7.1節 ことばの絵本): the page's example read as the wording says, and read with the
             // other holder as 1. Each is captioned by which holder is taken as 1, never by a verdict.
-            <div data-testid="wordbook-contrasts" style={{ display: "flex", flexWrap: "wrap", gap: 16, margin: "8px 0" }}>
+            <div data-testid="wordbook-contrasts" data-side-by-side={contrastSide ? "true" : "false"} style={{ display: "flex", flexWrap: "wrap", gap: CONTRAST_GAP, margin: "8px 0" }}>
               {[
                 { scene: page.contrast.asWorded, caption: page.contrast.captions[0] },
                 ...(page.contrast.otherAsOne === null ? [] : [{ scene: page.contrast.otherAsOne, caption: page.contrast.captions[1] ?? "" }]),
               ].map((c) => (
-                <figure key={c.caption} data-testid="wordbook-contrast" style={{ flex: "1 1 700px", margin: 0 }}>
+                <figure key={c.caption} data-testid="wordbook-contrast" style={{ flex: contrastSide ? `1 1 ${String(CONTRAST_PX - 4)}px` : "1 1 100%", minWidth: 0, margin: 0 }}>
                   <figcaption data-testid="wordbook-caption" style={{ fontWeight: 700, margin: "0 0 4px" }}>
                     <RubyText text={c.caption} on={reading.furigana && view.lang === "ja"} readings={bookReadings} />
                   </figcaption>
-                  <ObjectSceneView scene={c.scene} lang={view.lang} counters compact label={c.caption} />
+                  <ObjectSceneView scene={c.scene} lang={view.lang} counters compact label={c.caption} {...(contrastSide ? { pagePx: CONTRAST_PX } : {})} />
                 </figure>
               ))}
             </div>

@@ -73,6 +73,8 @@ export interface StageLayout {
   stacked: boolean;
   /** A small picture beside another (the word book's contrasting cases): things on dishes at PANEL.compactPx. */
   compact: boolean;
+  /** The width the picture is drawn at on a 1024 screen (px): the page's, or less beside another picture. */
+  pagePx: number;
   holders: StageHolderLayout[];
   /**
    * An additive reading drawn as a one-to-one pairing: both holders in ONE panel, one above the other (holder i at
@@ -159,6 +161,12 @@ export const PART_NARROW: Readonly<Record<string, number>> = {
   apple: 0.77,
   card: 0.68,
   yarn: 0.31,
+  // The word book's things (measured on the real parts, 2026-11-08).
+  candy: 0.44,
+  marble: 0.8,
+  bead: 0.84,
+  acorn: 0.84,
+  senbei: 0.84,
 };
 export const narrowOf = (item: string): number => (item === "cup" ? CUP_NARROW : item === "token" ? TOKEN_NARROW : (PART_NARROW[item] ?? 0.5));
 
@@ -192,6 +200,11 @@ export const PART_BOX: Readonly<Record<string, { x: number; w: number }>> = {
   apple: { x: 11.7, w: 76.5 },
   card: { x: 17.3, w: 68.2 },
   yarn: { x: 5.5, w: 89 },
+  candy: { x: 5, w: 90 },
+  marble: { x: 10, w: 80 },
+  bead: { x: 8, w: 84 },
+  acorn: { x: 8, w: 84 },
+  senbei: { x: 8, w: 84 },
 };
 export const partBoxOf = (item: string): { x: number; w: number } => PART_BOX[item] ?? { x: 0, w: 100 };
 
@@ -216,17 +229,20 @@ export const PIECE_KEEP: Readonly<Record<string, "left" | "right">> = { goldfish
 export const pieceKeepOf = (item: string): "left" | "right" => PIECE_KEEP[item] ?? "left";
 
 /** The shorter side of a thing's drawing, in px on a 1024 screen, for a cell of `size` units. */
-export const drawnSide = (l: { stacked: boolean; width: number }, item: string, size: number): number => size * THING_FILL * sizingNarrowOf(item) * pxPerUnit(l);
+export const drawnSide = (l: { stacked: boolean; width: number; pagePx?: number }, item: string, size: number): number => size * THING_FILL * sizingNarrowOf(item) * pxPerUnit(l);
 
 /**
- * The share a thing's size is judged on. A length of yarn is thin by nature: it reads by its length, so it is
- * judged on its box (its drawing's own shorter side stays PART_NARROW.yarn).
+ * The share a thing's size is judged on. A length of yarn or a wrapped candy is long and flat by nature: it reads by
+ * its length, so it is judged on its box (its drawing's own shorter side stays in PART_NARROW).
  */
-export const sizingNarrowOf = (item: string): number => (item === "yarn" ? 1 : narrowOf(item));
+/** Things that are long and flat by nature (a length of yarn, a wrapped candy): judged on their box, not their thin side. */
+const BY_LENGTH: readonly string[] = ["yarn", "candy"];
+export const sizingNarrowOf = (item: string): number => (BY_LENGTH.includes(item) ? 1 : narrowOf(item));
 
 /** px per panel unit on a 1024 screen, for the layout's arrangement. */
-export function pxPerUnit(l: { stacked: boolean; width: number }): number {
-  const panelPx = l.stacked ? PANEL.pagePx - 2 * PANEL.frame : (PANEL.pagePx - PANEL.gap) / 2 - 2 * PANEL.frame;
+export function pxPerUnit(l: { stacked: boolean; width: number; pagePx?: number }): number {
+  const page = l.pagePx ?? PANEL.pagePx;
+  const panelPx = l.stacked ? page - 2 * PANEL.frame : (page - PANEL.gap) / 2 - 2 * PANEL.frame;
   return panelPx / l.width;
 }
 
@@ -356,6 +372,8 @@ export interface StageOptions {
   counters?: boolean;
   /** A small picture shown beside another: things on dishes kept at PANEL.compactPx, not the problem screen's sizes. */
   compact?: boolean;
+  /** The width the picture is drawn at on a 1024 screen (px); default the page's (PANEL.pagePx). */
+  pagePx?: number;
 }
 
 /**
@@ -369,10 +387,11 @@ export function layoutStage(scene: ObjectScene, mode?: "side" | "stacked", opts:
   if (found.some((p) => p === null)) return null;
   const parts = found as StageItem[];
   const compact = opts.compact === true;
-  if (scene.pairing !== null) return paired(arrange(scene, parts, true, compact), scene.pairing);
-  if (mode !== undefined) return arrange(scene, parts, mode === "stacked", compact);
-  const side = arrange(scene, parts, false, compact);
-  const stacked = arrange(scene, parts, true, compact);
+  const pagePx = opts.pagePx ?? PANEL.pagePx;
+  if (scene.pairing !== null) return paired(arrange(scene, parts, true, compact, pagePx), scene.pairing);
+  if (mode !== undefined) return arrange(scene, parts, mode === "stacked", compact, pagePx);
+  const side = arrange(scene, parts, false, compact, pagePx);
+  const stacked = arrange(scene, parts, true, compact, pagePx);
   if (!meetsSizes(side)) return stacked;
   if (meetsSizes(stacked) && heightPx(stacked) < heightPx(side)) return stacked;
   return side;
@@ -434,9 +453,9 @@ export function heightPx(l: StageLayout): number {
 
 type Holder = ObjectScene["holders"][number];
 
-function arrange(scene: ObjectScene, parts: StageItem[], stacked: boolean, compact = false): StageLayout {
+function arrange(scene: ObjectScene, parts: StageItem[], stacked: boolean, compact = false, pagePx: number = PANEL.pagePx): StageLayout {
   const W = stacked ? PANEL.stacked : PANEL.side;
-  const unitPx = pxPerUnit({ stacked, width: W });
+  const unitPx = pxPerUnit({ stacked, width: W, pagePx });
   // The smallest cell that still draws the scene's narrowest thing at PANEL.leastPx or more.
   const narrow = Math.min(...parts.map(sizingNarrowOf));
   const minThing = PANEL.leastPx / (THING_FILL * narrow * unitPx) + 0.5;
@@ -631,5 +650,5 @@ function arrange(scene: ObjectScene, parts: StageItem[], stacked: boolean, compa
       things,
     };
   });
-  return { width: W, height: Math.max(0, ...holders.map((h) => h.height)), stacked, compact, holders, pairing: null };
+  return { width: W, height: Math.max(0, ...holders.map((h) => h.height)), stacked, compact, pagePx, holders, pairing: null };
 }

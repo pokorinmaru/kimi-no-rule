@@ -22,8 +22,10 @@ export interface WordbookPageData {
   thing: { noun: string; counter: string };
   /** The value of the holder taken as 1, the other holder's value, and the multiple (other = amount of one). */
   /**
-   * The page's numbers: the holder taken as 1, the other holder (other = amount of one), the multiple. The first set
-   * that meets none of the problem's values is used, so a page always has numbers kept apart from the problem.
+   * The page's numbers: the holder taken as 1, the other holder (other = amount of one), the multiple. Small counts
+   * (the page shows what a wording means, not a calculation), none of them a number of any problem, and chosen so
+   * that taking the other holder as 1 does not deal into whole things. The page takes the smallest set that meets
+   * none of the problem's values and lets both its pictures be drawn.
    */
   numbers: readonly WordbookNumbers[];
   operator: "fraction_of" | "times";
@@ -38,7 +40,7 @@ export const WORDBOOK_PAGES: readonly WordbookPageData[] = [
     one: { ja: "黒いふくろ", en: "black bag" },
     other: { ja: "白いふくろ", en: "white bag" },
     thing: { noun: "あめ", counter: "こ" },
-    numbers: [{ one: 32, other: 28, amount: { num: 7, den: 8 } }, { one: 27, other: 21, amount: { num: 7, den: 9 } }, { one: 42, other: 35, amount: { num: 5, den: 6 } }],
+    numbers: [{ one: 14, other: 7, amount: { num: 1, den: 2 } }, { one: 22, other: 11, amount: { num: 1, den: 2 } }, { one: 26, other: 13, amount: { num: 1, den: 2 } }],
     operator: "fraction_of",
     lines: {
       ja: [
@@ -59,7 +61,7 @@ export const WORDBOOK_PAGES: readonly WordbookPageData[] = [
     one: { ja: "左のかご", en: "left basket" },
     other: { ja: "右のかご", en: "right basket" },
     thing: { noun: "ビー玉", counter: "こ" },
-    numbers: [{ one: 27, other: 21, amount: { num: 7, den: 9 } }, { one: 32, other: 28, amount: { num: 7, den: 8 } }, { one: 35, other: 28, amount: { num: 4, den: 5 } }],
+    numbers: [{ one: 14, other: 7, amount: { num: 1, den: 2 } }, { one: 22, other: 11, amount: { num: 1, den: 2 } }, { one: 26, other: 13, amount: { num: 1, den: 2 } }],
     operator: "fraction_of",
     lines: {
       ja: [
@@ -80,7 +82,7 @@ export const WORDBOOK_PAGES: readonly WordbookPageData[] = [
     one: { ja: "銀のかん", en: "silver tin" },
     other: { ja: "金のかん", en: "gold tin" },
     thing: { noun: "せんべい", counter: "まい" },
-    numbers: [{ one: 42, other: 35, amount: { num: 5, den: 6 } }, { one: 27, other: 21, amount: { num: 7, den: 9 } }, { one: 32, other: 28, amount: { num: 7, den: 8 } }],
+    numbers: [{ one: 14, other: 7, amount: { num: 1, den: 2 } }, { one: 22, other: 11, amount: { num: 1, den: 2 } }, { one: 26, other: 13, amount: { num: 1, den: 2 } }],
     operator: "fraction_of",
     lines: {
       ja: [
@@ -101,7 +103,7 @@ export const WORDBOOK_PAGES: readonly WordbookPageData[] = [
     one: { ja: "上のたな", en: "top shelf" },
     other: { ja: "下のたな", en: "bottom shelf" },
     thing: { noun: "ビーズ", counter: "こ" },
-    numbers: [{ one: 35, other: 28, amount: { num: 4, den: 5 } }, { one: 42, other: 35, amount: { num: 5, den: 6 } }, { one: 27, other: 21, amount: { num: 7, den: 9 } }],
+    numbers: [{ one: 14, other: 7, amount: { num: 1, den: 2 } }, { one: 22, other: 11, amount: { num: 1, den: 2 } }, { one: 26, other: 13, amount: { num: 1, den: 2 } }],
     operator: "fraction_of",
     lines: {
       ja: [
@@ -122,7 +124,7 @@ export const WORDBOOK_PAGES: readonly WordbookPageData[] = [
     one: { ja: "小さいつぼ", en: "small pot" },
     other: { ja: "大きいつぼ", en: "big pot" },
     thing: { noun: "どんぐり", counter: "こ" },
-    numbers: [{ one: 28, other: 49, amount: { num: 7, den: 4 } }, { one: 21, other: 27, amount: { num: 9, den: 7 } }, { one: 42, other: 49, amount: { num: 7, den: 6 } }],
+    numbers: [{ one: 14, other: 21, amount: { num: 3, den: 2 } }, { one: 22, other: 33, amount: { num: 3, den: 2 } }, { one: 26, other: 39, amount: { num: 3, den: 2 } }],
     operator: "times",
     lines: {
       ja: [

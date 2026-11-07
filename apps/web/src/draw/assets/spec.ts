@@ -19,6 +19,12 @@ export const ITEM_PARTS = [
   "card",
   // Continuous: a length of yarn (cut lengths are its pieces). Liquids have no item part: they are poured into cups.
   "yarn",
+  // The word book's everyday examples (packages/core/src/wordbook/pages.ts).
+  "candy",
+  "marble",
+  "senbei",
+  "bead",
+  "acorn",
 ] as const;
 export type ItemPart = (typeof ITEM_PARTS)[number];
 
@@ -116,6 +122,11 @@ export function itemPartFor(noun: string, holderLabel: string): ItemPart | null 
   if (noun === "くだもの") return holderLabel.includes("みかん") ? "mikan" : "apple";
   if (noun === "カード") return "card";
   if (noun === "毛糸") return "yarn";
+  if (noun === "あめ") return "candy";
+  if (noun === "ビー玉") return "marble";
+  if (noun === "せんべい") return "senbei";
+  if (noun === "ビーズ") return "bead";
+  if (noun === "どんぐり") return "acorn";
   return null;
 }
 
