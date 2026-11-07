@@ -1,7 +1,8 @@
 // What each screen shows, from a snapshot of the session machine. The screens draw only this, so the
 // tests can read every word a child may see (childTexts) on every path.
 import type { SnapshotFrom } from "xstate";
-import { CARD_RULES, cardSlot, gate, readingCard, render, type GateContext, type Lang, type Rational, type WorldScene } from "@kimi/core";
+import { CARD_RULES, cardSlot, checkScene, gate, sceneAvoidValues, readingCard, render, viewScene, type GateContext, type Hypothesis, type Lang, type ProblemRecord, type Rational, type Scene, type WorldScene } from "@kimi/core";
+import type { CardScenes } from "./machine.ts";
 import type { PredictionAnswer, flowMachine } from "./machine.ts";
 import { gateContext } from "./problem.ts";
 import { AI_MARK, hardLines, helplineLine, restLines, ui, type HelplineText, type UiText } from "./text.ts";
@@ -69,6 +70,19 @@ export interface GalleryView {
   glowIds: string[];
 }
 
+/** One everyday scene on the rule card, drawn as the world of the rule on the card now (core viewScene). */
+export interface SceneItemView {
+  key: string;
+  /** The scene's sentences (its own numbers only) and the common-sense sentence, lit where it does not hold. */
+  lines: string[];
+  commonSense: string;
+  lit: boolean;
+  /** The tapes: lengths against the longest thing drawn, and parts where the rule's world has a multiple to draw in parts. */
+  tapes: { quantityId: string; holderId: string; label: string; length: number; segments: number | null }[];
+  /** Where the limit falls (the cap scenes), with its label, or null. */
+  limit: { at: number; label: string } | null;
+}
+
 /**
  * The junior's rule card (指示書 第7.1節 後輩のルールカード): the junior's card line, the options for who is taken
  * as 1 (core's CARD_RULES, in core's order), and the gallery. Nothing on it says right or wrong.
@@ -82,6 +96,8 @@ export interface CardScreenView extends Common {
   options: { ruleId: string; label: string; chosen: boolean }[];
   galleryLabel: string;
   gallery: GalleryView[];
+  /** 「身近な場面で見てみる」 (指示書 第6.7節 手順5), or null when there is nothing to show. */
+  scenes: { label: string; note: string; drawing: string; items: SceneItemView[] } | null;
   next: string;
 }
 
@@ -135,6 +151,7 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
       // The options' order turns with every card screen, so none of them is found by its place (safety review).
       options: rotate(CARD_RULES, c.cardLog.length).map((h) => ({ ruleId: h.id, label: cardSlot(h, lang) ?? "", chosen: h.id === rc.rule.id })),
       galleryLabel: rt.gallery,
+      scenes: scenesView(rc.scenes, rc.rule, c.bank, lang),
       gallery: rc.gallery.map((g) => {
         const lit = new Set(g.shown?.failing ?? []);
         return {
@@ -191,6 +208,37 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
   };
 }
 
+/** The scene drawn under a rule, or null when core's gate refuses it against any problem of the bank. */
+function sceneItem(scene: Scene, rule: Hypothesis, focus: Hypothesis, bank: readonly ProblemRecord[], lang: Lang): SceneItemView | null {
+  for (const record of bank) if (!gate({ kind: "show_scene", scene, lang }, gateContext(record, lang)).ok) return null;
+  // Drawn with a rule other than the one core checked the scene for: core checks it again for this rule (a valid,
+  // solvable world with positive amounts, nothing to avoid reached) or it is not drawn (safety review).
+  if (rule.id !== focus.id && !checkScene(rule, scene.spec, scene.numbers, sceneAvoidValues(bank)).ok) return null;
+  const v = viewScene(rule, scene);
+  const labels = scene.labels[lang];
+  return {
+    key: scene.key,
+    lines: [...scene.lines[lang]],
+    commonSense: scene.commonSense[lang],
+    lit: !v.holds,
+    tapes: v.shape.tapes.map((t) => ({ quantityId: t.quantityId, holderId: t.holderId, label: labels[t.holderId] ?? "", length: t.length, segments: t.segments })),
+    limit: v.shape.limit === null || scene.limitLabel === null ? null : { at: v.shape.limit, label: scene.limitLabel[lang] },
+  };
+}
+
+/** Both scenes, or nothing: a scene core's gate refuses takes its pair off the screen. */
+function scenesView(s: CardScenes | null, rule: Hypothesis, bank: readonly ProblemRecord[], lang: Lang): CardScreenView["scenes"] {
+  if (s === null) return null;
+  const t = ui(lang).ruleCard;
+  try {
+    const items = [s.pair.breaks.scene, s.pair.keeps.scene].map((sc) => sceneItem(sc, rule, s.focus, bank, lang));
+    if (items.some((x) => x === null)) return null;
+    return { label: t.scenes, note: t.scenesNote, drawing: t.sceneDrawing, items: items as SceneItemView[] };
+  } catch {
+    return null;
+  }
+}
+
 /** Every word the screen shows to the child (the consent lines are for the grown-up but are listed too). */
 export function childTexts(v: FlowView): string[] {
   const t = v.text;
@@ -234,6 +282,13 @@ export function childTexts(v: FlowView): string[] {
       if (v.card !== null) out.push(v.card);
       out.push(...v.gallery.flatMap((g) => g.statements.map((s) => s.text)));
       out.push(t.problem.sentences, t.problem.world, t.draw.sentences, t.draw.glow, t.draw.world, t.draw.odd);
+      if (v.scenes !== null) {
+        out.push(v.scenes.label, v.scenes.note, v.scenes.drawing);
+        for (const item of v.scenes.items) {
+          out.push(...item.lines, item.commonSense, ...item.tapes.map((x) => x.label));
+          if (item.limit !== null) out.push(item.limit.label);
+        }
+      }
       break;
     case "finished":
       out.push(t.finished.label, ...v.lines, t.finished.end);

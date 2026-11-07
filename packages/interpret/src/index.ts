@@ -20,3 +20,4 @@ export {
   type RejectReason,
 } from "./build.ts";
 export * from "./research.ts";
+export { SCENES_SYSTEM, SCENES_TIMEOUT_MS, WORD_KINDS, proposeScenes, type ScenesInput, type ScenesResult, type WordKind } from "./scenes.ts";

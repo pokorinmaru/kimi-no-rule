@@ -1,12 +1,12 @@
 // The local worker (指示書 第11節 M5, reduced to HANDOFF §3: the junior's words, the research agent and the
-// safety check). It calls only @kimi/interpret's functions. Nothing is logged or stored: there is no
+// safety check; and the everyday scenes, 指示書 第6.7節 手順5). It calls only @kimi/interpret's functions. Nothing is logged or stored: there is no
 // logger, errors answer without details, and every body is capped. Without a key every route answers 503,
 // so the device falls back to its templates, its fallback pool and "unchecked".
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
-import { FRACTION_BANK, sameWorld, schemas, validateWorld, type GateContext, type ProblemRecord, type ResearchState, type WorldScene } from "@kimi/core";
-import { checkSafety, kohai, writeHypotheses, type AgentClient, type ClaudeClient, type ResearchReading } from "@kimi/interpret";
+import { FRACTION_BANK, sameWorld, sceneAvoidValues, schemas, validateWorld, type GateContext, type Hypothesis, type ProblemRecord, type ResearchState, type WorldScene } from "@kimi/core";
+import { WORD_KINDS, checkSafety, kohai, proposeScenes, writeHypotheses, type AgentClient, type ClaudeClient, type ResearchReading, type WordKind } from "@kimi/interpret";
 
 export interface WorkerDeps {
   /** The Claude client, or null when there is no key. */
@@ -19,7 +19,7 @@ export interface WorkerDeps {
 }
 
 /** At most this many calls per route in one window, per process: a runaway page cannot spend the key. */
-export const RATE_LIMITS = { windowMs: 60 * 60 * 1000, research: { max: 30 }, kohai: { max: 300 } } as const;
+export const RATE_LIMITS = { windowMs: 60 * 60 * 1000, research: { max: 30 }, kohai: { max: 300 }, scenes: { max: 60 } } as const;
 
 /** A sliding window of call times; true while there is room, and the call is counted. */
 function limiter(max: number, windowMs: number, now: () => number): () => boolean {
@@ -33,7 +33,7 @@ function limiter(max: number, windowMs: number, now: () => number): () => boolea
   };
 }
 
-export const BODY_LIMITS = { kohai: 64 * 1024, research: 256 * 1024, safety: 4 * 1024 } as const;
+export const BODY_LIMITS = { kohai: 64 * 1024, research: 256 * 1024, safety: 4 * 1024, scenes: 16 * 1024 } as const;
 const MAX_WORDS = 16;
 const MAX_WORD_CHARS = 40;
 const MAX_SAFETY_CHARS = 500;
@@ -117,6 +117,16 @@ function safetyBody(x: unknown): { text: string } | null {
   return isObj(x) && onlyKeys(x, ["text"]) && isStr(x.text, MAX_SAFETY_CHARS) ? { text: x.text } : null;
 }
 
+/** POST /scenes: the reading (a rule of the reading language), the screen's language and the kinds of the tapped words (never the words). */
+function scenesBody(x: unknown): { rule: Hypothesis; lang: "ja" | "en"; wordKinds: WordKind[] } | null {
+  if (!isObj(x) || !onlyKeys(x, ["rule", "lang", "word_kinds"])) return null;
+  const rule = hypothesisSchema.safeParse(x.rule);
+  const kinds = x.word_kinds;
+  if (!rule.success || (x.lang !== "ja" && x.lang !== "en")) return null;
+  if (!Array.isArray(kinds) || kinds.length > MAX_WORDS || !kinds.every((k) => (WORD_KINDS as readonly unknown[]).includes(k))) return null;
+  return { rule: rule.data, lang: x.lang, wordKinds: kinds as WordKind[] };
+}
+
 const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 const LOCAL_HOST = /^(localhost|127\.0\.0\.1)(:\d+)?$/;
 
@@ -137,12 +147,15 @@ export function createApp(deps: WorkerDeps): Hono {
   const roomFor = {
     kohai: limiter(RATE_LIMITS.kohai.max, RATE_LIMITS.windowMs, now),
     research: limiter(RATE_LIMITS.research.max, RATE_LIMITS.windowMs, now),
+    scenes: limiter(RATE_LIMITS.scenes.max, RATE_LIMITS.windowMs, now),
   };
+  // The scenes keep away from every bank problem's answer and one part (a superset of the current and next problem's).
+  const sceneAvoid = sceneAvoidValues(bank);
 
   app.use("*", cors({ origin: (o) => (LOCAL_ORIGIN.test(o) ? o : null), allowMethods: ["POST"], allowHeaders: ["content-type"] }));
   // Only this device's pages may spend the key: a page from elsewhere (Origin), a name that resolves here
   // from elsewhere (Host, DNS rebinding) and a simple form post (no JSON) are all refused before parsing.
-  app.use("/:route{kohai|research|safety}", async (c, next) => {
+  app.use("/:route{kohai|research|safety|scenes}", async (c, next) => {
     if (c.req.method === "OPTIONS") return next();
     const origin = c.req.header("origin");
     const host = c.req.header("host") ?? new URL(c.req.url).host;
@@ -213,6 +226,17 @@ export function createApp(deps: WorkerDeps): Hono {
     if (out.kind !== "submitted") return c.json({ kind: "failed" });
     // Only the hypotheses go back; the device checks them again with core before it uses any.
     return c.json({ kind: "submitted", pool: out.revision.state.pool.map((e) => e.hypothesis) });
+  });
+
+  app.post("/scenes", bodyLimit({ maxSize: BODY_LIMITS.scenes, onError: tooLarge }), async (c) => {
+    const client = deps.client();
+    if (client === null) return c.json({ error: "no_key" }, 503);
+    const b = scenesBody(await jsonOf(c.req.raw));
+    if (b === null) return c.json({ error: "bad_request" }, 400);
+    if (!roomFor.scenes()) return c.json({ error: "too_many" }, 429);
+    const out = await proposeScenes({ rule: b.rule, lang: b.lang, wordKinds: b.wordKinds, avoid: sceneAvoid }, client);
+    // Only the choices go back; the device builds and checks the scenes again with core before it shows any.
+    return c.json({ source: out.source, proposal: out.proposal, reason: out.reason });
   });
 
   app.post("/safety", bodyLimit({ maxSize: BODY_LIMITS.safety, onError: tooLarge }), async (c) => {

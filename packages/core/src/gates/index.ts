@@ -8,6 +8,8 @@ import type { WorldScene } from "../schema/world-scene.ts";
 import { add, div, eq, fromSchema, neg, rat, toSchema, type Rational as Exact } from "../rational/index.ts";
 import { solve } from "../solve/index.ts";
 import { isRendered } from "./template-mark.ts";
+import type { Scene } from "../scenes/index.ts";
+import { hiddenValues, meets, sceneMarks } from "../scenes/values.ts";
 
 // ---------------------------------------------------------------------------------------------
 // Numbers in any notation
@@ -337,7 +339,9 @@ export type Action =
   | { kind: "show_correct_world"; world: WorldScene }
   | { kind: "switch_problem"; grade: number }
   /** The "1" card put down: over a holder's whole tape, or over one of its segments (指示書 第11節 M4). */
-  | { kind: "place_card"; covers: "whole_tape" | "one_segment" };
+  | { kind: "place_card"; covers: "whole_tape" | "one_segment" }
+  /** An everyday scene (指示書 第6.7節 手順5): only a scene core built; its own numbers are allowed, a problem's hidden values are not. */
+  | { kind: "show_scene"; scene: Scene; lang: "ja" | "en" };
 
 export type GateReason = "answer_leak" | "operation_name" | "question_not_hidden" | "too_early" | "unverified" | "grade_down" | "card_on_segment";
 export type GateResult = { ok: true } | { ok: false; reasons: GateReason[] };
@@ -450,6 +454,17 @@ export function gate(action: Action, ctx: GateContext): GateResult {
     case "switch_problem":
       if (action.grade < ctx.grade) reasons.add("grade_down");
       break;
+    case "show_scene": {
+      const sc = action.scene;
+      if (!sceneMarks.has(sc)) reasons.add("unverified");
+      const texts = [...sc.lines[action.lang], sc.commonSense[action.lang]];
+      // The gate takes the scene as a scene: the numbers its sentences write are allowed, and no other.
+      if (numbersIn(texts.join(" ")).some((n) => !containsAny(sc.numbersShown, n))) reasons.add("answer_leak");
+      // Nothing the scene shows or reaches is a value of the problem the child has not read (its answer, one part).
+      if (meets([...sc.numbersShown, ...sc.values], hiddenValues(ctx.correct))) reasons.add("answer_leak");
+      if (texts.some((t) => hasOperationName(t))) reasons.add("operation_name");
+      break;
+    }
     case "place_card":
       // The card names what is taken as 1: a whole holder. On one segment it would show a segment's size.
       if (action.covers !== "whole_tape") reasons.add("card_on_segment");

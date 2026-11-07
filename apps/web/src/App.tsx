@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { gate, type Lang, type Rational, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
+import { SceneView } from "./draw/SceneView.tsx";
 import { SentenceList } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
 import { startSession, type Session } from "./flow/session.ts";
@@ -216,6 +217,20 @@ function CardScreen({ view, send }: { view: CardScreenView; send: Session["send"
           );
         })}
       </ul>
+      {view.scenes !== null && (
+        // 身近な場面で見てみる (指示書 第6.7節 手順5): two everyday scenes read with the card's rule; only the lit sentence says where it stops fitting.
+        <section aria-label={view.scenes.label} data-testid="scenes" style={{ marginTop: 16 }}>
+          <h3 style={{ fontSize: 18 }}>{view.scenes.label}</h3>
+          <p style={{ margin: "0 0 8px" }}>{view.scenes.note}</p>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 16 }}>
+            {view.scenes.items.map((item) => (
+              <li key={item.key} style={{ borderTop: "1px solid #cbd2d9", paddingTop: 8 }}>
+                <SceneView item={item} drawing={view.scenes?.drawing ?? ""} lang={view.lang} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <p style={{ marginTop: 12 }}>
         <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-card-next">
           {view.next}

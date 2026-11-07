@@ -16,6 +16,7 @@ import {
   readingCard,
   runRule,
   sameReading,
+  sceneAvoidValues,
   type Rational,
 } from "@kimi/core";
 import { flowMachine, type FlowInput } from "./machine.ts";
@@ -24,6 +25,7 @@ import { judgeTotal, judgeUnit, selectNext } from "./problem.ts";
 import { hasForbiddenPhrase } from "./text.ts";
 
 type Actor = ReturnType<typeof run>;
+const avoid = sceneAvoidValues(FRACTION_BANK);
 type CardView = Extract<FlowView, { screen: "card" }>;
 
 const r = (num: number): Rational => ({ num, den: 1 });
@@ -203,9 +205,12 @@ describe("what the card screen shows", () => {
         actor.send({ type: "CARD_PICK", ruleId: id });
         const v = cardView(actor);
         const problemTexts = new Set(v.gallery.flatMap((g) => g.statements.map((x) => x.text)));
+        // The everyday scenes write their own numbers (core's gate show_scene lets only those through), never a bank value.
+        const sceneTexts = new Set((v.scenes?.items ?? []).flatMap((i) => i.lines));
+        for (const t of sceneTexts) for (const n of numbersIn(t)) expect(avoid.some((a) => a.num * n.den === n.num * a.den), t).toBe(false);
         for (const t of childTexts(v)) {
           expect(hasForbiddenPhrase(t), t).toBe(false);
-          if (problemTexts.has(t)) continue;
+          if (problemTexts.has(t) || sceneTexts.has(t)) continue;
           const plain = t.split("1とみる").join("").replace(/\bas 1\b/g, "").replace(/「1」|"1"/g, "");
           expect(numbersIn(plain), t).toEqual([]);
         }

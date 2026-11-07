@@ -5,7 +5,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it } from "vitest";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { CARD_RULE_IDS, FRACTION_BANK, cardFailing, COMMON_FRACTION_READINGS, type ProblemRecord, type Rational } from "@kimi/core";
+import { CARD_RULE_IDS, FRACTION_BANK, cardFailing, COMMON_FRACTION_READINGS, numbersIn, sceneAvoidValues, type ProblemRecord, type Rational } from "@kimi/core";
 import { App } from "./App.tsx";
 import { judgeTotal, judgeUnit } from "./flow/problem.ts";
 import { hasForbiddenPhrase } from "./flow/text.ts";
@@ -90,6 +90,20 @@ describe("the junior's rule card on the screen", () => {
         expect(item.querySelectorAll('[data-role="tape"]').length).toBeGreaterThan(0);
       }
     }
+    // 身近な場面で見てみる (指示書 第6.7節 手順5): two scenes for the picked reading; with the swap one common-sense
+    // sentence is lit, with the sentence's own reading none is.
+    const scenes = within(cardScreen).getByTestId("scenes");
+    expect(within(scenes).getByText("身近な場面で見てみる")).toBeTruthy();
+    expect(within(scenes).getAllByTestId("scene")).toHaveLength(2);
+    expect(scenes.querySelectorAll('[data-role="scene-tape"]').length).toBeGreaterThanOrEqual(4);
+    // The swap was picked last above.
+    expect(scenes.querySelectorAll('[data-role="common-sense"][data-glow="true"]')).toHaveLength(1);
+    fireEvent.click(within(cardScreen).getByTestId("card-option-c_correct"));
+    expect(scenes.querySelectorAll('[data-role="common-sense"][data-glow="true"]')).toHaveLength(0);
+    expect(within(cardScreen).getAllByTestId("scene")).toHaveLength(2);
+    const avoid = sceneAvoidValues(FRACTION_BANK);
+    for (const n of numbersIn(scenes.textContent ?? "")) expect(avoid.some((a) => a.num * n.den === n.num * a.den)).toBe(false);
+
     // No word on the card screen judges or names the child's reading.
     const words = [document.body.textContent ?? "", ...[...document.querySelectorAll("[aria-label]")].map((e) => e.getAttribute("aria-label") ?? "")];
     for (const w of words) expect(hasForbiddenPhrase(w), w).toBe(false);

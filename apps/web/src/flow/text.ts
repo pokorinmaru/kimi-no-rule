@@ -122,7 +122,17 @@ export interface UiText {
   pad: { clear: string; ok: string };
   research: { label: string; wait: string };
   /** The junior's rule card (指示書 第7.1節 後輩のルールカード): no word says right or wrong, nothing is put on the child. */
-  ruleCard: { label: string; lines: readonly string[]; slot: string; gallery: string; next: string };
+  ruleCard: {
+    label: string;
+    lines: readonly string[];
+    slot: string;
+    gallery: string;
+    next: string;
+    /** The everyday scenes (指示書 第6.7節 手順5): the heading, one line before them, and the drawing's name. */
+    scenes: string;
+    scenesNote: string;
+    sceneDrawing: string;
+  };
   finished: { label: string; lines: readonly string[]; end: string };
   stuck: { label: string; resume: string; hold: string };
   hard: { label: string; talk: string; close: string };
@@ -244,6 +254,9 @@ const JA: UiText = {
     slot: "1とみる人",
     gallery: "この回の問題",
     next: "つぎへ",
+    scenes: "身近な場面で見てみる",
+    scenesNote: "後輩のカードの読み方で、身近な場面を読むと、こうなります。",
+    sceneDrawing: "場面の絵",
   },
   finished: { label: "おわり", lines: ["きょうは、ここまでです。", "「やめる」をおすと、おわります。"], end: "おわる" },
   stuck: { label: "まっています", resume: "つづける", hold: "この問題は、あとで" },
@@ -344,6 +357,9 @@ const EN: UiText = {
     slot: "Who is taken as 1",
     gallery: "Problems from this time",
     next: "Next",
+    scenes: "See it in everyday scenes",
+    scenesNote: "Everyday scenes, read with the junior's card, look like this.",
+    sceneDrawing: "Scene drawing",
   },
   finished: { label: "The end", lines: ["That's all for today.", 'Press "Stop" to finish.'], end: "Finish" },
   stuck: { label: "Waiting", resume: "Keep going", hold: "Save this problem for later" },

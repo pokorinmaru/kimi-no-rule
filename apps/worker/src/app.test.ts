@@ -212,3 +212,57 @@ describe("only this device's pages may call (review fix)", () => {
     expect((await post({ "content-type": "application/json", origin: "http://localhost:5173" })).status).not.toBe(403);
   });
 });
+
+// 指示書 第6.7節 手順5: POST /scenes. Opus proposes two everyday scenes for a reading; core checks them on the
+// worker, and the device checks them again. The same rules as the other routes. Written before the implementation.
+describe("POST /scenes", () => {
+  const proposal = {
+    breaks: { material: "cup_juice", frame: "within", known: "reference", order: "relation_first", known_value: 28, num: 3, den: 4, limit: null },
+    keeps: { material: "tank_water", frame: "cap", known: "subject", order: "known_first", known_value: 21, num: 3, den: 4, limit: 29 },
+    reason_for_adult: "The cup overflows when the juice is taken as 1.",
+  };
+  const body = (over: Record<string, unknown> = {}) => ({ rule: swap, lang: "ja", word_kinds: ["holder_mention"], ...over });
+
+  it("answers 503 without a key", async () => {
+    expect((await post(createApp({ client: () => null, agent: () => null }), "/scenes", body())).status).toBe(503);
+  });
+
+  it("returns a proposal core passed, as choices only", async () => {
+    const fake = new Fake({ text: JSON.stringify(proposal) });
+    const res = await post(createApp(deps({ client: () => fake })), "/scenes", body());
+    expect(res.status).toBe(200);
+    const out = (await res.json()) as Record<string, unknown>;
+    expect(Object.keys(out).sort()).toEqual(["proposal", "reason", "source"]);
+    expect(out.source).toBe("claude");
+    expect(out.proposal).toEqual({ breaks: proposal.breaks, keeps: proposal.keeps });
+    expect(fake.requests).toHaveLength(1);
+  });
+
+  it("returns the program's choices when the proposal does not pass core", async () => {
+    const fake = new Fake({ text: JSON.stringify({ ...proposal, breaks: proposal.keeps, keeps: proposal.breaks }) });
+    const out = (await (await post(createApp(deps({ client: () => fake })), "/scenes", body())).json()) as { source: string; reason: unknown };
+    expect(out.source).toBe("program");
+    expect(out.reason).toBeNull();
+  });
+
+  it("refuses a bad rule, a bad language, unknown keys and word texts with 400", async () => {
+    const a = createApp(deps());
+    expect((await post(a, "/scenes", body({ rule: { id: "x" } }))).status).toBe(400);
+    expect((await post(a, "/scenes", body({ lang: "fr" }))).status).toBe(400);
+    expect((await post(a, "/scenes", body({ words: ["の"] }))).status).toBe(400);
+    expect((await post(a, "/scenes", body({ word_kinds: ["兄"] }))).status).toBe(400);
+    expect((await post(a, "/scenes", null, "{bad")).status).toBe(400);
+  });
+
+  it("is capped per process, refuses another origin, and logs nothing", async () => {
+    const spies = (["log", "info", "warn", "error", "debug"] as const).map((m) => vi.spyOn(console, m).mockImplementation(() => undefined));
+    const a = createApp(deps({ client: () => ({ complete: () => Promise.reject(new Error("zz-secret-body")) }) }));
+    expect(RATE_LIMITS.scenes.max).toBeGreaterThan(0);
+    for (let i = 0; i < RATE_LIMITS.scenes.max; i++) expect((await post(a, "/scenes", body())).status).toBe(200);
+    expect((await post(a, "/scenes", body())).status).toBe(429);
+    for (const s of spies) expect(s).not.toHaveBeenCalled();
+    const res = await a.request("/scenes", { method: "POST", headers: { "content-type": "application/json", origin: "https://evil.example" }, body: JSON.stringify(body()) });
+    expect(res.status).toBe(403);
+    expect((await post(a, "/scenes", { text: "x".repeat(100_000) })).status).toBe(413);
+  });
+});

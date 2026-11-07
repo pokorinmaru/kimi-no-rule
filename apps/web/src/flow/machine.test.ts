@@ -843,7 +843,8 @@ function checkScreenEn(s: Snap): void {
     v.screen === "problem"
       ? [...v.statements.map((x) => x.text), ...(v.line === null ? [] : [v.line])]
       : v.screen === "card"
-        ? v.gallery.flatMap((g) => g.statements.map((x) => x.text))
+        ? // The everyday scenes' sentences carry the scenes' own numbers, checked by core's gate show_scene.
+          [...v.gallery.flatMap((g) => g.statements.map((x) => x.text)), ...(v.scenes?.items ?? []).flatMap((i) => i.lines)]
         : [],
   );
   for (const t of texts.filter((x) => !own.has(x))) {

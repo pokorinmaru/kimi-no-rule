@@ -135,3 +135,30 @@ export {
 } from "./research/index.ts";
 export { FRACTION_BANK } from "../fixtures/problems/fraction-bank.ts";
 export { judgeAnswer, judgeUnitValue } from "./answers/index.ts";
+export {
+  SCENE_MATERIALS,
+  SCENE_MATERIAL_IDS,
+  checkScene,
+  checkScenePair,
+  choiceOf,
+  isScene,
+  pickScenes,
+  sceneAvoidValues,
+  sceneProposal,
+  viewScene,
+  type CheckedScene,
+  type Scene,
+  type SceneCheck,
+  type SceneChoice,
+  type SceneFrame,
+  type SceneMaterial,
+  type SceneMaterialId,
+  type SceneNumbers,
+  type ScenePair,
+  type SceneProposal,
+  type SceneRefusal,
+  type SceneShape,
+  type SceneSpec,
+  type SceneTape,
+  type SceneView,
+} from "./scenes/index.ts";

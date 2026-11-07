@@ -1,9 +1,10 @@
 // 指示書 第7.1節「後輩のルールカード」, 第2節「自分で直す」in a real browser with the local server down: two
 // problems solved by taps, then the junior's card; choosing who is taken as 1 builds every world of the gallery
-// again, and only the sentences' light changes. The answers are found here with core and never read off the screen.
+// again, and only the sentences' light changes; the everyday scenes are read with the picked rule too. The answers
+// are found here with core and never read off the screen.
 import { createRequire } from "node:module";
 import { expect, test, type Page } from "@playwright/test";
-import { FRACTION_BANK, judgeAnswer, judgeUnitValue, type ProblemRecord } from "@kimi/core";
+import { FRACTION_BANK, judgeAnswer, judgeUnitValue, numbersIn, sceneAvoidValues, type ProblemRecord } from "@kimi/core";
 
 const axePath = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 
@@ -90,9 +91,23 @@ test("two solved problems open the junior's card; choosing who is 1 builds the g
   // Swapping lights a sentence on every world of the gallery.
   for (const g of JSON.parse(swapped) as { lit: string[] }[]) expect(g.lit.length).toBeGreaterThan(0);
 
+  // 身近な場面で見てみる (指示書 第6.7節 手順5): two everyday scenes read with the swap; the common-sense sentence is
+  // lit in one and kept in the other. The server is down, so these are the program's scenes.
+  const scenes = page.getByTestId("scenes");
+  await expect(scenes).toBeVisible();
+  await expect(scenes).toContainText("身近な場面で見てみる");
+  await expect(scenes.getByTestId("scene")).toHaveCount(2);
+  await expect(scenes.locator('[data-role="common-sense"][data-glow="true"]')).toHaveCount(1);
+  expect(await scenes.locator('[data-role="scene-tape"]').count()).toBeGreaterThanOrEqual(4);
+  const avoid = sceneAvoidValues(FRACTION_BANK);
+  for (const n of numbersIn((await scenes.textContent()) ?? "")) expect(avoid.some((a) => a.num * n.den === n.num * a.den)).toBe(false);
+  expect(await axeViolations(page)).toEqual([]);
+
   await page.getByTestId("card-option-c_correct").click();
   await expect(page.getByTestId("rule-card")).toContainText("文が言うとおりの人を、1とみる");
   await expect(page.locator('[data-testid="gallery-item"] [data-glow="true"][data-statement]')).toHaveCount(0);
+  await expect(scenes.getByTestId("scene")).toHaveCount(2);
+  await expect(scenes.locator('[data-role="common-sense"][data-glow="true"]')).toHaveCount(0);
   expect(await gallery(page)).not.toBe(swapped);
   // Nothing on the screen judges.
   await expect(page.locator("main")).not.toContainText(/正し|まちが|間違|正解/);

@@ -6,8 +6,12 @@
 import { and, assign, or, setup, stateIn } from "xstate";
 import {
   CARD_RULES,
+  CORRECT_READING_ID,
   FRACTION_BANK,
   cardFits,
+  checkScenePair,
+  pickScenes,
+  sceneAvoidValues,
   gate,
   holderName,
   initialState,
@@ -24,6 +28,8 @@ import {
   type ProblemRecord,
   type Rational,
   type ResearchState,
+  type SceneChoice,
+  type ScenePair,
   type SlotValues,
   type TemplateKey,
   type WorldScene,
@@ -177,6 +183,34 @@ export interface RuleCardState {
   /** How many times the child chose a rule. */
   picks: number;
   gallery: GalleryItem[];
+  /** The everyday scenes, or null when no reading on hand breaks a scene. */
+  scenes: CardScenes | null;
+}
+
+/** The kinds of the problem words a child can tap (core's syntax marks), and "other" for an unmarked word. */
+export type WordKind = "holder_mention" | "ratio_notation" | "relation_word" | "unit_word" | "demonstrative" | "sentence_pattern" | "other";
+
+/** What the controller sends to POST /scenes: the reading, the language and the kinds of the tapped words (never the words). */
+export interface ScenesRequest {
+  rule: Hypothesis;
+  lang: Lang;
+  word_kinds: WordKind[];
+}
+
+/**
+ * The everyday scenes on the rule card (指示書 第6.7節 手順5): two scenes core checked for one reading, the one
+ * that breaks the common-sense sentence and the one that keeps it. They are drawn as the worlds of the rule on
+ * the card now; the program's pair comes at once, and a proposal from the worker replaces it only when core
+ * passes it for the same reading.
+ */
+export interface CardScenes {
+  /** The reading the scenes are for: the rule on the card, or, when that never breaks a scene, the card's first reading or the session's misreading. */
+  focus: Hypothesis;
+  pair: ScenePair;
+  source: "program" | "claude";
+  /** Claude's line for grown-ups. Never on the child's screen. */
+  reason: string | null;
+  request: ScenesRequest;
 }
 
 /** What the device keeps of one rule card (no child's words): the rule left and whether every world fit. */
@@ -252,6 +286,8 @@ export type FlowEvent =
   | { type: "HOLD" }
   /** The child chooses who is taken as 1 on the junior's rule card: one of core's CARD_RULES. */
   | { type: "CARD_PICK"; ruleId: string }
+  /** A proposal for the everyday scenes from the worker (choices only); core checks it again before it is used. */
+  | { type: "SCENES_RESULT"; focusId: string; proposal: { breaks: SceneChoice; keeps: SceneChoice } | null; reason: string | null }
   | { type: "CLOSE" }
   | { type: "KOHAI_LINE"; seq: number; text: string }
   | { type: "RESEARCH_RESULT"; pool: Hypothesis[] | null }
@@ -519,6 +555,63 @@ function needsCard(ctx: FlowContext): boolean {
   return last !== undefined && last !== ctx.cardShownAfter && solvedRecords(ctx).length >= 2;
 }
 
+const MAX_WORD_KINDS = 16;
+
+/** The kinds of the words the child tapped as reasons this session (never the words themselves). */
+function tappedKinds(ctx: FlowContext): WordKind[] {
+  const out: WordKind[] = [];
+  for (const l of ctx.log) {
+    const record = ctx.bank.find((b) => b.world.problem_id === l.problemId);
+    if (record === undefined) continue;
+    for (const o of l.ops) {
+      if (o.op !== "word_cue") continue;
+      for (const t of o.tokens) {
+        const mark = record.syntax_marks.find((m) => m.statement_index === o.statement_index && m.token_start <= t && t <= m.token_end);
+        const kind: WordKind = mark?.kind ?? "other";
+        if (!out.includes(kind)) out.push(kind);
+      }
+    }
+  }
+  return out.slice(0, MAX_WORD_KINDS);
+}
+
+/**
+ * The everyday scenes for the card (指示書 第6.7節 手順5): core's pair for the rule on the card, or, when that rule
+ * never breaks a scene (the sentence's own reading), for the card's first reading or the session's misreading.
+ * The scenes keep away from every bank problem's answer and one part. Kept as they are while the reading stays.
+ */
+function scenesFor(ctx: FlowContext, rule: Hypothesis, start: Hypothesis, prev: CardScenes | null): CardScenes | null {
+  const candidates = [rule, start, ...(ctx.session === null ? [] : [ctx.session.hypothesis])].filter((h) => h.id !== CORRECT_READING_ID);
+  const avoid = sceneAvoidValues(ctx.bank);
+  for (const h of candidates) {
+    if (prev !== null && prev.focus.id === h.id) return prev;
+    let pair: ScenePair | null;
+    try {
+      pair = pickScenes(h, avoid);
+    } catch {
+      pair = null;
+    }
+    // The request carries the reading's clauses only: no cue words and no note for grown-ups go to the server.
+    if (pair !== null) return { focus: h, pair, source: "program", reason: null, request: { rule: { ...h, word_cues: [], note_for_adult: "" }, lang: ctx.lang, word_kinds: tappedKinds(ctx) } };
+  }
+  return null;
+}
+
+/** A proposal for the scenes is used only for the reading the scenes are for now, and only when core passes it. */
+function acceptScenes(ctx: FlowContext, focusId: string, proposal: { breaks: SceneChoice; keeps: SceneChoice } | null, reason: string | null): Partial<FlowContext> {
+  const c = ctx.ruleCard;
+  const s = c?.scenes;
+  if (c === null || s === null || s === undefined || s.focus.id !== focusId || proposal === null) return {};
+  let pair: ScenePair | null;
+  try {
+    pair = checkScenePair(s.focus, proposal, sceneAvoidValues(ctx.bank));
+  } catch {
+    pair = null;
+  }
+  if (pair === null) return {};
+  return { ruleCard: { ...c, scenes: { ...s, pair, source: "claude", reason: typeof reason === "string" ? reason.slice(0, 300) : null } } };
+}
+
 /** Opens the rule card with the junior's reading on the last problem (kept as it is when the child comes back to it). */
 function openCard(ctx: FlowContext): Partial<FlowContext> {
   const last = ctx.log.at(-1);
@@ -526,7 +619,14 @@ function openCard(ctx: FlowContext): Partial<FlowContext> {
   if (ctx.ruleCard?.afterProblemId === last.problemId) return {};
   const start = ctx.taught ?? last.reading;
   return {
-    ruleCard: { afterProblemId: last.problemId, start, rule: start, picks: 0, gallery: galleryOf(start, solvedRecords(ctx), ctx.lang) },
+    ruleCard: {
+      afterProblemId: last.problemId,
+      start,
+      rule: start,
+      picks: 0,
+      gallery: galleryOf(start, solvedRecords(ctx), ctx.lang),
+      scenes: scenesFor(ctx, start, start, null),
+    },
     ...noLine(ctx),
   };
 }
@@ -536,7 +636,7 @@ function pickCard(ctx: FlowContext, ruleId: string): Partial<FlowContext> {
   const c = ctx.ruleCard;
   const h = CARD_RULES.find((x) => x.id === ruleId);
   if (c === null || h === undefined) return {};
-  return { ruleCard: { ...c, rule: h, picks: c.picks + 1, gallery: galleryOf(h, solvedRecords(ctx), ctx.lang) } };
+  return { ruleCard: { ...c, rule: h, picks: c.picks + 1, gallery: galleryOf(h, solvedRecords(ctx), ctx.lang), scenes: scenesFor(ctx, h, c.start, c.scenes) } };
 }
 
 /**
@@ -867,6 +967,9 @@ export const flowMachine = setup({
           entry: assign(({ context }) => openCard(context)),
           on: {
             CARD_PICK: { guard: "pickable", actions: assign(({ context, event }) => (event.type === "CARD_PICK" ? pickCard(context, event.ruleId) : {})) },
+            SCENES_RESULT: {
+              actions: assign(({ context, event }) => (event.type === "SCENES_RESULT" ? acceptScenes(context, event.focusId, event.proposal, event.reason) : {})),
+            },
             NEXT: { target: "next", actions: assign(({ context }) => leaveCard(context)) },
           },
         },
