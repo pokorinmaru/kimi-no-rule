@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { FRACTION_BANK, div, fromSchema, solve, toSchema, type Rational, type WorldScene } from "@kimi/core";
 import { signboard } from "../../../../packages/core/fixtures/problems/signboard.ts";
-import { layoutWorld, type TapeLayout, type WorldLayout } from "./layout.ts";
+import { describeLayout, layoutWorld, type TapeLayout, type WorldLayout } from "./layout.ts";
 
 function tapeOf(l: WorldLayout, holderId: string): TapeLayout {
   const t = l.tapes.find((x) => x.holderId === holderId);
@@ -225,6 +225,19 @@ describe("worlds that cannot happen (指示書 第8.5節)", () => {
 
   it("does not flag a world that can happen", () => {
     expect(layoutWorld(signboard.correct).impossible).toBe(false);
+  });
+
+  // Run-through, 2026-11-08: the spoken description said the world "does not fit the problem's sentences"
+  // before the child answered "fits / odd". It now says what is drawn (the jagged end), as a seeing child sees.
+  it("is described by its shape, never by a verdict on the sentences", () => {
+    const l = layoutWorld(signboard.procedural);
+    const ja = describeLayout(l, [], "ja");
+    expect(ja).toContain("弟の テープの はしが ぎざぎざです");
+    expect(ja).not.toMatch(/合わない|ぴったり|へん/);
+    const en = describeLayout(l, [], "en");
+    expect(en).toMatch(/jagged/);
+    expect(en).not.toMatch(/fit|odd/i);
+    expect(describeLayout(layoutWorld(signboard.correct), [], "ja")).not.toContain("ぎざぎざ");
   });
 });
 

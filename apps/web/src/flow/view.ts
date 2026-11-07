@@ -390,7 +390,7 @@ export function childTexts(v: FlowView): string[] {
       if (v.note !== null) out.push(v.note);
       out.push(p.label, p.sentences, p.world, p.next, p.looking, p.yes, p.no, p.nextProblem, p.unitPad, p.totalPad, t.pad.clear, t.pad.ok);
       out.push(p.voice.talk, p.voice.stop, p.voice.listening, p.voice.unsupported, p.voice.denied, p.voice.off);
-      out.push(t.draw.sentences, t.draw.glow, t.draw.world, t.draw.cardAria, t.draw.cardHere, t.draw.odd);
+      out.push(t.draw.sentences, t.draw.glow, t.draw.world, t.draw.cardAria, t.draw.cardHere, t.draw.jagged(""));
       break;
     }
     case "help":
@@ -437,7 +437,7 @@ export function childTexts(v: FlowView): string[] {
       out.push(t.ruleCard.label, ...v.lines, v.slotLabel, ...v.options.map((o) => o.label), v.galleryLabel, v.next);
       if (v.card !== null) out.push(v.card);
       out.push(...v.gallery.flatMap((g) => g.statements.map((s) => s.text)));
-      out.push(t.problem.sentences, t.problem.world, t.draw.sentences, t.draw.glow, t.draw.world, t.draw.odd);
+      out.push(t.problem.sentences, t.problem.world, t.draw.sentences, t.draw.glow, t.draw.world, t.draw.jagged(""));
       if (v.scenes !== null) {
         out.push(v.scenes.label, v.scenes.note, v.scenes.drawing);
         for (const item of v.scenes.items) {

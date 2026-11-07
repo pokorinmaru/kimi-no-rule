@@ -367,6 +367,8 @@ export function describeLayout(l: WorldLayout, failingSentences: readonly string
     return `${w.tape(t.label)}${[v, cut, each, unit].filter((s) => s !== "").map((s) => `${sep}${s}`).join("")}`;
   });
   const fails = failingSentences.map(w.fails);
-  const odd = l.impossible ? [w.odd] : [];
-  return w.join([...parts, ...odd, ...fails]);
+  // A world that cannot happen is told by its drawn mark (the jagged end), as a seeing child sees it; never as a
+  // verdict on the sentences before the child answers (run-through, 2026-11-08).
+  const jagged = l.tapes.filter((t) => t.impossible).map((t) => w.jagged(t.label));
+  return w.join([...parts, ...jagged, ...fails]);
 }

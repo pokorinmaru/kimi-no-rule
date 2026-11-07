@@ -205,7 +205,7 @@ export interface UiText {
     unknown: string;
     cardHere: string;
     fails: (sentence: string) => string;
-    odd: string;
+    jagged: (label: string) => string;
     join: (parts: readonly string[]) => string;
   };
 }
@@ -310,7 +310,7 @@ const JA: UiText = {
     scenesNote: "後輩のカードの読み方で、身近な場面を読むと、こうなります。",
     sceneDrawing: "場面の絵",
   },
-  finished: { label: "おわり", lines: ["きょうは、ここまでです。", "「やめる」をおすと、おわります。"], end: "おわる" },
+  finished: { label: "おわり", lines: ["きょうは、ここまでです。", "「おわる」をおすと、おわります。"], end: "おわる" },
   stuck: { label: "まっています", resume: "つづける", hold: "この問題は、あとで" },
   help: { label: "いっしょに読む", read: "読んだよ", orderLabel: "長いと思うほう", open: "絵本を見る", later: "あとで" },
   wordbook: { label: "ことばの絵本", one: "「1」とみるのは", close: "とじる" },
@@ -379,7 +379,8 @@ const JA: UiText = {
     unknown: "「？」",
     cardHere: "「1」の ふだが あります",
     fails: (s) => `「${s}」は、この世界と 合わない 文です`,
-    odd: "この世界には、問題の 文と 合わない ところが あります",
+    /** The drawn mark of a world that cannot happen, described as drawn (never a verdict on the sentences). */
+    jagged: (label) => `${label}の テープの はしが ぎざぎざです`,
     join: (parts) => parts.join("。") + "。",
   },
 };
@@ -453,7 +454,7 @@ const EN: UiText = {
     scenesNote: "Everyday scenes, read with the junior's card, look like this.",
     sceneDrawing: "Scene drawing",
   },
-  finished: { label: "The end", lines: ["That's all for today.", 'Press "Stop" to finish.'], end: "Finish" },
+  finished: { label: "The end", lines: ["That's all for today.", 'Press "Finish" to finish.'], end: "Finish" },
   stuck: { label: "Waiting", resume: "Keep going", hold: "Save this problem for later" },
   help: { label: "Reading together", read: "I read it", orderLabel: "My guess: which is longer", open: "Open the picture book", later: "Not now" },
   wordbook: { label: "Picture book of words", one: 'Taken as "1":', close: "Close" },
@@ -522,7 +523,7 @@ const EN: UiText = {
     unknown: '"?"',
     cardHere: 'the "1" card is here',
     fails: (s) => `"${s}" does not fit this world`,
-    odd: "Some parts of this world do not fit the problem's sentences",
+    jagged: (label) => `The end of the tape of ${label} is jagged`,
     join: (parts) => parts.join(". ") + ".",
   },
 };
