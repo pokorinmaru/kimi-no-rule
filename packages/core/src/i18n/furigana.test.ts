@@ -104,6 +104,15 @@ describe("rubySegments", () => {
 });
 
 describe("spokenText", () => {
+  // Safety review, 2026-11-07: a counter's reading after a number is its sound-changed form (8本 → ぽん, for はっぽん).
+  // Spoken as "8ぽん" the voice says はちぽん; the number and the counter's kanji are left for the voice to read.
+  it("keeps a counter after a number as written, so the voice reads はっぽん, not はちぽん", () => {
+    const said = spokenText("姉のリボンは8本です。", readingsFor("p_fraction_c"));
+    expect(said).toContain("8本");
+    expect(said).not.toContain("8ぽん");
+    expect(said.startsWith("あねの")).toBe(true);
+  });
+
   it("reads the kanji with their readings and a fraction as the problem says it (b分のa)", () => {
     expect(spokenText("妹のリボンは、姉のリボンの3/4です。", readingsFor("p_fraction_c"))).toBe("いもうとのリボンは、あねのリボンの4分の3です。");
     expect(spokenText("弟の金魚は何匹ですか。", readingsFor("p_signboard"))).toBe("おとうとのきんぎょはなんびきですか。");

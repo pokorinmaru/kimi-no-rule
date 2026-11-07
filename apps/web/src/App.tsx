@@ -413,6 +413,9 @@ function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["se
     ...(view.line === null ? [] : [{ text: view.lang === "ja" ? spokenText(view.line, {}) : view.line, lang: view.lang === "ja" ? "ja-JP" : "en-US" }]),
   ];
   const lit = new Set(view.lit?.tokens ?? []);
+  // Furigana on the sentences, the holders' names and the buttons, as on the problem screen (safety review, 2026-11-07).
+  const rubyUi = reading.furigana && view.lang === "ja";
+  const word = (text: string) => <RubyText text={text} on={reading.furigana} readings={problemReadings} />;
   return (
     <section aria-label={t.label} data-testid="screen-help" data-stage={view.stage}>
       <ReadingTools lang={view.lang} lines={readLines} speaker={reading.speaker} onReading={setReadingIndex} furigana={reading.furigana} onFurigana={reading.onFurigana} />
@@ -427,10 +430,10 @@ function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["se
               view.lit !== null && s.index === view.lit.statementIndex && lit.has(k) ? (
                 // Every relation word of the sentence is lit the same way (no one of them stands out).
                 <mark key={k} data-role="lit-word" style={{ background: "#ffe08a", borderRadius: 4, padding: "0 2px", color: "#1f2933" }}>
-                  {tok}
+                  {word(tok)}
                 </mark>
               ) : (
-                <span key={k}>{tok}</span>
+                <span key={k}>{word(tok)}</span>
               ),
             )}
           </li>
@@ -440,7 +443,7 @@ function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["se
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         {view.stage === "read" && (
           <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-help-read">
-            {t.read}
+            <RubyText text={t.read} on={rubyUi} />
           </Button>
         )}
         {view.stage === "order" && (
@@ -448,7 +451,7 @@ function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["se
           <div role="group" aria-label={t.orderLabel} data-testid="help-order" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {view.choices.map((c) => (
               <Button key={c.holderId} onClick={() => send({ type: "ORDER_GUESS", holderId: c.holderId })} testId={`btn-order-${c.holderId}`}>
-                {c.label}
+                {word(c.label)}
               </Button>
             ))}
           </div>
@@ -456,10 +459,10 @@ function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["se
         {view.stage === "offer" && (
           <>
             <Button kind="primary" onClick={() => send({ type: "OPEN_BOOK" })} testId="btn-open-book">
-              {t.open}
+              <RubyText text={t.open} on={rubyUi} />
             </Button>
             <Button onClick={() => send({ type: "NEXT" })} testId="btn-help-later">
-              {t.later}
+              <RubyText text={t.later} on={rubyUi} />
             </Button>
           </>
         )}

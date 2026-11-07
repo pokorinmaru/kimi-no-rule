@@ -48,7 +48,7 @@ test("「読み上げ」 reads the problem sentence by sentence; ふりがな is
   await expect(page.locator('[data-statement="0"] rt').first()).toHaveText("あに");
   await page.getByTestId("btn-read-aloud").click();
   await expect(page.locator('[data-statement="0"]')).toHaveAttribute("data-reading", "true");
-  expect((await spoken())[0]).toEqual({ text: "あにのきんぎょは6ぴき。", lang: "ja-JP", rate: 0.85 });
+  expect((await spoken())[0]).toEqual({ text: "あにのきんぎょは6匹。", lang: "ja-JP", rate: 0.85 });
   await end();
   await expect(page.locator('[data-statement="1"]')).toHaveAttribute("data-reading", "true");
   expect((await spoken())[1]?.text).toBe("これは、おとうとのきんぎょのかずの4分の3です。");

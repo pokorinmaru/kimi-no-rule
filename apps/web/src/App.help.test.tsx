@@ -69,7 +69,11 @@ describe("the junior's staged questions on the screen", () => {
     // (b) Which is longer: the two holders, recorded, nothing judged.
     fireEvent.click(screen.getByTestId("btn-help-read"));
     expect(screen.getByTestId("screen-help").getAttribute("data-stage")).toBe("order");
-    const holders = [...screen.getByTestId("help-order").querySelectorAll("button")].map((e) => e.textContent);
+    const holders = [...screen.getByTestId("help-order").querySelectorAll("button")].map((e) => {
+      const c = e.cloneNode(true) as Element;
+      for (const rt of c.querySelectorAll("rt")) rt.remove();
+      return c.textContent;
+    });
     expect(holders.sort()).toEqual(["兄", "弟"]);
     keepsTheRules(lang);
     fireEvent.click(screen.getByTestId("btn-order-h_otouto"));
@@ -87,6 +91,22 @@ describe("the junior's staged questions on the screen", () => {
     keepsTheRules(lang);
     fireEvent.click(screen.getByTestId("btn-book-close"));
     expect(await screen.findByTestId("looking-line")).toBeTruthy();
+  });
+
+  // Safety review, 2026-11-07: the help screen had no furigana on the sentences, names or buttons.
+  it("puts furigana on the sentences, the holders' names and the buttons when furigana is on", async () => {
+    const name = await ready("ja");
+    render(<App storeName={name} api={null} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
+    fireEvent.click(await screen.findByTestId("btn-predict-odd"));
+    fireEvent.click(screen.getByTestId("btn-dont-know"));
+    const help = await screen.findByTestId("screen-help");
+    const furi = screen.getByTestId("btn-furigana");
+    if (furi.getAttribute("aria-pressed") !== "true") fireEvent.click(furi);
+    expect(help.querySelector("li rt")).not.toBeNull();
+    expect(screen.getByTestId("btn-help-read").querySelector("rt")).not.toBeNull();
+    fireEvent.click(screen.getByTestId("btn-help-read"));
+    expect(screen.getByTestId("btn-order-h_ani").querySelector("rt")).not.toBeNull();
   });
 
   it("the word book opens by itself after the first fix on the session's first wording", async () => {

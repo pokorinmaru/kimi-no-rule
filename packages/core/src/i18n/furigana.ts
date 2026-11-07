@@ -193,9 +193,11 @@ export function rubyTokens(tokens: readonly string[], readings: Readings): RubyS
 
 /** What the browser reads for a Japanese line: kanji by their readings, a fraction as the problem says it. */
 export function spokenText(text: string, readings: Readings): string {
-  return rubySegments(text, readings)
-    .map((s) => s.ruby ?? s.text)
-    .join("")
+  // A reading right after a digit is a counter's sound-changed form (8本 → ぽん): the voice reads "8本" itself
+  // correctly (はっぽん) but "8ぽん" as はちぽん, so the kanji stays as written there.
+  let said = "";
+  for (const s of rubySegments(text, readings)) said += s.ruby !== null && /\d$/.test(said) ? s.text : (s.ruby ?? s.text);
+  return said
     .replace(/(\d+)\/(\d+)/g, "$2分の$1")
     .replace(/dL/g, "デシリットル")
     .replace(/%/g, "パーセント");

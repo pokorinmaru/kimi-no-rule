@@ -199,13 +199,13 @@ export const TEMPLATES = {
   "kohai.wordbook": {
     slots: [],
     ja: [
-      "この言い方、ぼくにはよくわかりません。いっしょに絵本を見ませんか",
-      "ここの言葉、ぼくにはむずかしいです。絵本で見てみませんか",
+      "この言い方を、いっしょに絵本で見てみませんか",
+      "ここの言葉を、絵本でたしかめてみませんか",
       "この言葉の意味を、絵本でいっしょにさがしませんか",
     ],
     en: [
-      "I do not get this wording. Shall we look at the picture book together?",
-      "These words are hard for me. Want to check the picture book?",
+      "Shall we look at this wording in the picture book together?",
+      "Want to check these words in the picture book?",
       "Can we look up this word in the picture book together?",
     ],
   },

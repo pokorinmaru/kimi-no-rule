@@ -11,6 +11,7 @@ import type { ProblemRecord } from "../schema/problem-record.ts";
 import type { Rational } from "../schema/common.ts";
 import { validateWorld } from "../schema/index.ts";
 import { solve } from "../solve/index.ts";
+import { TEMPLATES } from "../i18n/index.ts";
 import { hasOperationName, numbersIn } from "../gates/index.ts";
 import { worldValues } from "../scenes/values.ts";
 import { eq, fromSchema } from "../rational/index.ts";
@@ -236,5 +237,15 @@ describe("the help's fixed sentences", () => {
     expect(TEMPLATE_KEYS).toContain("kohai.help_read");
     expect(TEMPLATE_KEYS).toContain("kohai.help_order");
     expect(TEMPLATE_KEYS).toContain("kohai.wordbook");
+  });
+});
+
+describe("the junior's word-book invitations (safety review, 2026-11-07)", () => {
+  // The junior does not talk about itself (指示書 第1節 後輩は教えない; KOHAI_SYSTEM: never talk about yourself):
+  // only an invitation to look at the book together, with no "I don't get it" or "hard for me".
+  const SELF = /ぼく|わたし|わかりません|むずかし|\bI\b|\bme\b|\bmy\b|hard/;
+  it.each([...TEMPLATES["kohai.wordbook"].ja, ...TEMPLATES["kohai.wordbook"].en])("%s", (line) => {
+    expect(line).not.toMatch(SELF);
+    expect(line).toMatch(/絵本|picture book/);
   });
 });
