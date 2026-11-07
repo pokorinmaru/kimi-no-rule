@@ -1,0 +1,5 @@
+50fb97b3fc95a310b0aa44b09a8895f617492d0058dadc9ff8e98fc0b54201c3  evals/PROTOCOL-ADDENDUM-5.md
+878ef49e0ba81d6f0e259602ae1de5a89d118e39b99ba0bdcd74e18cff0c94b9  evals/data/research/judge-problems.ts
+1c73b1219cdb780ba493636302d60f0f3f49bb406051d76fc5ef61c0d1f52592  tools/evals/src/judge-problems.ts
+278fae6572d3bd988e9a4d11c52704b55c568543b65a73a98890cc0e4e44c0ea  tools/evals/src/leak-judge.ts
+e5ce4f7ff7dc9c44d5f22ab015ce8bb81a4c71b01b5dc09ed07a9c945fe89766  tools/evals/src/research-judge.ts
