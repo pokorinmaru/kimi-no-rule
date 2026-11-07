@@ -227,3 +227,14 @@ describe("worlds that cannot happen (指示書 第8.5節)", () => {
     expect(layoutWorld(signboard.correct).impossible).toBe(false);
   });
 });
+
+describe("a world that is the sentence's own world (safety review, Q38)", () => {
+  it("is drawn as the length order only even when the 1 card is put on a tape", () => {
+    const w = (FRACTION_BANK.find((r) => r.world.problem_id === "p_signboard") as (typeof FRACTION_BANK)[number]).world;
+    for (const holder of w.holders.map((h) => h.id)) {
+      const l = layoutWorld(w, { cardHolder: holder, correct: w });
+      expect(l.mode).toBe("order");
+      for (const t of l.tapes) expect(t.segments).toHaveLength(0);
+    }
+  });
+});

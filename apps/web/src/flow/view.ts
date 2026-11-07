@@ -52,6 +52,8 @@ export interface ProblemView extends Common {
   totalValue: Rational | null;
   /** The child may move the card on these steps; the confirm buttons show on "placed". */
   canPlace: boolean;
+  /** The junior's world is the sentence's own world: draw the length order only, wherever the card is put. */
+  orderOnly: boolean;
   /** The ids of the world's parts named by the lit sentences: they glow with them (empty while none is lit). */
   glowIds: string[];
   /** core's gate context of this problem (from its correct world), for the screen's own gate calls. Never drawn. */
@@ -101,6 +103,8 @@ const STEPS: readonly ProblemStep[] = ["reading", "looking", "placed", "rebuilt"
  * The screen of a snapshot. The words are in `lang`: the session's language, or the device's choice when the
  * session has ended (an ended session no longer takes a new language, HANDOFF §7 の4).
  */
+const rotate = <T,>(xs: readonly T[], k: number): T[] => xs.map((_, i) => xs[(i + k) % xs.length] as T);
+
 export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
   const c = s.context;
   const t = ui(lang);
@@ -128,7 +132,8 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
       lines: [...rt.lines],
       card: readingCard(rc.rule, undefined, lang, { forEdit: true }) ?? readingCard(rc.rule, undefined, lang),
       slotLabel: rt.slot,
-      options: CARD_RULES.map((h) => ({ ruleId: h.id, label: cardSlot(h, lang) ?? "", chosen: h.id === rc.rule.id })),
+      // The options' order turns with every card screen, so none of them is found by its place (safety review).
+      options: rotate(CARD_RULES, c.cardLog.length).map((h) => ({ ruleId: h.id, label: cardSlot(h, lang) ?? "", chosen: h.id === rc.rule.id })),
       galleryLabel: rt.gallery,
       gallery: rc.gallery.map((g) => {
         const lit = new Set(g.shown?.failing ?? []);
@@ -171,6 +176,7 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
     world: p.shown.world,
     relationId: p.relationId,
     one: orderOnly ? null : (rel?.reference ?? null),
+    orderOnly,
     placement: p.placement,
     tappedWords: [...p.words],
     line: c.line === null || c.line.text === "" ? null : c.line.text,

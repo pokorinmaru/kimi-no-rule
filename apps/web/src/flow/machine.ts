@@ -295,6 +295,14 @@ function wordsOf(p: ProblemState): string[] {
   });
 }
 
+/**
+ * No request when the junior's world is the sentence's own world (a taught card that fits): the worker
+ * refuses that world anyway, and the fixed line is enough (safety review, Q38).
+ */
+function requestOrNull(ctx: FlowContext, p: ProblemState, intent: KohaiIntent): KohaiRequest | null {
+  return p.orderOnly ? null : requestFor(ctx, p, intent);
+}
+
 function requestFor(ctx: FlowContext, p: ProblemState, intent: KohaiIntent): KohaiRequest {
   const holder = p.placement === null ? undefined : holderOf(p.record, p.placement);
   return {
@@ -308,13 +316,13 @@ function requestFor(ctx: FlowContext, p: ProblemState, intent: KohaiIntent): Koh
 }
 
 function readLine(ctx: FlowContext, p: ProblemState): Line {
-  return lineOf(ctx, "kohai.read", {}, "read", requestFor(ctx, p, "read"));
+  return lineOf(ctx, "kohai.read", {}, "read", requestOrNull(ctx, p, "read"));
 }
 
 function whichLine(ctx: FlowContext): Line | null {
   const p = ctx.problem;
   if (p === null) return null;
-  return lineOf({ ...ctx }, "kohai.which", {}, "which", requestFor(ctx, p, "which"));
+  return lineOf({ ...ctx }, "kohai.which", {}, "which", requestOrNull(ctx, p, "which"));
 }
 
 function restateLine(ctx: FlowContext): Line | null {
@@ -322,7 +330,7 @@ function restateLine(ctx: FlowContext): Line | null {
   if (p === null || p.placement === null) return null;
   const holder = holderOf(p.record, p.placement);
   if (holder === undefined) return null;
-  const base = lineOf(ctx, "kohai.restate", { holder: holderName(p.shown.world, holder) }, "restate", requestFor(ctx, p, "restate"));
+  const base = lineOf(ctx, "kohai.restate", { holder: holderName(p.shown.world, holder) }, "restate", requestOrNull(ctx, p, "restate"));
   const words = wordsOf(p);
   if (words.length === 0 || base.text === "") return base;
   // The child's tapped word is handed back as it is, never put in other words (第6.8節 関門9).

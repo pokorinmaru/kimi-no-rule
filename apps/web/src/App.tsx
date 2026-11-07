@@ -87,6 +87,7 @@ function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"
         </p>
       </div>
       <WorldView
+        {...(view.orderOnly ? { correct: view.world } : {})}
         world={view.world}
         cardHolder={cardHolder}
         childNumbers={childNumbers}

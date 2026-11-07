@@ -213,7 +213,7 @@ const JA: UiText = {
     label: "おうちの人の同意",
     lines: [
       "保護者の方へ",
-      "後輩の言葉と読み方の研究のために、問題、子どもが置いた「1」の札（この端末に残っている前の回の置き方も含みます）、子どもがタップした問題文の言葉を、Anthropic の Claude に送ります。",
+      "後輩の言葉と読み方の研究のために、問題、子どもが置いた「1」の札（この端末に残っている前の回の置き方も含みます）、子どもがタップした問題文の言葉、子どもが直したルールカードの読み方（後輩の世界として）を、Anthropic の Claude に送ります。",
       "子どもの名前や、声、自由に書いた言葉は送りません。送ったものは、Anthropic の方針に従って Anthropic 側に一定の期間残ることがあります。",
       "このアプリの記録はこの端末の中にだけしまい、保護者の画面からいつでも消せます。2問目からの後輩は、1問目の子どもの置き方から作った読み方や、子どもが直したルールカードの読み方で読むことがあります。",
       "「同意する」は、保護者の方が押してください。",
@@ -313,7 +313,7 @@ const EN: UiText = {
     label: "Consent from a parent or guardian",
     lines: [
       "For parents and guardians",
-      'For the junior\'s words and for research on ways of reading, this app sends the problem, where the child put the "1" card (including earlier placements kept on this device) and the words of the problem the child tapped to Anthropic\'s Claude.',
+      'For the junior\'s words and for research on ways of reading, this app sends the problem, where the child put the "1" card (including earlier placements kept on this device) the words of the problem the child tapped, and the way of reading on the rule card the child fixed (as the junior world) to Anthropic\'s Claude.',
       "It does not send the child's name, voice or anything the child wrote freely. What is sent may be kept by Anthropic for some time under Anthropic's policies.",
       "This app keeps its records only on this device, and you can delete them at any time from the parent screen. From the second problem, the junior may read with a way of reading made from how the child placed the card on the first problem, or with the rule card the child fixed.",
       'Please have a parent or guardian press "I agree".',
