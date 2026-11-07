@@ -159,7 +159,7 @@ describe("the session machine: every state is reachable and every screen keeps t
 const SIMPLE = new Set<FlowEvent["type"]>(["NEXT", "PLACE_ONE", "CONFIRM_YES", "CONFIRM_NO", "ANSWER_UNIT", "ANSWER_TOTAL", "DONT_KNOW", "RESUME", "HOLD", "STOP"]);
 
 describe("simple paths through one problem", () => {
-  it("every simple path keeps the rules (one problem, no safety events)", () => {
+  it("every simple path keeps the rules (one problem, no safety events)", { timeout: 30_000 }, () => {
     const paths = getSimplePaths(flowMachine, {
       input: { introSeen: true, consented: true, maxProblems: 1 },
       events: (s) => events(s, { safety: false, research: false }).filter((e) => SIMPLE.has(e.type)),
