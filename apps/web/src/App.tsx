@@ -6,6 +6,8 @@ import { AiBadge } from "./draw/AiBadge.tsx";
 import { SceneView } from "./draw/SceneView.tsx";
 import { SentenceList } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
+import { ObjectSceneView } from "./draw/ObjectScene.tsx";
+import { holderColors } from "./draw/holder-colors.ts";
 import { startSession, type Session } from "./flow/session.ts";
 import { TRANSFER_LINKS, bankFor } from "./flow/bank.ts";
 import { viewOf, type CardScreenView, type FlowSnapshot, type FlowView, type GuessView, type HelpView, type ProblemView, type WordbookView } from "./flow/view.ts";
@@ -116,6 +118,7 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
         statements={view.statements}
         readings={ruby ? problemReadings : null}
         readingIndex={readingIndex}
+        holders={holderColors(view.world.holders)}
         checks={view.step === "reading" ? null : checks}
         {...(view.canPlace ? { onTapWord: (i: number, t: number) => send({ type: "TAP_WORD", statementIndex: i, token: t }) } : {})}
         label={t.sentences}
@@ -139,6 +142,7 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
         // The child may tell the junior by talking (指示書 第7.1節 手順5); the card below always stays.
         <VoicePanel lang={view.lang} text={t.voice} make={voice.make} canTalk={view.voice.canTalk} off={view.voice.off} onFinal={voice.hear} />
       )}
+      {view.stage !== null && <ObjectSceneView scene={view.stage} lang={view.lang} />}
       <WorldView
         {...(view.orderOnly ? { correct: view.world } : {})}
         world={view.world}
@@ -346,7 +350,8 @@ function CardScreen({ view, send }: { view: CardScreenView; send: Session["send"
           const checks: StatementCheck[] = g.statements.map((s) => ({ index: s.index, verdict: s.lit ? "fails" : "holds", cues: [] }) as StatementCheck);
           return (
             <li key={g.problemId} data-testid="gallery-item" data-problem-id={g.problemId} style={{ borderTop: "1px solid #cbd2d9", paddingTop: 8 }}>
-              <SentenceList statements={g.statements} checks={checks} label={t.problem.sentences} lang={view.lang} />
+              <SentenceList statements={g.statements} checks={checks} label={t.problem.sentences} lang={view.lang} {...(g.world !== null ? { holders: holderColors(g.world.holders) } : {})} />
+              {g.stage !== null && <ObjectSceneView scene={g.stage} lang={view.lang} />}
               {g.world !== null && (
                 <WorldView
                   world={g.world}

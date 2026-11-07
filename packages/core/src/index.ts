@@ -178,6 +178,7 @@ export { countsAsObservation } from "./rules/weights.ts";
 export { FRACTION_BANK } from "../fixtures/problems/fraction-bank.ts";
 export { acceptStored, withStored } from "./problems/stored.ts";
 export { judgeAnswer, judgeUnitValue } from "./answers/index.ts";
+export { MAX_THINGS, amountValue, drawnValues, objectScene, type ObjectScene, type StageAmount, type StageHolder } from "./stage/index.ts";
 export {
   SCENE_MATERIALS,
   SCENE_MATERIAL_IDS,

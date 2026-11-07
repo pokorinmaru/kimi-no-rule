@@ -4,9 +4,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { StatementCheck } from "@kimi/core";
+import { readingsFor, type StatementCheck } from "@kimi/core";
 import { signboardRecord } from "../../../../packages/core/fixtures/problems/signboard-record.ts";
-import { SentenceList } from "./SentenceList.tsx";
+import { SentenceList, splitByHolders } from "./SentenceList.tsx";
+import { HOLDER_COLORS, holderColors } from "./holder-colors.ts";
 import { AiBadge } from "./AiBadge.tsx";
 
 afterEach(() => {
@@ -100,5 +101,41 @@ describe("AiBadge", () => {
   it("always shows 「AI」", () => {
     render(<AiBadge />);
     expect(screen.getByText("AI")).toBeTruthy();
+  });
+});
+
+describe("the holders' names in the stage picture's colours", () => {
+  const holders = holderColors(signboardRecord.world.holders);
+
+  it("colours each holder's name, with ruby kept, and leaves the other words as they are", () => {
+    const { container } = render(<SentenceList statements={statements} holders={holders} readings={readingsFor("p_signboard")} />);
+    const names = [...container.querySelectorAll<HTMLElement>('[data-role="holder-name"]')];
+    const base = (n: Element): string => {
+      const c = n.cloneNode(true) as Element;
+      for (const rt of [...c.querySelectorAll("rt")]) rt.remove();
+      return c.textContent ?? "";
+    };
+    expect(names.map(base)).toEqual(["兄", "弟", "弟"]);
+    expect(names[0]?.querySelector("rt")).not.toBeNull();
+    const ani = holders.find((h) => h.label === "兄")?.color.ink ?? "";
+    const oto = holders.find((h) => h.label === "弟")?.color.ink ?? "";
+    expect(ani).not.toBe(oto);
+    expect(names[0]?.style.color).not.toBe(names[1]?.style.color);
+    expect(container.querySelector("li")?.querySelector("rt")).not.toBeNull();
+  });
+
+  it("colours a tappable word that is a holder's name", () => {
+    const { container } = render(<SentenceList statements={statements} holders={holders} onTapWord={() => undefined} />);
+    const names = [...container.querySelectorAll('button[data-role="holder-name"]')];
+    expect(names.map((n) => n.textContent)).toEqual(["兄", "弟", "弟"]);
+  });
+
+  it("cuts a text at the names, longest first", () => {
+    const h = (label: string) => ({ label, color: HOLDER_COLORS[0] ?? { fill: "", ink: "" } });
+    expect(splitByHolders("赤い花と白い花", [h("白い花"), h("赤い花")]).map((p) => [p.text, p.holder?.label ?? null])).toEqual([
+      ["赤い花", "赤い花"],
+      ["と", null],
+      ["白い花", "白い花"],
+    ]);
   });
 });

@@ -10,3 +10,4 @@ test-results/
 .claude/hooks/.cache/
 *.log
 evals/results/
+tools/asset-builder/out/

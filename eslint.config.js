@@ -3,7 +3,8 @@ import tseslint from "typescript-eslint";
 import globals from "globals";
 
 export default tseslint.config(
-  { ignores: ["**/node_modules/**", "**/dist/**", "**/playwright-report/**", "**/test-results/**"] },
+  // tools/asset-builder/out holds generated candidates and scratch helpers (gitignored), not code of the repo.
+  { ignores: ["**/node_modules/**", "**/dist/**", "**/playwright-report/**", "**/test-results/**", "tools/asset-builder/out/**"] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {

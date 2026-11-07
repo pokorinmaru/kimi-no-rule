@@ -179,7 +179,8 @@ describe("the session machine: every state is reachable and every screen keeps t
     expect(all.filter((id) => !reached.has(id))).toEqual([]);
   });
 
-  it("keeps the rules on every screen of every shortest path", () => {
+  // Walks every shortest path: heavy, so it gets the same room as the simple-path walk (it timed out at 5 s under load).
+  it("keeps the rules on every screen of every shortest path", { timeout: 60_000 }, () => {
     expect(paths.length).toBeGreaterThan(50);
     expect(checkAll(paths)).toBeGreaterThan(50);
   });
@@ -956,7 +957,7 @@ function checkScreenEn(s: Snap): void {
 }
 
 describe("the English screen", () => {
-  it("every screen of every shortest path has no Japanese UI string, no forbidden phrase and no number", () => {
+  it("every screen of every shortest path has no Japanese UI string, no forbidden phrase and no number", { timeout: 60_000 }, () => {
     const paths = walk({ ...FRESH, lang: "en" }, { safety: true, research: true });
     const seen = new Map<string, Snap>();
     for (const p of paths) for (const st of p.steps) seen.set(key(st.state) + JSON.stringify(st.state.context.problem?.placement ?? null), st.state);

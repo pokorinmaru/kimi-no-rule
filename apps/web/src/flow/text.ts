@@ -207,6 +207,17 @@ export interface UiText {
     fails: (sentence: string) => string;
     jagged: (label: string) => string;
     join: (parts: readonly string[]) => string;
+    /** The stage picture above the tape: its name and its description of what is drawn (never a verdict). */
+    stage: string;
+    stageHolder: (label: string, noun: string, count: string) => string;
+    stageUnknown: (label: string, noun: string) => string;
+    stageEmpty: (label: string, noun: string) => string;
+    stageDishes: (label: string, noun: string, dishes: number) => string;
+    stageEach: (count: string) => string;
+    /** A thing that is not whole: cut (with a cut edge) or ghost (the missing part a dashed outline). */
+    stageCut: (noun: string, half: boolean, ghost: boolean) => string;
+    /** A number of things as drawn: wholes and the last piece. */
+    amount: (wholes: number, piece: { num: number; den: number } | null, counter: string) => string;
   };
 }
 
@@ -382,6 +393,19 @@ const JA: UiText = {
     /** The drawn mark of a world that cannot happen, described as drawn (never a verdict on the sentences). */
     jagged: (label) => `${label}の テープの はしが ぎざぎざです`,
     join: (parts) => parts.join("。") + "。",
+    stage: "せかいの え",
+    stageHolder: (label, noun, count) => `${label}の ${noun}は ${count}`,
+    stageUnknown: (label, noun) => `${label}の ${noun}は 「？」`,
+    stageEmpty: (label, noun) => `${label}の ${noun}は えに かけません`,
+    stageDishes: (label, noun, dishes) => `${label}の ${noun}は ${String(dishes)}まいの おさらに わけてあります`,
+    stageEach: (count) => `おさら ひとつに ${count}`,
+    stageCut: (noun, half, ghost) =>
+      ghost ? (half ? `はんぶんだけの ${noun}が あります` : `かけた ${noun}が あります`) : half ? `はんぶんに きれた ${noun}が あります` : `きれた ${noun}が あります`,
+    amount: (wholes, piece, counter) => {
+      const p = piece === null ? "" : piece.num * 2 === piece.den ? "はんぶん" : `${String(piece.den)}ぶんの${String(piece.num)}`;
+      if (wholes === 0) return p === "" ? `0${counter}` : p;
+      return p === "" ? `${String(wholes)}${counter}` : `${String(wholes)}${counter}と ${p}`;
+    },
   },
 };
 
@@ -525,6 +549,20 @@ const EN: UiText = {
     fails: (s) => `"${s}" does not fit this world`,
     jagged: (label) => `The end of the tape of ${label} is jagged`,
     join: (parts) => parts.join(". ") + ".",
+    stage: "The world's picture",
+    stageHolder: (label, noun, count) => `${label}: ${noun}, ${count}`,
+    stageUnknown: (label, noun) => `${label}: ${noun}, "?"`,
+    stageEmpty: (label, noun) => `${label}: ${noun} that cannot be drawn`,
+    stageDishes: (label, noun, dishes) => `${label}'s ${noun} are shared onto ${String(dishes)} dishes`,
+    stageEach: (count) => `${count} on each dish`,
+    stageCut: (noun, half, ghost) =>
+      ghost ? (half ? `There is half a ${noun}` : `There is part of a ${noun}`) : half ? `There is a ${noun} cut in half` : `There is a cut ${noun}`,
+    amount: (wholes, piece, counter) => {
+      const p = piece === null ? "" : piece.num * 2 === piece.den ? "a half" : `${String(piece.num)}/${String(piece.den)}`;
+      const w = `${String(wholes)} ${counter}`.trim();
+      if (wholes === 0) return p === "" ? w : p;
+      return p === "" ? w : `${w} and ${p}`;
+    },
   },
 };
 

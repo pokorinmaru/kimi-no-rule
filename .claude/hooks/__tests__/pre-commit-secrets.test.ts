@@ -16,7 +16,19 @@ const FAKE = {
 
 function repo(files: Record<string, string>, stage: boolean): string {
   const dir = tempDir("git");
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, stdio: "pipe" });
+  // Windows sometimes holds a fresh .git/config for a moment ("could not write config file: Permission denied"
+  // under load, seen twice on 2026-11-08); a short retry keeps the test about the hook, not the file system.
+  const git = (...args: string[]) => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return execFileSync("git", args, { cwd: dir, stdio: "pipe" });
+      } catch (e) {
+        const text = e instanceof Error ? e.message : String(e);
+        if (attempt >= 5 || !/Permission denied|could not lock/i.test(text)) throw e;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 200 * attempt);
+      }
+    }
+  };
   git("init", "-q", "-b", "main");
   git("config", "user.name", "fixture");
   git("config", "user.email", ["fixture", "example.com"].join(String.fromCharCode(64)));

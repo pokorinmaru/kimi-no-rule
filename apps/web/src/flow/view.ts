@@ -1,7 +1,7 @@
 // What each screen shows, from a snapshot of the session machine. The screens draw only this, so the
 // tests can read every word a child may see (childTexts) on every path.
 import type { SnapshotFrom } from "xstate";
-import { CARD_RULES, apply, cardSlot, checkScene, fromSchema, gate, sceneAvoidValues, readingCard, render, toString, verifiedDrawWorld, viewScene, wordbookPage, type GateContext, type Hypothesis, type Lang, type ProblemRecord, type Rational, type Scene, type WordbookPageView, type WorldScene } from "@kimi/core";
+import { CARD_RULES, apply, cardSlot, checkScene, fromSchema, gate, objectScene, type ObjectScene, sceneAvoidValues, readingCard, render, toString, verifiedDrawWorld, viewScene, wordbookPage, type GateContext, type Hypothesis, type Lang, type ProblemRecord, type Rational, type Scene, type WordbookPageView, type WorldScene } from "@kimi/core";
 import type { CardScenes } from "./machine.ts";
 import { MAX_VOICE_TURNS, bookPageId, guessHolders, helpHolders, type PredictionAnswer, type ProblemState, type flowMachine } from "./machine.ts";
 import { gateContext } from "./problem.ts";
@@ -30,6 +30,11 @@ export interface ProblemView extends Common {
   statements: { index: number; text: string; tokens: string[]; isQuestion: boolean; lit: boolean }[];
   /** The world to draw (verified by core). The asked quantity has no value in it. */
   world: WorldScene;
+  /**
+   * The stage picture above the tape (指示書 第8節): core's objectScene of `world` against the correct world and
+   * the numbers the child said; null when core draws no things (not countable things).
+   */
+  stage: ObjectScene | null;
   /** The relation whose "1" card the child moves, and the quantity the card sits on now. */
   relationId: string;
   one: string | null;
@@ -73,6 +78,8 @@ export interface GalleryView {
   statements: { index: number; text: string; tokens: string[]; lit: boolean }[];
   /** The world the card's rule builds there (verified by core; the asked quantity has no value), or null when core refused it. */
   world: WorldScene | null;
+  /** The stage picture of that world (core's objectScene against the problem's correct world), or null. */
+  stage: ObjectScene | null;
   glowIds: string[];
 }
 
@@ -249,6 +256,7 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
           problemId: g.record.world.problem_id,
           statements: g.record.statements.map((st) => ({ index: st.index, text: st.text, tokens: [...st.tokens], lit: lit.has(st.index) })),
           world: g.shown?.world ?? null,
+          stage: g.shown === null || g.shown === undefined ? null : objectScene(g.shown.world, g.record.world, { values: [] }),
           glowIds: [...new Set(g.record.statements.filter((st) => lit.has(st.index)).flatMap((st) => st.element_ids))],
         };
       }),
@@ -323,6 +331,7 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
     problemId: p.record.world.problem_id,
     statements: p.record.statements.map((st) => ({ index: st.index, text: st.text, tokens: [...st.tokens], isQuestion: st.is_question, lit: lit.has(st.index) })),
     world: p.shown.world,
+    stage: objectScene(p.shown.world, p.record.world, { values: [p.unitValue, p.totalValue].filter((x): x is Rational => x !== null) }),
     relationId: p.relationId,
     one: orderOnly ? null : (rel?.reference ?? null),
     orderOnly,

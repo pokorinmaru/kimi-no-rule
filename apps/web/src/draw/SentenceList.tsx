@@ -1,11 +1,52 @@
 // The problem's sentences, numbered (指示書 第8.5節 文と世界の結び). The verdicts come from core's
 // checkStatements; this list never judges. A sentence glows only when core says it fails.
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { rubySegments, rubyTokens, type Lang, type Readings, type StatementCheck } from "@kimi/core";
 import { ui } from "../flow/text.ts";
 import { useAnimation, useReducedMotion } from "./motion.ts";
 import { COLORS, FONT } from "./theme.ts";
 import { rubyNodes } from "../ui/Ruby.tsx";
+import type { HolderColor } from "./holder-colors.ts";
+
+/** A holder's name in the sentences and its colour in the stage picture (指示書 第8.4節: with an underline too). */
+export interface HolderInk {
+  label: string;
+  color: HolderColor;
+}
+
+function inked(node: ReactNode, color: HolderColor, key: string | number): ReactNode {
+  return (
+    <span key={key} data-role="holder-name" style={{ color: color.ink, borderBottom: `3px solid ${color.fill}` }}>
+      {node}
+    </span>
+  );
+}
+
+/** The text cut at the holders' names (longest first), so each name can be coloured. */
+export function splitByHolders(text: string, holders: readonly HolderInk[]): { text: string; holder: HolderInk | null }[] {
+  const names = [...holders].filter((h) => h.label !== "").sort((a, b) => b.label.length - a.label.length);
+  const out: { text: string; holder: HolderInk | null }[] = [];
+  let rest = text;
+  while (rest !== "") {
+    let at = -1;
+    let hit: HolderInk | null = null;
+    for (const h of names) {
+      const i = rest.indexOf(h.label);
+      if (i >= 0 && (at < 0 || i < at)) {
+        at = i;
+        hit = h;
+      }
+    }
+    if (hit === null || at < 0) {
+      out.push({ text: rest, holder: null });
+      break;
+    }
+    if (at > 0) out.push({ text: rest.slice(0, at), holder: null });
+    out.push({ text: hit.label, holder: hit });
+    rest = rest.slice(at + hit.label.length);
+  }
+  return out;
+}
 
 export interface SentenceItem {
   index: number;
@@ -29,6 +70,8 @@ export interface SentenceListProps {
   readings?: Readings | null;
   /** The sentence being read aloud (its index), lit with a fixed outline; absent or null = none. */
   readingIndex?: number | null;
+  /** The holders' names, coloured as in the stage picture; absent = none. */
+  holders?: readonly HolderInk[];
 }
 
 const srOnly = {
@@ -48,6 +91,7 @@ function Sentence({
   glowText,
   readings,
   reading,
+  holders,
 }: {
   s: SentenceItem;
   glow: boolean;
@@ -56,8 +100,10 @@ function Sentence({
   glowText: string;
   readings: Readings | null;
   reading: boolean;
+  holders: readonly HolderInk[];
 }) {
   const perToken = readings === null ? null : rubyTokens(s.tokens, readings);
+  const holderOf = (t: string): HolderInk | undefined => holders.find((x) => x.label === t);
   const halo = useRef<HTMLSpanElement>(null);
   useAnimation(halo, "pulse", [{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }], glow && !reduced, `${String(s.index)}`, true);
   return (
@@ -115,14 +161,16 @@ function Sentence({
         }}
       >
         {onTapWord === undefined
-          ? readings === null
-            ? s.tokens.join("")
-            : rubyNodes(rubySegments(s.tokens.join(""), readings))
+          ? splitByHolders(s.tokens.join(""), holders).map((part, i) => {
+              const node = readings === null ? part.text : rubyNodes(rubySegments(part.text, readings));
+              return part.holder === null ? <span key={i}>{node}</span> : inked(node, part.holder.color, i);
+            })
           : s.tokens.map((t, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => onTapWord(s.index, i)}
+                {...(holderOf(t) === undefined ? {} : { "data-role": "holder-name" })}
                 style={{
                   minHeight: "44px",
                   minWidth: "44px",
@@ -131,10 +179,12 @@ function Sentence({
                   border: "none",
                   borderRadius: 6,
                   background: "transparent",
-                  color: "inherit",
+                  color: holderOf(t)?.color.ink ?? "inherit",
                   font: "inherit",
                   textDecoration: "inherit",
                   cursor: "pointer",
+                  // A holder's name: its colour and an underline in it (the button stays the word's only wrapper).
+                  ...(holderOf(t) === undefined ? {} : { borderBottom: `3px solid ${holderOf(t)?.color.fill ?? ""}`, borderRadius: 0 }),
                 }}
               >
                 {perToken === null ? t : rubyNodes(perToken[i] ?? [{ text: t, ruby: null }])}
@@ -155,6 +205,7 @@ export function SentenceList({
   label = ui(lang).draw.sentences,
   readings = null,
   readingIndex = null,
+  holders = [],
 }: SentenceListProps) {
   const glowText = ui(lang).draw.glow;
   const reduced = useReducedMotion(reducedMotion);
@@ -171,6 +222,7 @@ export function SentenceList({
           glowText={glowText}
           readings={readings}
           reading={readingIndex === s.index}
+          holders={holders}
         />
       ))}
     </ol>
