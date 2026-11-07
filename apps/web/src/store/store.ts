@@ -138,9 +138,20 @@ function interpretationOf(log: ProblemLog): Interpretation {
 export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
   const db = new KimiDB(name);
   const getBool = async (key: string): Promise<boolean> => (await db.settings.get(key))?.value === true;
+  // The language is a display setting, also kept synchronously in localStorage: a reload right after the
+  // switch could come before the IndexedDB write lands (seen in CI). Storage may be unavailable: ignore it.
+  const langKey = `${name}:lang`;
+  const localLang = (): Lang | null => {
+    try {
+      const v = globalThis.localStorage?.getItem(langKey);
+      return v === "en" || v === "ja" ? v : null;
+    } catch {
+      return null;
+    }
+  };
   return {
     async getSettings() {
-      const lang = (await db.settings.get("lang"))?.value === "en" ? "en" : "ja";
+      const lang = localLang() ?? ((await db.settings.get("lang"))?.value === "en" ? "en" : "ja");
       return { consented: await getBool("consented"), introSeen: await getBool("introSeen"), lang };
     },
     async setConsent(v) {
@@ -150,6 +161,11 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
       await db.settings.put({ key: "introSeen", value: v });
     },
     async setLang(lang) {
+      try {
+        globalThis.localStorage?.setItem(langKey, lang);
+      } catch {
+        // the IndexedDB copy below still keeps it
+      }
       await db.settings.put({ key: "lang", value: lang });
     },
     async addAttempt(log) {
