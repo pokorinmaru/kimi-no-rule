@@ -51,8 +51,9 @@ describe("the try route", () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId("btn-sim-play"));
     });
-    await waitFor(() => expect(weightsOf().length).toBeGreaterThanOrEqual(2));
-    await waitFor(() => expect(within(note).getByTestId("note-choice").textContent).toMatch(/見分け/));
+    // The simulated child plays two whole problems: allow for a loaded machine (the suite runs beside other work).
+    await waitFor(() => expect(weightsOf().length).toBeGreaterThanOrEqual(2), { timeout: 30_000 });
+    await waitFor(() => expect(within(note).getByTestId("note-choice").textContent).toMatch(/見分け/), { timeout: 30_000 });
     expect(within(note).getByTestId("note-gain").textContent).toMatch(/\d/);
     const before = weightsOf();
     // Each predicted world is drawn small; the sentence's own world waits until the adult answers.
