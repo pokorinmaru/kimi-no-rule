@@ -22,7 +22,19 @@ export interface EvalsInput {
   leak?: { results: LeakResult[]; notRun: NotRun[]; rows: number; k: number };
   /** A heading note, e.g. which problem set the rows come from. */
   note?: string;
+  /**
+   * Rows written by a third-party adult (指示書 第10.1節・第10.3節), run like the AI drafts and shown as their
+   * own rows, never added into the AI-draft numbers. Absent, or both null: one line says there are none yet.
+   */
+  thirdParty?: {
+    safety: { rows: number; results: { name: string; result: SafetyResult }[] } | null;
+    leak: { rows: number; results: LeakResult[] } | null;
+  };
 }
+
+/** The suffix that names a row computed on third-party rows only. */
+export const THIRD_PARTY_SUFFIX = "（第三者の行）";
+export const NO_THIRD_PARTY = "第三者が書いた行はまだ無い（数字はすべて AI の下書きの行。足し方は evals/third-party/README.md）。";
 
 const pct = (x: number): string => `${(x * 100).toFixed(1)}%`;
 const rateCell = (r: Rate): string => (r.n === 0 ? "—" : `${r.k}/${r.n} (${pct(r.k / r.n)}; 95% CI ${pct(r.low)}–${pct(r.high)})`);
@@ -47,8 +59,14 @@ export function renderEvalsMd(input: EvalsInput): string {
     "",
   ];
   if (input.note !== undefined) out.push(input.note, "");
+  const tp = input.thirdParty;
+  if (tp === undefined || (tp.safety === null && tp.leak === null)) out.push(NO_THIRD_PARTY, "");
+  else {
+    const parts = [tp.safety === null ? null : `安全 ${tp.safety.rows} 行`, tp.leak === null ? null : `後輩の言葉 ${tp.leak.rows} 行`].filter((x) => x !== null);
+    out.push(`第三者が書いた行（${parts.join("、")}）は、名前に「${THIRD_PARTY_SUFFIX}」を付けた別の行に出す。AI の下書きの行の数字には足していない。`, "");
+  }
 
-  if (input.leak !== undefined) out.push(...leakSection(input.leak));
+  if (input.leak !== undefined) out.push(...leakSection(input.leak, tp?.leak?.results ?? []));
 
   out.push("## 解釈の評価（聞く層）", "", `各行を k=${input.interpret.k} 回聞いた。世界の一致・層の一致は1回目、pass^k は k 回すべて一致した行。`, "");
   out.push("層の一致（層のある行）は、期待の読みに層がある行だけで数えたもの。何も言わない返事は、層の無い行では層が一致してしまうため。", "");
@@ -78,7 +96,7 @@ export function renderEvalsMd(input: EvalsInput): string {
     "",
   );
   out.push("| check | distress の検出 | 取りこぼし | 取りこぼし率の上限 (片側95%) | 誤検知（none の行） | 不適切の検出 |", "| --- | --- | --- | --- | --- | --- |");
-  for (const { name, result } of input.safety.results) {
+  for (const { name, result } of [...input.safety.results, ...(tp?.safety?.results ?? []).map((r) => ({ ...r, name: `${r.name}${THIRD_PARTY_SUFFIX}` }))]) {
     out.push(
       `| ${cell(name)} | ${rateCell(result.recall)} | ${result.misses.length === 0 ? "なし" : result.misses.join(", ")} | ${pct(result.missUpper)} (${result.missUpper.toFixed(3)}) | ${rateCell(result.falseAlarms)}${result.falseAlarms.ids.length === 0 ? "" : ` ${result.falseAlarms.ids.join(", ")}`} | ${rateCell(result.inappropriate)} |`,
     );
@@ -139,7 +157,7 @@ function researchSection(r: NonNullable<EvalsInput["research"]>): string[] {
   return out;
 }
 
-function leakSection(l: NonNullable<EvalsInput["leak"]>): string[] {
+function leakSection(l: NonNullable<EvalsInput["leak"]>, thirdParty: readonly LeakResult[]): string[] {
   const out: string[] = [
     "## 後輩の言葉の漏れの比較",
     "",
@@ -148,7 +166,7 @@ function leakSection(l: NonNullable<EvalsInput["leak"]>): string[] {
     "| junior | 漏れた発話 | 答えと途中の値 | 演算の名前 | 正誤を言う言葉 |",
     "| --- | --- | --- | --- | --- |",
   ];
-  for (const r of l.results) {
+  for (const r of [...l.results, ...thirdParty.map((x) => ({ ...x, name: `${x.name}${THIRD_PARTY_SUFFIX}` }))]) {
     out.push(`| ${cell(r.name)} | ${ratio(r.leaked, r.lines)} | ${r.byKind.answer_leak} | ${r.byKind.operation_name} | ${r.byKind.judging} |`);
   }
   for (const n of l.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | |`);

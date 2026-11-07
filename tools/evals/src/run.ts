@@ -2,21 +2,24 @@
 //   pnpm eval       the keyword baseline and the device dictionary only (no Claude, no key needed)
 //   pnpm eval:live  also Haiku, Sonnet and Opus (needs ANTHROPIC_API_KEY in the environment)
 // Neither the transcripts nor the replies are logged; only the numbers go into EVALS.md.
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { FRACTION_BANK, type AnyOp, type ProblemRecord } from "@kimi/core";
 import { parseKeywords } from "@kimi/baseline-parser";
 import { MODELS, anthropicAgentClient, anthropicClient, checkSafety, interpret, writeHypotheses, type ClaudeClient } from "@kimi/interpret";
 import { PROVISIONAL } from "../../../packages/core/fixtures/problems/provisional.ts";
 import { interpretRow, loadJsonl, safetyRow } from "./dataset.ts";
 import { runInterpretEval, type EvalSystem } from "./interpret-eval.ts";
-import { renderEvalsMd, type NotRun } from "./report.ts";
+import { renderEvalsMd, type EvalsInput, type NotRun } from "./report.ts";
 import { runSafetyEval } from "./safety-eval.ts";
 import { SIM_CHILDREN } from "./research-children.ts";
 import { appJunior, kohaiRow, runLeakEval, shushedJunior, silentClient, type Junior } from "./kohai-eval.ts";
+import { THIRD_PARTY } from "./third-party.ts";
 import { MAX_PROBLEMS, RESEARCH_SEEDS, RESEARCH_SEEDS_CLAUDE, baselineResearchers, poolResearcher, runResearchEval, type Researcher } from "./research-eval.ts";
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string): string => readFileSync(new URL(p, root), "utf8");
+/** A file that may not exist yet (the third-party rows), read when it does. */
+const readIfAny = (p: string): string | null => (existsSync(new URL(p, root)) ? read(p) : null);
 
 /** A client that never answers: checkSafety then falls back to the device dictionary. */
 const noClaude: ClaudeClient = {
@@ -77,11 +80,16 @@ async function main(): Promise<void> {
   notRun.push({ name: "Anthropic 以外の LLM", reason: "使える環境が無い（任意の比較）" });
 
   const results = await runInterpretEval({ rows: interpretRows, records, systems, k });
-  const safety: { name: string; result: Awaited<ReturnType<typeof runSafetyEval>> }[] = [
-    { name: "端末の辞書だけ（Claude が答えない時）", result: await runSafetyEval(safetyRows, async (t) => (await checkSafety(t, noClaude)).flag) },
-  ];
+  // The same safety checks run on the AI drafts and, apart, on the rows a third party wrote (only on test).
+  const safetyChecks = async (rows: typeof safetyRows): Promise<{ name: string; result: Awaited<ReturnType<typeof runSafetyEval>> }[]> => {
+    const out = [{ name: "端末の辞書だけ（Claude が答えない時）", result: await runSafetyEval(rows, async (t) => (await checkSafety(t, noClaude)).flag) }];
+    if (client !== null) out.push({ name: "haiku-5.5（辞書への切り替えを含む）", result: await runSafetyEval(rows, async (t) => (await checkSafety(t, client)).flag) });
+    return out;
+  };
+  const safety = await safetyChecks(safetyRows);
   if (client === null) safetyNotRun.push({ name: "haiku-5.5（辞書への切り替えを含む）", reason: "API キー待ち（BLOCKED B3）" });
-  else safety.push({ name: "haiku-5.5（辞書への切り替えを含む）", result: await runSafetyEval(safetyRows, async (t) => (await checkSafety(t, client)).flag) });
+  const tpSafetyText = tune ? null : readIfAny(THIRD_PARTY.safetyJsonl);
+  const tpSafetyRows = tpSafetyText === null ? [] : loadJsonl(tpSafetyText, safetyRow);
 
   const researchNotRun: NotRun[] = [];
   const research = await runResearchEval(baselineResearchers(FRACTION_BANK), SIM_CHILDREN, FRACTION_BANK, RESEARCH_SEEDS);
@@ -111,12 +119,19 @@ async function main(): Promise<void> {
   }
   const leakK = live ? 5 : 1;
   const leak = await runLeakEval(juniors, leakRows, leakK);
+  const tpLeakText = tune ? null : readIfAny(THIRD_PARTY.kohaiJsonl);
+  const tpLeakRows = tpLeakText === null ? [] : loadJsonl(tpLeakText, kohaiRow);
+  const thirdParty: NonNullable<EvalsInput["thirdParty"]> = {
+    safety: tpSafetyRows.length === 0 ? null : { rows: tpSafetyRows.length, results: await safetyChecks(tpSafetyRows) },
+    leak: tpLeakRows.length === 0 ? null : { rows: tpLeakRows.length, results: await runLeakEval(juniors, tpLeakRows, leakK) },
+  };
 
   const md = renderEvalsMd({
     interpret: { k, baseline: KEYWORD, results, notRun },
     safety: { results: safety, notRun: safetyNotRun },
     data: { interpret: interpretRows, safety: safetyRows },
     leak: { results: leak, notRun: leakNotRun, rows: leakRows.length, k: leakK },
+    thirdParty,
     research: { results: research, notRun: researchNotRun, seeds: RESEARCH_SEEDS.length, maxProblems: MAX_PROBLEMS },
     note: tune
       ? "対象：調整用（tune）の行と【仮】の問題10題。調整の判断にだけ使い、公開しない。"

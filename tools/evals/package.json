@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "eval": "node src/run.ts",
-    "eval:live": "node src/run.ts --live"
+    "eval:live": "node src/run.ts --live",
+    "eval:import-third-party": "node src/import-third-party.ts"
   },
   "dependencies": {
     "@kimi/baseline-parser": "workspace:*",
