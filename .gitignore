@@ -9,3 +9,4 @@ test-results/
 .claude/settings.local.json
 .claude/hooks/.cache/
 *.log
+evals/results/

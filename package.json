@@ -14,6 +14,7 @@
     "prepare": "git config core.hooksPath .githooks || true",
     "eval": "pnpm --filter @kimi/evals eval",
     "eval:live": "pnpm --filter @kimi/evals eval:live",
+    "eval:watch": "pnpm --filter @kimi/evals eval:watch",
     "eval:import-third-party": "pnpm --filter @kimi/evals eval:import-third-party",
     "check:protocol": "node tools/evals/src/check-protocol.ts",
     "build:problems": "pnpm --filter @kimi/world-builder build:problems",

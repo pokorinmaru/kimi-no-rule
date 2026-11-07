@@ -22,6 +22,8 @@ export interface EvalsInput {
   leak?: { results: LeakResult[]; notRun: NotRun[]; rows: number; k: number };
   /** A heading note, e.g. which problem set the rows come from. */
   note?: string;
+  /** Which run each section's numbers come from (sections can come from different runs). */
+  sources?: { section: string; from: string }[];
   /**
    * Rows written by a third-party adult (指示書 第10.1節・第10.3節), run like the AI drafts and shown as their
    * own rows, never added into the AI-draft numbers. Absent, or both null: one line says there are none yet.
@@ -59,6 +61,11 @@ export function renderEvalsMd(input: EvalsInput): string {
     "",
   ];
   if (input.note !== undefined) out.push(input.note, "");
+  if (input.sources !== undefined && input.sources.length > 0) {
+    out.push("数字の出どころ（節ごとに別の実行から来ることがある。実行 id は evals/results/ のフォルダ名）：", "");
+    for (const s of input.sources) out.push(`- ${s.section}：${s.from}`);
+    out.push("");
+  }
   const tp = input.thirdParty;
   if (tp === undefined || (tp.safety === null && tp.leak === null)) out.push(NO_THIRD_PARTY, "");
   else {

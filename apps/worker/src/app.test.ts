@@ -135,7 +135,8 @@ describe("POST /research", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { kind: string; pool: { id: string }[] };
     expect(body.kind).toBe("submitted");
-    expect(body.pool.map((h) => h.id).sort()).toEqual(["c_correct", "c_swap"]);
+    // The agent's two come back, with the common readings the evidence supports added by the floor (Q43).
+    expect(body.pool.map((h) => h.id)).toEqual(expect.arrayContaining(["c_correct", "c_swap"]));
   });
 
   it("says failed when the agent hands in nothing", async () => {

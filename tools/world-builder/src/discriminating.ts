@@ -136,16 +136,30 @@ export interface Made {
 
 const answerText = (r: ProblemRecord): string => (r.expected_answer === null ? "なし" : `${r.expected_answer.num}/${r.expected_answer.den}`);
 
+/** What the caller hears after each pair (the CLI prints a progress line). */
+export interface PairDone {
+  pair: WeakPair;
+  /** 1-based. */
+  index: number;
+  total: number;
+  kept: number;
+  refused: number;
+  /** True when the writer gave no problem text for the pair. */
+  noReply: boolean;
+}
+
 /** One writeDiscriminating per pair; the new records are numbered past those already stored. */
 export async function makeDiscriminating(
   deps: BuildDeps,
   input: { pairs: readonly WeakPair[]; bank: readonly ProblemRecord[]; stored: Stored },
   opts: DiscriminateOptions = {},
+  hooks: { onPair?(done: PairDone): void } = {},
 ): Promise<Made> {
   const made: Made = { accepted: [], pairs: {}, log: "" };
   const lines: string[] = [];
   const known = [...input.bank, ...input.stored.records];
-  for (const pair of input.pairs) {
+  for (const [n, pair] of input.pairs.entries()) {
+    let kept = 0;
     const idPrefix = `p_disc_${pair.a.id}_${pair.b.id}`;
     const taken = [...known, ...made.accepted].map((r) => r.world.problem_id).filter((id) => id.startsWith(`${idPrefix}_`));
     const startIndex = 1 + Math.max(0, ...taken.map((id) => Number(id.slice(idPrefix.length + 1))).filter((n) => Number.isInteger(n)));
@@ -163,10 +177,12 @@ export async function makeDiscriminating(
         lines.push(`採用（人の確認待ち）。答え：${answerText(rec)}`, "");
         made.accepted.push(rec);
         made.pairs[item.problemId] = { readingA: pair.a, readingB: pair.b };
+        kept++;
       } else {
         lines.push(`不採用：${item.reason ?? "unknown"}${item.buildReason === undefined ? "" : `（${item.buildReason}）`}`, "");
       }
     }
+    hooks.onPair?.({ pair, index: n + 1, total: input.pairs.length, kept, refused: res.results.length - kept, noReply: res.writer === "no_reply" });
   }
   made.log = `${lines.join("\n").trimEnd()}\n`;
   return made;

@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { FRACTION_BANK } from "../../fixtures/problems/fraction-bank.ts";
 import { COMMON_FRACTION_READINGS, CORRECT_READING_ID } from "../research/common.ts";
-import { CARD_RULES } from "../research/common.ts";
+import { CARD_RULES } from "../research/card-rules.ts";
 import { schemas } from "../schema/index.ts";
 import { validateWorld } from "../schema/semantic.ts";
 import { solve } from "../solve/index.ts";

@@ -26,7 +26,8 @@ import { hasOperationName, numbersIn } from "../gates/index.ts";
 import { apply } from "../apply/index.ts";
 import { checkStatements } from "../statements/index.ts";
 
-export { CARD_RULE_IDS, CARD_RULES, COMMON_FRACTION_READINGS, COMMON_MISREADINGS, CORRECT_READING_ID } from "./common.ts";
+export { COMMON_FRACTION_READINGS, COMMON_MISREADINGS, CORRECT_READING_ID } from "./common.ts";
+export { CARD_RULE_IDS, CARD_RULES } from "./card-rules.ts";
 
 export const OTHER = "other";
 export const POOL_MAX = 5;

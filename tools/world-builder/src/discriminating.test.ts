@@ -112,6 +112,18 @@ describe("makeDiscriminating and the files", () => {
     expect(readFileSync(join(dir, logFile as string), "utf8")).toContain(log.trim().split("\n")[0] as string);
   });
 
+  it("tells the caller after each pair how many problems were kept and refused (for the progress lines)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "kimi-disc-"));
+    const seen: { a: string; kept: number; refused: number; index: number; total: number }[] = [];
+    await makeDiscriminating(deps, { pairs: [pair, pair], bank: FRACTION_BANK, stored: readStored(dir) }, { build }, {
+      onPair: (p) => seen.push({ a: p.pair.a.id, kept: p.kept, refused: p.refused, index: p.index, total: p.total }),
+    });
+    expect(seen).toEqual([
+      { a: pair.a.id, kept: 1, refused: 0, index: 1, total: 2 },
+      { a: pair.a.id, kept: 1, refused: 0, index: 2, total: 2 },
+    ]);
+  });
+
   it("never writes human_checked true, whatever the record said", () => {
     const dir = mkdtempSync(join(tmpdir(), "kimi-disc-"));
     const rec = asMade(splitting, "p_disc_x_1");
