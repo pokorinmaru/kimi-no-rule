@@ -43,7 +43,7 @@ import {
   type SessionMisread,
   type Shown,
 } from "./problem.ts";
-import { FORBIDDEN_CHILD_PHRASES } from "./text.ts";
+import { hasForbiddenPhrase } from "./text.ts";
 
 export const FIRST_PROBLEM_ID = "p_signboard";
 export const DEFAULT_MAX_PROBLEMS = 3;
@@ -194,7 +194,9 @@ export type FlowEvent =
   | { type: "CLOSE" }
   | { type: "KOHAI_LINE"; seq: number; text: string }
   | { type: "RESEARCH_RESULT"; pool: Hypothesis[] | null }
-  | { type: "SAFETY_RESULT"; flag: SafetyFlagEvent };
+  | { type: "SAFETY_RESULT"; flag: SafetyFlagEvent }
+  /** The screen's language (HANDOFF §7 の4): taken only while no problem is open, so a problem's lines and card stay in one language. */
+  | { type: "SET_LANG"; lang: Lang };
 
 // ---------------------------------------------------------------------------------------------
 // Pure helpers over the context
@@ -292,7 +294,7 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     record,
     relationId: rel.id,
     reading: junior.reading,
-    card: ctx.done.length >= 1 ? readingCard(junior.reading.hypothesis, record) : null,
+    card: ctx.done.length >= 1 ? readingCard(junior.reading.hypothesis, record, ctx.lang) : null,
     base: junior.base,
     shown: junior.shown,
     placement: null,
@@ -424,7 +426,7 @@ function acceptGenerated(ctx: FlowContext, seq: number, text: string): boolean {
   const p = ctx.problem;
   if (l === null || p === null || l.seq !== seq || l.intent === null || l.source !== "template") return false;
   if (typeof text !== "string" || text.length === 0 || text.length > MAX_LINE_CHARS) return false;
-  if (FORBIDDEN_CHILD_PHRASES.some((w) => text.includes(w))) return false;
+  if (hasForbiddenPhrase(text)) return false;
   try {
     return gate({ kind: "say", text }, gateContext(p.record, ctx.lang, said(p))).ok;
   } catch {
@@ -493,6 +495,7 @@ export const flowMachine = setup({
     unchecked: ({ event }) => event.type === "SAFETY_RESULT" && event.flag === "unchecked",
     checkedNone: ({ event }) => event.type === "SAFETY_RESULT" && event.flag === "none",
     researchOpen: ({ context }) => !context.researchApplied && context.researchRequest !== null,
+    noOpenProblem: ({ context }) => context.problem === null || context.problem.logged,
   },
 }).createMachine({
   id: "flow",
@@ -544,6 +547,7 @@ export const flowMachine = setup({
       guard: "researchOpen",
       actions: assign(({ event }) => ({ researchResult: event.type === "RESEARCH_RESULT" && Array.isArray(event.pool) ? event.pool : null })),
     },
+    SET_LANG: { guard: "noOpenProblem", actions: assign(({ context, event }) => (event.type === "SET_LANG" ? { lang: event.lang } : { lang: context.lang })) },
     KOHAI_LINE: {
       guard: "generatedLine",
       actions: assign(({ context, event }) =>

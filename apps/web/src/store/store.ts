@@ -2,12 +2,14 @@
 // The child's words never reach a table: every op is passed through core's redact before it is stored,
 // and the junior's rejected lines and the safety events keep only their kinds and dates.
 import { Dexie, type Table } from "dexie";
-import { hasChildText, initialState, redactInterpretation, type Interpretation, type ResearchState } from "@kimi/core";
+import { hasChildText, initialState, redactInterpretation, type Interpretation, type Lang, type ResearchState } from "@kimi/core";
 import type { ProblemLog } from "../flow/machine.ts";
 
 export interface Settings {
   consented: boolean;
   introSeen: boolean;
+  /** The screen's language (HANDOFF §7 の4); Japanese until it is switched. */
+  lang: Lang;
 }
 
 export interface AttemptRow {
@@ -84,6 +86,7 @@ export interface FlowStore {
   getSettings(): Promise<Settings>;
   setConsent(v: boolean): Promise<void>;
   setIntroSeen(v: boolean): Promise<void>;
+  setLang(lang: Lang): Promise<void>;
   addAttempt(log: ProblemLog): Promise<void>;
   listAttempts(): Promise<AttemptRow[]>;
   saveResearch(state: ResearchState): Promise<void>;
@@ -95,7 +98,8 @@ export interface FlowStore {
   /** One AI-free check: the outcome of each problem given (no number the child typed). */
   addCheck(items: readonly CheckItem[]): Promise<void>;
   listChecks(): Promise<CheckRow[]>;
-  /** Removes every record and setting on this device (the grown-up's screen). */
+  /** Removes every record and setting on this device (the grown-up's screen), except the screen's language:
+   * it is how the screen reads, not a record of the child. */
   deleteAll(): Promise<void>;
   close(): Promise<void>;
 }
@@ -123,13 +127,17 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
   const getBool = async (key: string): Promise<boolean> => (await db.settings.get(key))?.value === true;
   return {
     async getSettings() {
-      return { consented: await getBool("consented"), introSeen: await getBool("introSeen") };
+      const lang = (await db.settings.get("lang"))?.value === "en" ? "en" : "ja";
+      return { consented: await getBool("consented"), introSeen: await getBool("introSeen"), lang };
     },
     async setConsent(v) {
       await db.settings.put({ key: "consented", value: v });
     },
     async setIntroSeen(v) {
       await db.settings.put({ key: "introSeen", value: v });
+    },
+    async setLang(lang) {
+      await db.settings.put({ key: "lang", value: lang });
     },
     async addAttempt(log) {
       await db.attempts.add({
@@ -180,7 +188,9 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
     async deleteAll() {
       const tables = [db.settings, db.attempts, db.research, db.gateLog, db.safetyEvents, db.checks];
       await db.transaction("rw", tables, async () => {
+        const lang = await db.settings.get("lang");
         await Promise.all(tables.map((t) => t.clear()));
+        if (lang !== undefined) await db.settings.put(lang);
       });
     },
     async close() {

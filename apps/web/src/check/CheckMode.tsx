@@ -3,11 +3,11 @@
 // answer was kept. The three buttons stay (原則7): "わからない" leaves the problem, "つらい" stops the math.
 import { useEffect, useRef, useState } from "react";
 import { FRACTION_BANK, type Lang, type ProblemRecord, type Rational } from "@kimi/core";
-import { HELPLINE, hardLines, helplineLine } from "../flow/text.ts";
+import { hardLines, helplineLine, ui } from "../flow/text.ts";
 import type { CheckItem, FlowStore } from "../store/store.ts";
 import { AlwaysNav, Button, NumberPad } from "../ui/controls.tsx";
 import { judgeCheck, pickCheckProblems } from "./check.ts";
-import { CHECK_TEXT } from "./text.ts";
+import { checkText } from "./text.ts";
 
 export interface CheckModeProps {
   store: FlowStore;
@@ -93,18 +93,22 @@ export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_
   };
 
   const mathOn = phase === "answer" || phase === "kept";
+  const t = ui(lang);
+  const CHECK_TEXT = checkText(lang);
+  const HELPLINE = t.helpline;
   return (
     <>
       {phase === "hard" ? (
-        <section aria-label="つらいとき" data-testid="screen-hard">
+        <section aria-label={t.hard.label} data-testid="screen-hard">
           {hardLines(lang).map((l) => (
             <p key={l}>{l}</p>
           ))}
           <h2 style={{ fontSize: 20 }}>{HELPLINE.title}</h2>
           <p>{HELPLINE.pending}</p>
+          {HELPLINE.note !== null && <p>{HELPLINE.note}</p>}
           <ul data-testid="helplines">
             {HELPLINE.entries.map((h) => (
-              <li key={h.number}>{helplineLine(h)}</li>
+              <li key={h.number}>{helplineLine(h, lang)}</li>
             ))}
           </ul>
           <Button onClick={onExit}>{CHECK_TEXT.close}</Button>
@@ -112,17 +116,18 @@ export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_
       ) : (
         <section aria-label={CHECK_TEXT.title}>
           <h2 style={{ fontSize: 22 }}>{CHECK_TEXT.title}</h2>
-          {phase === "loading" && <p>じゅんびしています…</p>}
+          {phase === "loading" && <p>{t.preparing}</p>}
           {mathOn && current !== undefined && (
             <>
               <p>{CHECK_TEXT.lead}</p>
               <p>{CHECK_TEXT.progress(index + 1, problems.length)}</p>
-              <ol data-testid="check-problem" data-problem-id={current.world.problem_id} aria-label="問題の文" style={{ paddingLeft: 24 }}>
+              {t.problem.note !== null && <p data-testid="problem-note">{t.problem.note}</p>}
+              <ol data-testid="check-problem" data-problem-id={current.world.problem_id} aria-label={t.problem.sentences} style={{ paddingLeft: 24 }}>
                 {current.statements.map((s) => (
                   <li key={s.index}>{s.text}</li>
                 ))}
               </ol>
-              {phase === "answer" && <NumberPad key={current.world.problem_id} label={CHECK_TEXT.pad} onAnswer={onAnswer} />}
+              {phase === "answer" && <NumberPad key={current.world.problem_id} label={CHECK_TEXT.pad} onAnswer={onAnswer} lang={lang} />}
               {phase === "kept" && (
                 <>
                   <p data-testid="check-line" aria-live="polite">
@@ -148,7 +153,7 @@ export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_
         </section>
       )}
       {/* "Don't know" skips a problem, so it shows only while an answer can be given. */}
-      <AlwaysNav onStop={onStop} {...(mathOn && phase === "answer" ? { onDontKnow } : {})} onHard={onHard} />
+      <AlwaysNav lang={lang} onStop={onStop} {...(mathOn && phase === "answer" ? { onDontKnow } : {})} onHard={onHard} />
     </>
   );
 }

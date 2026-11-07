@@ -6,6 +6,8 @@
 // the child gave for a quantity. Everything else, the asked quantity first, is drawn as 「？」.
 // A segment carries a value only when the child has said the size of one segment (Q29), and then only on
 // the segments of the 「1」 tape; a tape with segments carries no number card.
+import type { Lang } from "@kimi/core";
+import { ui } from "../flow/text.ts";
 import {
   cmp,
   div,
@@ -353,16 +355,18 @@ export function layoutWorld(world: WorldScene, opts: LayoutOptions = {}): WorldL
  * A spoken description of the tapes (指示書 第8.4b節): names, the number of segments, 「？」 for what is
  * unknown, and the sentence verdicts when given. Never a value that is not drawn.
  */
-export function describeLayout(l: WorldLayout, failingSentences: readonly string[] = []): string {
+export function describeLayout(l: WorldLayout, failingSentences: readonly string[] = [], lang: Lang = "ja"): string {
+  const w = ui(lang).draw;
+  const sep = lang === "en" ? ", " : "、";
   const parts = l.tapes.map((t) => {
-    const cut = t.segments.length > 0 ? `${String(t.segments.length)}つに くぎられています` : "";
+    const cut = t.segments.length > 0 ? w.cut(t.segments.length) : "";
     const one = t.segments[0]?.value;
-    const each = one?.kind === "number" ? `ひと区切りは ${one.text}${one.counter}` : "";
-    const v = t.value.kind === "number" ? `${t.value.text}${t.value.counter}` : t.value.kind === "unknown" ? "「？」" : "";
-    const unit = l.card.placedOn === t.holderId ? "「1」の ふだが あります" : "";
-    return `${t.label}の テープ${[v, cut, each, unit].filter((s) => s !== "").map((s) => `、${s}`).join("")}`;
+    const each = one?.kind === "number" ? w.each(`${one.text}${one.counter}`) : "";
+    const v = t.value.kind === "number" ? `${t.value.text}${t.value.counter}` : t.value.kind === "unknown" ? w.unknown : "";
+    const unit = l.card.placedOn === t.holderId ? w.cardHere : "";
+    return `${w.tape(t.label)}${[v, cut, each, unit].filter((s) => s !== "").map((s) => `${sep}${s}`).join("")}`;
   });
-  const fails = failingSentences.map((s) => `「${s}」は、この世界と 合わない 文です`);
-  const odd = l.impossible ? ["この世界には、問題の 文と 合わない ところが あります"] : [];
-  return [...parts, ...odd, ...fails].join("。") + "。";
+  const fails = failingSentences.map(w.fails);
+  const odd = l.impossible ? [w.odd] : [];
+  return w.join([...parts, ...odd, ...fails]);
 }

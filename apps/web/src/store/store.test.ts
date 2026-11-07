@@ -41,10 +41,32 @@ function log(ops: AnyOp[]): ProblemLog {
 describe("settings", () => {
   it("starts with no consent and the intro not seen, and keeps what is set", async () => {
     const s = fresh();
-    expect(await s.getSettings()).toEqual({ consented: false, introSeen: false });
+    expect(await s.getSettings()).toEqual({ consented: false, introSeen: false, lang: "ja" });
     await s.setConsent(true);
     await s.setIntroSeen(true);
-    expect(await s.getSettings()).toEqual({ consented: true, introSeen: true });
+    expect(await s.getSettings()).toEqual({ consented: true, introSeen: true, lang: "ja" });
+  });
+
+  // HANDOFF §7 の4: the screen's language is chosen on the device and remembered there.
+  it("remembers the screen's language on the device, across a reopen", async () => {
+    const name = `kimi-test-lang-${++n}`;
+    const a = openStore(name);
+    await a.setLang("en");
+    expect((await a.getSettings()).lang).toBe("en");
+    await a.close();
+    const b = openStore(name);
+    stores.push(b);
+    expect((await b.getSettings()).lang).toBe("en");
+    await b.setLang("ja");
+    expect((await b.getSettings()).lang).toBe("ja");
+  });
+
+  it("deleting every record keeps the language: it is how the screen reads, not a record of the child", async () => {
+    const s = fresh();
+    await s.setLang("en");
+    await s.setConsent(true);
+    await s.deleteAll();
+    expect(await s.getSettings()).toEqual({ consented: false, introSeen: false, lang: "en" });
   });
 });
 
@@ -124,7 +146,7 @@ describe("delete everything (the grown-up's screen)", () => {
     await s.logSafety("hard_button");
     await s.addCheck([{ problemId: "p_bank_card", consistency: "consistent", outcome: "right" }]);
     await s.deleteAll();
-    expect(await s.getSettings()).toEqual({ consented: false, introSeen: false });
+    expect(await s.getSettings()).toEqual({ consented: false, introSeen: false, lang: "ja" });
     expect(await s.listAttempts()).toEqual([]);
     expect(await s.listGateLog()).toEqual([]);
     expect(await s.listSafety()).toEqual([]);

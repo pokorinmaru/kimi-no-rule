@@ -141,3 +141,36 @@ test("the AI-free check: three problems, a neutral line after each, and the resu
   await page.getByTestId("btn-parent").click({ delay: 2200 });
   await expect(page.getByTestId("check-results")).toContainText(/\d{4}\/\d{1,2}\/\d{1,2} \d{2}:\d{2}：3問中3問/);
 });
+
+test("in English: switch on the intro, then the first problem with taps; the choice stays after a reload", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/");
+  await page.getByTestId("lang-en").click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Read problems with the junior");
+  await expect(page.getByTestId("btn-next")).toHaveText("Start");
+  await page.reload();
+  await expect(page.getByTestId("btn-next")).toHaveText("Start");
+  await page.getByTestId("btn-next").click();
+  await page.getByTestId("btn-consent-yes").click();
+  // The problem stays as written, with a note in English; the junior's words are English.
+  await expect(page.getByText("The problem is written in Japanese.")).toBeVisible();
+  await expect(page.getByTestId("junior-line")).not.toHaveText("…");
+  await expect(page.getByTestId("junior-line")).not.toContainText(/[\u3040-\u30ff]/);
+  await expect(page.locator("main")).not.toContainText("8匹");
+  await page.getByTestId("btn-next").click();
+  await page.locator('[data-role="reference_mark"]').click();
+  await page.locator('[data-drop-target="h_otouto"]').first().click();
+  // The holder's name stays as in the problem.
+  await expect(page.getByTestId("junior-line")).toContainText("弟");
+  await page.getByTestId("btn-confirm-yes").click();
+  await page.getByTestId("btn-next").click();
+  await expect(page.getByTestId("btn-hard")).toHaveText("I feel bad");
+  await page.getByTestId("pad-2").click();
+  await page.getByTestId("pad-ok").click();
+  await page.getByTestId("pad-8").click();
+  await page.getByTestId("pad-ok").click();
+  await expect(page.getByTestId("btn-next")).toHaveText("Next problem");
+  await page.getByTestId("btn-next").click();
+  await expect(page.getByTestId("reading-card")).toContainText("Junior's reading: ");
+  await expect(page.locator("main")).not.toContainText(/your rule|wrong|correct|mistake/i);
+});

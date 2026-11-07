@@ -5,7 +5,8 @@
 // on a whole tape only: by dragging, by tapping the card then a tape, or by keyboard (focus the card,
 // arrow keys choose a tape, Enter or Space places it, Escape cancels) (指示書 第8.4b節).
 import { useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import type { Rational, WorldScene } from "@kimi/core";
+import type { Lang, Rational, WorldScene } from "@kimi/core";
+import { ui } from "../flow/text.ts";
 import { describeLayout, layoutWorld, type LayoutOptions, type TapeLayout, type ValueLabel } from "./layout.ts";
 import { useAnimation, useReducedMotion } from "./motion.ts";
 import { COLORS, FONT } from "./theme.ts";
@@ -31,6 +32,8 @@ export interface WorldViewProps {
   failingSentences?: readonly string[];
   /** Overrides the system's prefers-reduced-motion. */
   reducedMotion?: boolean;
+  /** The language of the words the drawing adds (names and numbers stay as in the problem). */
+  lang?: Lang;
   /** Accessible name of the drawing. */
   label?: string;
 }
@@ -163,7 +166,9 @@ interface Drag {
 }
 
 export function WorldView(props: WorldViewProps) {
-  const { world, onPlaceCard, glowIds = [], failingSentences = [], label = "せかいの テープ" } = props;
+  const lang = props.lang ?? "ja";
+  const words = ui(lang).draw;
+  const { world, onPlaceCard, glowIds = [], failingSentences = [], label = words.world } = props;
   const reduced = useReducedMotion(props.reducedMotion);
   const descId = useId();
 
@@ -238,7 +243,7 @@ export function WorldView(props: WorldViewProps) {
   const announce = (i: number | null): string => {
     if (i === null) return "";
     const t = l.tapes[i];
-    return t === undefined ? "" : `${t.label}の テープ`;
+    return t === undefined ? "" : words.tape(t.label);
   };
   const onCardKey = (e: KeyboardEvent<SVGGElement>): void => {
     const n = l.tapes.length;
@@ -344,7 +349,7 @@ export function WorldView(props: WorldViewProps) {
             ? {
                 role: "button",
                 tabIndex: 0,
-                "aria-label": "「1」の ふだ。やじるしキーで テープを えらび、Enterで おきます",
+                "aria-label": words.cardAria,
                 onPointerDown: onCardPointerDown,
                 onKeyDown: onCardKey,
                 onFocus: () => setFocused(true),
@@ -383,7 +388,7 @@ export function WorldView(props: WorldViewProps) {
         </g>
       </svg>
       <p id={descId} style={srOnly}>
-        {describeLayout(l, failingSentences)}
+        {describeLayout(l, failingSentences, lang)}
       </p>
       <p role="status" aria-live="polite" style={srOnly}>
         {announce(candidate)}

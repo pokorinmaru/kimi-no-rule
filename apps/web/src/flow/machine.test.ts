@@ -3,12 +3,12 @@
 import { describe, expect, it } from "vitest";
 import { getShortestPaths, getSimplePaths, getStateNodes } from "@xstate/graph";
 import { createActor, transition, type SnapshotFrom } from "xstate";
-import { FRACTION_BANK, initialState, observe, sameReading, runRule, type Rational } from "@kimi/core";
+import { FRACTION_BANK, initialState, numbersIn, observe, sameReading, runRule, type Rational } from "@kimi/core";
 import { flowMachine, type FlowEvent, type FlowInput } from "./machine.ts";
 import { childTexts, viewOf } from "./view.ts";
 import { firstReading, judgeTotal, judgeUnit } from "./problem.ts";
 import { FORBIDDEN_CHILD_PHRASES } from "./text.ts";
-import { HELPLINES, helplineLine } from "./text.ts";
+import { HELPLINES, hasForbiddenPhrase, helplineLine, helplinesFor } from "./text.ts";
 
 /** The text with the checked helpline lines taken out (their numbers are allowed, nothing else). */
 const withoutHelplines = (t: string): string => HELPLINES.reduce((acc, h) => acc.replaceAll(helplineLine(h), ""), t);
@@ -649,5 +649,122 @@ describe("works with templates only (server down)", () => {
     actor.send({ type: "NEXT" });
     expect(actor.getSnapshot().context.endedBy).toBe("finished");
     expect(actor.getSnapshot().context.log.map((l) => l.outcome)).toEqual(["solved", "solved", "solved"]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// The English screen (HANDOFF §7 の4; 指示書 第11節 M8, 第1節 原則1・10・11)
+// ---------------------------------------------------------------------------------------------
+
+/** Japanese letters and the full-width marks Japanese text uses. */
+const JAPANESE = /[\u3000-\u303f\u3040-\u30ff\u3400-\u9fff\uff01-\uff60]/;
+
+/** What may stay in Japanese on the English screen: the problem as written, its holders and items, the helplines' names. */
+function allowedJapanese(s: Snap): string[] {
+  const out: string[] = helplinesFor("en").map((h) => h.name);
+  const p = s.context.problem;
+  if (p !== null) {
+    for (const st of p.record.statements) out.push(st.text, ...st.tokens);
+    const w = p.record.world;
+    out.push(...w.holders.map((h) => h.label), ...w.item_kinds.flatMap((k) => [k.noun, k.counter]));
+  }
+  return out.filter((x) => x !== "").sort((a, b) => b.length - a.length);
+}
+
+const stripAll = (t: string, parts: readonly string[]): string => parts.reduce((acc, x) => acc.replaceAll(x, " "), t);
+const withoutEnHelplines = (t: string): string => helplinesFor("en").reduce((acc, h) => acc.replaceAll(helplineLine(h, "en"), ""), t);
+/** The "1" card's name is a card, not a number (core's gate reads it the same way). */
+const withoutCard = (t: string): string => t.replace(/"1"|“1”/g, "").replace(/\bas 1\b/g, "");
+
+function checkScreenEn(s: Snap): void {
+  const v = viewOf(s);
+  expect(v.lang).toBe("en");
+  const texts = childTexts(v);
+  for (const t of texts) expect(hasForbiddenPhrase(t), t).toBe(false);
+  // No Japanese UI string is left: only the problem as written, holder names and helpline names.
+  expect(stripAll(texts.join("\n"), allowedJapanese(s)), JSON.stringify(s.value)).not.toMatch(JAPANESE);
+  // Numbers: the problem's sentences and the junior's line are checked by core's gate; nothing else carries a number.
+  const own = new Set<string>(v.screen === "problem" ? [...v.statements.map((x) => x.text), ...(v.line === null ? [] : [v.line])] : []);
+  for (const t of texts.filter((x) => !own.has(x))) {
+    const plain = withoutCard(withoutEnHelplines(t));
+    expect(numbersIn(plain), t).toEqual([]);
+    expect(plain, t).not.toMatch(/[0-9０-９]/);
+  }
+}
+
+describe("the English screen", () => {
+  it("every screen of every shortest path has no Japanese UI string, no forbidden phrase and no number", () => {
+    const paths = walk({ ...FRESH, lang: "en" }, { safety: true, research: true });
+    const seen = new Map<string, Snap>();
+    for (const p of paths) for (const st of p.steps) seen.set(key(st.state) + JSON.stringify(st.state.context.problem?.placement ?? null), st.state);
+    for (const st of seen.values()) checkScreenEn(st);
+    expect(seen.size).toBeGreaterThan(50);
+  });
+
+  it("the problem is shown as written, with an English note that it is in Japanese", () => {
+    const actor = run({ introSeen: true, consented: true, lang: "en" });
+    const v = viewOf(actor.getSnapshot());
+    if (v.screen !== "problem") throw new Error("problem expected");
+    const record = FRACTION_BANK.find((r) => r.world.problem_id === "p_signboard");
+    expect(v.statements.map((x) => x.text)).toEqual(record?.statements.map((x) => x.text));
+    expect(v.note).toBe("The problem is written in Japanese.");
+    expect(viewOf(run({ introSeen: true, consented: true }).getSnapshot())).toMatchObject({ screen: "problem", note: null });
+  });
+
+  it("asks the worker for the junior's words in English, and the template lines are English", () => {
+    const actor = run({ introSeen: true, consented: true, lang: "en" });
+    const line = actor.getSnapshot().context.line;
+    expect(line?.request?.lang).toBe("en");
+    expect(line?.text).not.toMatch(JAPANESE);
+    expect(line?.text).not.toBe("");
+  });
+
+  it("the restatement in English keeps the holder's name as in the problem", () => {
+    const actor = run({ introSeen: true, consented: true, lang: "en" });
+    actor.send({ type: "NEXT" });
+    place(actor, true);
+    const p = actor.getSnapshot().context.problem;
+    const holder = p?.record.world.holders.find((h) => h.id === p.record.world.quantities.find((q) => q.id === p.placement)?.holder);
+    expect(actor.getSnapshot().context.line?.text).toContain(holder?.label ?? "??");
+    expect(actor.getSnapshot().context.line?.text).toContain('"1"');
+  });
+
+  it("a generated English line that judges, names the child's rule or names an operation is not shown", () => {
+    for (const bad of ["That is wrong.", "Correct!", "I copied your reading.", "Is this your rule?", "Should we add them?", "This is a mistake."]) {
+      const actor = run({ introSeen: true, consented: true, lang: "en" });
+      const before = actor.getSnapshot().context.line;
+      actor.send({ type: "KOHAI_LINE", seq: before?.seq ?? 0, text: bad });
+      expect(actor.getSnapshot().context.line?.text, bad).toBe(before?.text);
+    }
+    const actor = run({ introSeen: true, consented: true, lang: "en" });
+    const seq = actor.getSnapshot().context.line?.seq ?? 0;
+    actor.send({ type: "KOHAI_LINE", seq, text: "I read the tapes like this." });
+    expect(actor.getSnapshot().context.line).toMatchObject({ text: "I read the tapes like this.", source: "claude" });
+  });
+
+  it("the forbidden phrases are found in any case, in Japanese and in English", () => {
+    for (const t of ["YOUR RULE", "You copied your reading", "wrong", "Correct", "a mistake", "君のルール", "まちがい"]) expect(hasForbiddenPhrase(t), t).toBe(true);
+    for (const t of ["Which sentence shall we look at first?", "Is that right?", "Take your time. I will wait."]) expect(hasForbiddenPhrase(t), t).toBe(false);
+  });
+
+  it("from the second problem the junior's card is in English", () => {
+    const actor = run({ introSeen: true, consented: true, lang: "en" });
+    solveProblem(actor);
+    actor.send({ type: "RESEARCH_RESULT", pool: null });
+    const card = actor.getSnapshot().context.problem?.card;
+    expect(card).toMatch(/^Junior's reading: /);
+  });
+
+  it("the language changes only while no problem is on screen", () => {
+    const actor = run({ introSeen: false, consented: false });
+    actor.send({ type: "SET_LANG", lang: "en" });
+    expect(viewOf(actor.getSnapshot())).toMatchObject({ screen: "intro", lang: "en" });
+    actor.send({ type: "NEXT" });
+    actor.send({ type: "CONSENT_YES" });
+    actor.send({ type: "SET_LANG", lang: "ja" });
+    // A problem is open: its lines and card stay in the language they were made in.
+    expect(actor.getSnapshot().context.lang).toBe("en");
+    actor.send({ type: "STOP" });
+    expect(viewOf(actor.getSnapshot()).screen).toBe("ended");
   });
 });

@@ -1,7 +1,8 @@
 // The problem's sentences, numbered (指示書 第8.5節 文と世界の結び). The verdicts come from core's
 // checkStatements; this list never judges. A sentence glows only when core says it fails.
 import { useRef } from "react";
-import type { StatementCheck } from "@kimi/core";
+import type { Lang, StatementCheck } from "@kimi/core";
+import { ui } from "../flow/text.ts";
 import { useAnimation, useReducedMotion } from "./motion.ts";
 import { COLORS, FONT } from "./theme.ts";
 
@@ -21,6 +22,8 @@ export interface SentenceListProps {
   reducedMotion?: boolean;
   /** Accessible name of the list. */
   label?: string;
+  /** The language of the words the list adds (the sentences stay as written). */
+  lang?: Lang;
 }
 
 const srOnly = {
@@ -37,11 +40,13 @@ function Sentence({
   glow,
   reduced,
   onTapWord,
+  glowText,
 }: {
   s: SentenceItem;
   glow: boolean;
   reduced: boolean;
   onTapWord: SentenceListProps["onTapWord"];
+  glowText: string;
 }) {
   const halo = useRef<HTMLSpanElement>(null);
   useAnimation(halo, "pulse", [{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }], glow && !reduced, `${String(s.index)}`, true);
@@ -118,18 +123,19 @@ function Sentence({
               </button>
             ))}
       </span>
-      {glow && <span style={srOnly}>（この世界と 合わない 文です）</span>}
+      {glow && <span style={srOnly}>{glowText}</span>}
     </li>
   );
 }
 
-export function SentenceList({ statements, checks, onTapWord, reducedMotion, label = "もんだいの 文" }: SentenceListProps) {
+export function SentenceList({ statements, checks, onTapWord, reducedMotion, lang = "ja", label = ui(lang).draw.sentences }: SentenceListProps) {
+  const glowText = ui(lang).draw.glow;
   const reduced = useReducedMotion(reducedMotion);
   const failing = new Set((checks ?? []).filter((c) => c.verdict === "fails").map((c) => c.index));
   return (
     <ol aria-label={label} style={{ padding: 0, margin: 0, isolation: "isolate" }}>
       {statements.map((s) => (
-        <Sentence key={s.index} s={s} glow={failing.has(s.index)} reduced={reduced} onTapWord={onTapWord} />
+        <Sentence key={s.index} s={s} glow={failing.has(s.index)} reduced={reduced} onTapWord={onTapWord} glowText={glowText} />
       ))}
     </ol>
   );

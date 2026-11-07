@@ -64,7 +64,7 @@ describe("startSession", () => {
     s.send({ type: "NEXT" });
     s.send({ type: "CONSENT_YES" });
     await s.settle();
-    expect(await st.getSettings()).toEqual({ consented: true, introSeen: true });
+    expect(await st.getSettings()).toEqual({ consented: true, introSeen: true, lang: "ja" });
     s.stop();
     const again = await startSession({ store: st, api: down });
     expect(again.actor.getSnapshot().matches({ active: { problem: "reading" } })).toBe(true);
@@ -218,5 +218,15 @@ describe("createHttpApi", () => {
     const fetchImpl = (async () => new Response("{}", { status: 503 })) as unknown as typeof fetch;
     const api = createHttpApi("http://localhost:8787", fetchImpl);
     await expect(api.safety("x", new AbortController().signal)).rejects.toThrow();
+  });
+});
+
+describe("the screen's language (HANDOFF §7 の4)", () => {
+  it("starts the session in the language chosen on the device", async () => {
+    const st = store();
+    await st.setLang("en");
+    const s = await startSession({ store: st, api: down });
+    expect(s.actor.getSnapshot().context.lang).toBe("en");
+    s.stop();
   });
 });

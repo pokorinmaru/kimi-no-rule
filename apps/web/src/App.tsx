@@ -1,28 +1,29 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { gate, type Rational, type StatementCheck } from "@kimi/core";
+import { gate, type Lang, type Rational, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { SentenceList } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
 import { startSession, type Session } from "./flow/session.ts";
-import { viewOf, type FlowView, type ProblemView } from "./flow/view.ts";
-import { helplineLine } from "./flow/text.ts";
+import { viewOf, type FlowSnapshot, type FlowView, type ProblemView } from "./flow/view.ts";
+import { helplineLine, ui, type UiText } from "./flow/text.ts";
 import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
 import { CheckMode } from "./check/CheckMode.tsx";
 import { scoreOf } from "./check/check.ts";
-import { CHECK_TEXT } from "./check/text.ts";
+import { checkText } from "./check/text.ts";
 import { AlwaysNav, Button, HoldButton, NumberPad } from "./ui/controls.tsx";
 
-/** The heading the child sees. The work's name (君のルールで世界を作る) is not shown to the child: it would
- * attribute the reading to the child (原則10, 指示書 第11節 M7). */
-export const APP_TITLE = "後輩と問題を読もう";
+/** The heading the child sees in Japanese (ui(lang).title in the screen's language). The work's name is not
+ * shown to the child: it would attribute the reading to the child (原則10, 指示書 第11節 M7). */
+export const APP_TITLE = ui("ja").title;
 
 const page: CSSProperties = { maxWidth: 760, margin: "0 auto", padding: "16px", fontFamily: "system-ui, sans-serif", fontSize: 20, lineHeight: 1.6, color: "#1f2933" };
 /** The three buttons every screen keeps (原則7): stop, don't know, it's hard. */
 function Always({ view, send }: { view: FlowView; send: Session["send"] }) {
   return (
     <AlwaysNav
+      lang={view.lang}
       buttons={view.buttons}
       highlight={view.highlightButtons}
       onStop={() => send({ type: "STOP" })}
@@ -44,6 +45,7 @@ function Lines({ lines }: { lines: readonly string[] }) {
 }
 
 function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"] }) {
+  const t = view.text.problem;
   const checks: StatementCheck[] = view.statements.map((s) => ({ index: s.index, verdict: s.lit ? "fails" : "holds", cues: [] }) as StatementCheck);
   const rel = view.world.relations.find((r) => r.id === view.relationId);
   const ends = rel === undefined ? [] : [rel.subject, rel.reference].filter((x): x is string => x !== null);
@@ -60,7 +62,12 @@ function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"
   const failing = view.statements.filter((s) => s.lit).map((s) => s.text);
 
   return (
-    <section aria-label="問題">
+    <section aria-label={t.label}>
+      {view.note !== null && (
+        <p data-testid="problem-note" style={{ fontSize: 16, color: "#52606d", margin: "0 0 8px" }}>
+          {view.note}
+        </p>
+      )}
       {view.card !== null && (
         <p data-testid="reading-card" style={{ display: "inline-block", padding: "6px 14px", border: "2px dashed #9aa5b1", borderRadius: 10, background: "#f5f7fa" }}>
           {view.card}
@@ -70,7 +77,8 @@ function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"
         statements={view.statements}
         checks={view.step === "reading" ? null : checks}
         {...(view.canPlace ? { onTapWord: (i: number, t: number) => send({ type: "TAP_WORD", statementIndex: i, token: t }) } : {})}
-        label="問題の文"
+        label={t.sentences}
+        lang={view.lang}
       />
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
         <AiBadge />
@@ -86,39 +94,40 @@ function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"
         answered={answered}
         glowIds={view.glowIds}
         failingSentences={view.step === "reading" ? [] : failing}
-        label="後輩が作った世界"
+        label={t.world}
+        lang={view.lang}
         {...(view.canPlace ? { onPlaceCard: placeOn } : {})}
       />
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
         {view.step === "reading" && (
           <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-next">
-            つぎへ
+            {t.next}
           </Button>
         )}
-        {view.step === "looking" && <p>「1」の札を、1とみる人のテープに動かして、後輩に教えてね。</p>}
+        {view.step === "looking" && <p>{t.looking}</p>}
         {view.step === "placed" && (
           <>
             <Button kind="primary" onClick={() => send({ type: "CONFIRM_YES" })} testId="btn-confirm-yes">
-              うん、そう
+              {t.yes}
             </Button>
             <Button onClick={() => send({ type: "CONFIRM_NO" })} testId="btn-confirm-no">
-              ちがう
+              {t.no}
             </Button>
           </>
         )}
         {view.step === "rebuilt" && (
           <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-next">
-            つぎへ
+            {t.next}
           </Button>
         )}
         {(view.step === "solved" || view.step === "held") && (
           <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-next">
-            つぎの問題へ
+            {t.nextProblem}
           </Button>
         )}
       </div>
-      {view.step === "unit" && <NumberPad label="1区切りは、いくつ？" onAnswer={(v) => send({ type: "ANSWER_UNIT", value: v })} />}
-      {view.step === "total" && <NumberPad label="聞かれている数は、いくつ？" onAnswer={(v) => send({ type: "ANSWER_TOTAL", value: v })} />}
+      {view.step === "unit" && <NumberPad lang={view.lang} label={t.unitPad} onAnswer={(v) => send({ type: "ANSWER_UNIT", value: v })} />}
+      {view.step === "total" && <NumberPad lang={view.lang} label={t.totalPad} onAnswer={(v) => send({ type: "ANSWER_TOTAL", value: v })} />}
     </section>
   );
 }
@@ -130,32 +139,74 @@ export function checkDate(at: string): string {
   return `${String(d.getFullYear())}/${String(d.getMonth() + 1)}/${String(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/** The AI-free checks (指示書 第7.3節・第7.4節): per check, how many of the problems given were answered right. */
-function CheckResults({ rows }: { rows: readonly CheckRow[] }) {
+/** The language switch (HANDOFF §7 の4): each language in its own words; the choice is kept on the device. */
+function LangSwitch({ lang, onChange }: { lang: Lang; onChange: (l: Lang) => void }) {
+  const t = ui(lang).langSwitch;
   return (
-    <div data-testid="check-results">
-      <h3 style={{ fontSize: 20 }}>AIなしで ためした記録</h3>
-      {rows.length === 0 ? (
-        <p>まだありません。</p>
-      ) : (
-        <ul>
-          {rows.map((r) => {
-            const { right, total } = scoreOf(r.items);
-            return (
-              <li key={r.id ?? r.at}>
-                {checkDate(r.at)}：{total}問中{right}問 正しく答えました
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      <p style={{ fontSize: 16 }}>後輩も図もなしで、問題の文と数の入力だけで解いた結果です。答えはプログラムが確かめています。「わからない」でとばした問題は、正しく答えた数に入りません。</p>
+    <div role="group" aria-label={t.label} style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0" }}>
+      {(["ja", "en"] as const).map((l) => (
+        <button
+          key={l}
+          type="button"
+          lang={l}
+          aria-pressed={lang === l}
+          data-testid={`lang-${l}`}
+          onClick={() => onChange(l)}
+          style={{
+            minHeight: 48,
+            minWidth: 48,
+            padding: "8px 18px",
+            fontSize: 18,
+            borderRadius: 12,
+            border: "2px solid #52606d",
+            background: lang === l ? "#e4ecf7" : "#fff",
+            color: "#1f2933",
+            fontWeight: lang === l ? 700 : 400,
+            cursor: "pointer",
+          }}
+        >
+          {t[l]}
+        </button>
+      ))}
     </div>
   );
 }
 
-/** The grown-up's screen (F9): consent, the AI-free checks and deleting every record on this device. */
-function ParentScreen({ store, onDelete, onClose }: { store: FlowStore; onDelete: () => Promise<void>; onClose: () => void }) {
+/** The AI-free checks (指示書 第7.3節・第7.4節): per check, how many of the problems given were answered right. */
+function CheckResults({ rows, text }: { rows: readonly CheckRow[]; text: UiText["parent"] }) {
+  return (
+    <div data-testid="check-results">
+      <h3 style={{ fontSize: 20 }}>{text.checksTitle}</h3>
+      {rows.length === 0 ? (
+        <p>{text.checksNone}</p>
+      ) : (
+        <ul>
+          {rows.map((r) => {
+            const { right, total } = scoreOf(r.items);
+            return <li key={r.id ?? r.at}>{text.checkRow(checkDate(r.at), right, total)}</li>;
+          })}
+        </ul>
+      )}
+      <p style={{ fontSize: 16 }}>{text.checksNote}</p>
+    </div>
+  );
+}
+
+/** The grown-up's screen (F9): the language, the AI-free checks and deleting every record on this device. */
+function ParentScreen({
+  store,
+  lang,
+  onLang,
+  onDelete,
+  onClose,
+}: {
+  store: FlowStore;
+  lang: Lang;
+  onLang: (l: Lang) => void;
+  onDelete: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const t = ui(lang).parent;
   const [asked, setAsked] = useState(false);
   const [done, setDone] = useState(false);
   const [checks, setChecks] = useState<CheckRow[]>([]);
@@ -169,15 +220,17 @@ function ParentScreen({ store, onDelete, onClose }: { store: FlowStore; onDelete
     };
   }, [store, done]);
   return (
-    <section aria-label="おうちの人へ">
-      <h2>おうちの人へ</h2>
-      <p>このアプリの記録は、この端末の中にだけ保存されます。子どもの言葉の本文は保存しません。</p>
-      <p>後輩は AI（Anthropic の Claude）で、人ではありません。2問目からは、1問目の子どもの「1」の札の置き方から作った読み方や、よくある読み違いで問題を読みます。後輩は答えを知らされていません。</p>
-      <CheckResults rows={checks} />
-      {!asked && <Button onClick={() => setAsked(true)}>記録をすべて消す</Button>}
+    <section aria-label={t.label}>
+      <h2>{t.label}</h2>
+      <LangSwitch lang={lang} onChange={onLang} />
+      {t.lines.map((l) => (
+        <p key={l}>{l}</p>
+      ))}
+      <CheckResults rows={checks} text={t} />
+      {!asked && <Button onClick={() => setAsked(true)}>{t.deleteAsk}</Button>}
       {asked && !done && (
         <>
-          <p>この端末の記録と同意を、すべて消します。元には戻せません。</p>
+          <p>{t.deleteWarn}</p>
           <Button
             kind="primary"
             testId="btn-delete-all"
@@ -185,38 +238,40 @@ function ParentScreen({ store, onDelete, onClose }: { store: FlowStore; onDelete
               void onDelete().then(() => setDone(true));
             }}
           >
-            消す
+            {t.deleteYes}
           </Button>
-          <Button onClick={() => setAsked(false)}>やめておく</Button>
+          <Button onClick={() => setAsked(false)}>{t.deleteNo}</Button>
         </>
       )}
-      {done && <p data-testid="deleted">消しました。</p>}
+      {done && <p data-testid="deleted">{t.deleted}</p>}
       <p>
-        <Button onClick={onClose}>もどる</Button>
+        <Button onClick={onClose}>{t.back}</Button>
       </p>
     </section>
   );
 }
 
-function Screen({ view, send }: { view: FlowView; send: Session["send"] }) {
+function Screen({ view, send, onLang }: { view: FlowView; send: Session["send"]; onLang: (l: Lang) => void }) {
+  const t = view.text;
   switch (view.screen) {
     case "intro":
       return (
-        <section aria-label="はじめに">
+        <section aria-label={t.intro.label}>
+          <LangSwitch lang={view.lang} onChange={onLang} />
           <Lines lines={view.lines} />
           <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-next">
-            はじめる
+            {t.intro.start}
           </Button>
         </section>
       );
     case "consent":
       return (
-        <section aria-label="おうちの人の同意">
+        <section aria-label={t.consent.label}>
           <Lines lines={view.lines} />
           <Button kind="primary" onClick={() => send({ type: "CONSENT_YES" })} testId="btn-consent-yes">
-            同意する
+            {t.consent.yes}
           </Button>{" "}
-          <Button onClick={() => send({ type: "CONSENT_NO" })}>同意しない</Button>
+          <Button onClick={() => send({ type: "CONSENT_NO" })}>{t.consent.no}</Button>
         </section>
       );
     case "problem":
@@ -224,18 +279,18 @@ function Screen({ view, send }: { view: FlowView; send: Session["send"] }) {
     case "research":
     case "finished":
       return (
-        <section aria-label={view.screen === "research" ? "じゅんび" : "おわり"}>
+        <section aria-label={view.screen === "research" ? t.research.label : t.finished.label}>
           <Lines lines={view.lines} />
           {view.screen === "finished" && (
             <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-next">
-              おわる
+              {t.finished.end}
             </Button>
           )}
         </section>
       );
     case "stuck":
       return (
-        <section aria-label="まっています">
+        <section aria-label={t.stuck.label}>
           <Lines lines={view.lines} />
           <Button kind="primary" onClick={() => send({ type: "RESUME" })} testId="btn-resume">
             {view.resume}
@@ -246,22 +301,23 @@ function Screen({ view, send }: { view: FlowView; send: Session["send"] }) {
     case "hard":
     case "rest":
       return (
-        <section aria-label={view.screen === "hard" ? "つらいとき" : "ひとやすみ"} data-testid={`screen-${view.screen}`}>
+        <section aria-label={view.screen === "hard" ? t.hard.label : t.rest.label} data-testid={`screen-${view.screen}`}>
           <Lines lines={view.lines} />
           <h2 style={{ fontSize: 20 }}>{view.helpline.title}</h2>
           <p>{view.helpline.pending}</p>
+          {view.helpline.note !== null && <p>{view.helpline.note}</p>}
           <ul data-testid="helplines">
             {view.helpline.entries.map((h) => (
-              <li key={h.number}>{helplineLine(h)}</li>
+              <li key={h.number}>{helplineLine(h, view.lang)}</li>
             ))}
           </ul>
-          <Button onClick={() => send({ type: "CLOSE" })}>とじる</Button>
+          <Button onClick={() => send({ type: "CLOSE" })}>{t.hard.close}</Button>
         </section>
       );
     case "ended":
       return (
-        <section aria-label="おわり" data-testid="screen-ended">
-          <p>おつかれさまでした。</p>
+        <section aria-label={t.ended.label} data-testid="screen-ended">
+          <p>{t.ended.line}</p>
         </section>
       );
   }
@@ -281,7 +337,8 @@ export function App({
 }) {
   const [store, setStore] = useState<FlowStore | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [view, setView] = useState<FlowView | null>(null);
+  const [snap, setSnap] = useState<FlowSnapshot | null>(null);
+  const [lang, setLang] = useState<Lang>("ja");
   const [parent, setParent] = useState(false);
   const [restart, setRestart] = useState(0);
   const [check, setCheck] = useState(false);
@@ -291,6 +348,7 @@ export function App({
     let s: Session | null = null;
     void (async () => {
       const st = await openStore(storeName);
+      const settings = await st.getSettings();
       const started = await startSession({ store: st, ...(api === undefined ? {} : { api }) });
       if (!live) {
         started.stop();
@@ -298,9 +356,10 @@ export function App({
       }
       s = started;
       setStore(st);
+      setLang(settings.lang);
       setSession(started);
-      setView(viewOf(started.actor.getSnapshot()));
-      started.actor.subscribe((snap) => setView(viewOf(snap)));
+      setSnap(started.actor.getSnapshot());
+      started.actor.subscribe((x) => setSnap(x));
     })();
     return () => {
       live = false;
@@ -309,17 +368,27 @@ export function App({
   }, [storeName, api, restart]);
 
   const send = useMemo<Session["send"]>(() => (e) => session?.send(e), [session]);
+  // The screen's words follow the device's choice; the session takes it while no problem is open.
+  const view = useMemo(() => (snap === null ? null : viewOf(snap, lang)), [snap, lang]);
+  const t = ui(lang);
+  const changeLang = (l: Lang): void => {
+    setLang(l);
+    session?.send({ type: "SET_LANG", lang: l });
+    void store?.setLang(l);
+  };
 
   return (
-    <main style={page}>
+    <main style={page} lang={lang}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ fontSize: 24, margin: 0 }}>{APP_TITLE}</h1>
+        <h1 style={{ fontSize: 24, margin: 0 }}>{t.title}</h1>
         <AiBadge />
       </header>
-      {view === null && <p>じゅんびしています…</p>}
+      {view === null && <p>{t.preparing}</p>}
       {view !== null && store !== null && parent && (
         <ParentScreen
           store={store}
+          lang={lang}
+          onLang={changeLang}
           onClose={() => setParent(false)}
           onDelete={async () => {
             // Stop the session and let its last writes land first, so nothing is written back after the delete.
@@ -333,7 +402,7 @@ export function App({
       {view !== null && store !== null && check && !parent && (
         <CheckMode
           store={store}
-          lang="ja"
+          lang={lang}
           onExit={() => setCheck(false)}
           // The session's hard screen is reachable while it is still running (not on the ended screen).
           {...(view.screen !== "ended"
@@ -346,17 +415,17 @@ export function App({
             : {})}
         />
       )}
-      {view !== null && !parent && !check && <Screen view={view} send={send} />}
+      {view !== null && !parent && !check && <Screen view={view} send={send} onLang={changeLang} />}
       {view !== null && !check && view.screen !== "ended" && <Always view={view} send={send} />}
       {!parent && !check && (view?.screen === "intro" || view?.screen === "consent" || view?.screen === "ended") && (
         <p style={{ marginTop: 24, display: "flex", gap: 12, flexWrap: "wrap" }}>
           {(view.screen === "intro" || view.screen === "ended") && (
             <Button onClick={() => setCheck(true)} testId="btn-check">
-              {CHECK_TEXT.entry}
+              {checkText(lang).entry}
             </Button>
           )}
           <HoldButton onHold={() => setParent(true)} holdMs={parentHoldMs} testId="btn-parent">
-            おうちの人へ（2びょう おしつづける）
+            {t.parentDoor}
           </HoldButton>
         </p>
       )}

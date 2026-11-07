@@ -8,6 +8,7 @@ import { FRACTION_BANK } from "../../fixtures/problems/fraction-bank.ts";
 import { predict } from "../rules/predict.ts";
 import { runRule, type Hypothesis } from "../rules/run.ts";
 import { sameReading } from "../rules/same-reading.ts";
+import { gate, numbersIn } from "../gates/index.ts";
 import { addHypothesis, constructiveLikelihoods, infoGain, update, type Weights } from "../rules/weights.ts";
 import { act, always, clause, hyp, p, ALWAYS } from "../rules/test-rules.ts";
 import {
@@ -646,6 +647,66 @@ describe("readingCard", () => {
   it("covers the common misreadings", () => {
     for (const h of COMMON_MISREADINGS) expect(readingCard(h), h.id).not.toBeNull();
     expect(readingCard(KNOWN())).toBe(CARD_KNOWN);
+  });
+
+  // HANDOFF §7 の4: the English screen (指示書 第11節 M8). The same rules in English: no operation name, no
+  // number but the 1 of "as 1" / "the one", no judging word, nothing placed on the child (原則1・10・11).
+  describe("in English", () => {
+    const EN_PREFIX = "Junior's reading: ";
+    const EN_BANNED =
+      /\b(?:you|your|yours|wrong|mistakes?|mistaken|correct(?:ly)?|incorrect|right|error|fooled|tricked|add|adds|added|plus|subtract\w*|minus|multipl\w*|times|divid\w*|division|sum|product|quotient|difference|half|halves|twice|double)\b/i;
+    const JAPANESE = /[\u3040-\u30ff\u3400-\u9fff\uff01-\uff60]/;
+    const strip1 = (t: string): string => t.replace(/\bas 1\b/g, "").replace(/\bthe one\b/gi, "").replace(/"1"/g, "");
+    const EN_KNOWN = "Junior's reading: takes the person whose count is given as 1";
+
+    it("defaults to Japanese", () => {
+      expect(readingCard(always("h", act.chooseBy("known_value")))).toBe(CARD_KNOWN);
+      expect(readingCard(always("h", act.chooseBy("known_value")), undefined, "ja")).toBe(CARD_KNOWN);
+    });
+
+    it("pins the card for the known-number reading", () => {
+      expect(readingCard(always("h", act.chooseBy("known_value")), undefined, "en")).toBe(EN_KNOWN);
+    });
+
+    it.each(EVERY_ACTION.map((a) => [JSON.stringify(a), a] as const))("the English card for %s is one safe line", (_label, a) => {
+      const card = readingCard(always("h", a), undefined, "en");
+      expect(card).not.toBeNull();
+      const text = card as string;
+      expect(text.startsWith(EN_PREFIX)).toBe(true);
+      expect(text.length).toBeGreaterThan(EN_PREFIX.length);
+      expect(text).not.toMatch(/\n/);
+      expect(text).not.toMatch(EN_BANNED);
+      // A quoted word of the problem may be Japanese; nothing else is.
+      expect(text.replace(/"[^"]*"/g, "")).not.toMatch(JAPANESE);
+      expect(numbersIn(strip1(text))).toEqual([]);
+      expect(strip1(text)).not.toMatch(/[0-9０-９]/);
+    });
+
+    it("every English card passes core's gate on the signboard problem", () => {
+      const record = bank("p_signboard");
+      for (const a of EVERY_ACTION) {
+        const text = readingCard(always("h", a), undefined, "en") as string;
+        const said = { kind: "say" as const, text: strip1(text) };
+        const ctx = { correct: record.world, lang: "en" as const, childSaid: { numbers: [], words: [] }, grade: 6, interpretationRecorded: false, prediction: "disabled" as const };
+        expect(gate(said, ctx), text).toEqual({ ok: true });
+      }
+    });
+
+    it("a word Claude wrote is quoted only when it carries no number or operation", () => {
+      for (const word of ["3倍", "わる", "three", "四分の三", "a\nb"]) {
+        expect(readingCard(always("h_w", act.chooseByWord("before_word", word)), undefined, "en"), word).toBe(
+          "Junior's reading: takes the person before a certain word as 1",
+        );
+      }
+      expect(readingCard(always("h_w", act.chooseByWord("after_word", "の")), undefined, "en")).toBe('Junior\'s reading: takes the person after "の" as 1');
+    });
+
+    it("gives no card for a rule that changes nothing, and names the acting clause on a problem", () => {
+      expect(readingCard(common(CORRECT_READING_ID), undefined, "en")).toBeNull();
+      const h = hyp("h_two", [clause(p("ratio_kind_is", "gt1"), act.swap()), clause(ALWAYS, act.chooseBy("known_value"))]);
+      expect(readingCard(h, bank("p_signboard"), "en")).toBe(EN_KNOWN);
+      for (const m of COMMON_MISREADINGS) expect(readingCard(m, undefined, "en"), m.id).not.toBeNull();
+    });
   });
 });
 

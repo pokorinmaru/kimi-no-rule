@@ -1,18 +1,21 @@
 // What each screen shows, from a snapshot of the session machine. The screens draw only this, so the
 // tests can read every word a child may see (childTexts) on every path.
 import type { SnapshotFrom } from "xstate";
-import type { GateContext, Rational, WorldScene } from "@kimi/core";
+import { render, type GateContext, type Lang, type Rational, type WorldScene } from "@kimi/core";
 import type { flowMachine } from "./machine.ts";
 import { gateContext } from "./problem.ts";
-import { AI_MARK, BUTTONS, CONSENT_LINES, FINISHED_LINES, HELPLINE, INTRO_LINES, RESEARCH_WAIT_LINE, STUCK, hardLines, helplineLine, restLines } from "./text.ts";
+import { AI_MARK, hardLines, helplineLine, restLines, ui, type HelplineText, type UiText } from "./text.ts";
 
 export type FlowSnapshot = SnapshotFrom<typeof flowMachine>;
 
 export type ProblemStep = "reading" | "looking" | "placed" | "rebuilt" | "unit" | "total" | "solved" | "held";
 
 interface Common {
+  /** The screen's language (HANDOFF §7 の4) and every word of the screen in it. */
+  lang: Lang;
+  text: UiText;
   /** The three always-visible buttons (原則7). */
-  buttons: typeof BUTTONS;
+  buttons: UiText["buttons"];
   /** Gently highlighted after an unchecked safety result (Q26). */
   highlightButtons: boolean;
   /** The always-visible "AI" mark next to the junior (第9節). */
@@ -36,6 +39,8 @@ export interface ProblemView extends Common {
   line: string | null;
   /** The junior's reading card (from the second problem), or null. */
   card: string | null;
+  /** On the English screen: a line that the problem is shown as written, in Japanese (the bank is Japanese). */
+  note: string | null;
   /** Numbers the child said on this problem (may be drawn as the child's own). */
   unitValue: Rational | null;
   totalValue: Rational | null;
@@ -53,33 +58,38 @@ export type FlowView =
   | ProblemView
   | (Common & { screen: "research"; lines: string[] })
   | (Common & { screen: "stuck"; lines: string[]; resume: string; hold: string | null })
-  | (Common & { screen: "hard"; lines: string[]; helpline: typeof HELPLINE })
-  | (Common & { screen: "rest"; lines: string[]; helpline: typeof HELPLINE })
+  | (Common & { screen: "hard"; lines: string[]; helpline: HelplineText })
+  | (Common & { screen: "rest"; lines: string[]; helpline: HelplineText })
   | (Common & { screen: "finished"; lines: string[] })
   | (Common & { screen: "ended" });
 
 const STEPS: readonly ProblemStep[] = ["reading", "looking", "placed", "rebuilt", "unit", "total", "solved", "held"];
 
-export function viewOf(s: FlowSnapshot): FlowView {
+/**
+ * The screen of a snapshot. The words are in `lang`: the session's language, or the device's choice when the
+ * session has ended (an ended session no longer takes a new language, HANDOFF §7 の4).
+ */
+export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
   const c = s.context;
-  const common: Common = { buttons: BUTTONS, highlightButtons: c.highlight, aiMark: AI_MARK };
+  const t = ui(lang);
+  const common: Common = { lang, text: t, buttons: t.buttons, highlightButtons: c.highlight, aiMark: AI_MARK };
   if (s.status === "done" || s.matches("ended")) return { ...common, screen: "ended" };
-  if (s.matches("hard")) return { ...common, screen: "hard", lines: hardLines(c.lang), helpline: HELPLINE };
-  if (s.matches("rest")) return { ...common, screen: "rest", lines: restLines(c.lang), helpline: HELPLINE };
+  if (s.matches("hard")) return { ...common, screen: "hard", lines: hardLines(lang), helpline: t.helpline };
+  if (s.matches("rest")) return { ...common, screen: "rest", lines: restLines(lang), helpline: t.helpline };
   if (s.matches("stuck")) {
     const open = c.problem !== null && !c.problem.logged;
-    const wait = "ゆっくり考えていいですよ。待っています";
-    return { ...common, screen: "stuck", lines: [wait], resume: STUCK.resume, hold: open ? STUCK.hold : null };
+    const wait = render("kohai.wait", lang, 0, {}).text;
+    return { ...common, screen: "stuck", lines: [wait], resume: t.stuck.resume, hold: open ? t.stuck.hold : null };
   }
-  if (s.matches({ active: "intro" })) return { ...common, screen: "intro", lines: [...INTRO_LINES] };
-  if (s.matches({ active: "consent" })) return { ...common, screen: "consent", lines: [...CONSENT_LINES] };
+  if (s.matches({ active: "intro" })) return { ...common, screen: "intro", lines: [...t.intro.lines] };
+  if (s.matches({ active: "consent" })) return { ...common, screen: "consent", lines: [...t.consent.lines] };
   if (s.matches({ active: "researching" }) || s.matches({ active: "next" }) || s.matches({ active: "loading" })) {
-    return { ...common, screen: "research", lines: [RESEARCH_WAIT_LINE] };
+    return { ...common, screen: "research", lines: [t.research.wait] };
   }
-  if (s.matches({ active: "finished" })) return { ...common, screen: "finished", lines: [...FINISHED_LINES] };
+  if (s.matches({ active: "finished" })) return { ...common, screen: "finished", lines: [...t.finished.lines] };
   const p = c.problem;
   const step = STEPS.find((x) => s.matches({ active: { problem: x } }));
-  if (p === null || step === undefined) return { ...common, screen: "research", lines: [RESEARCH_WAIT_LINE] };
+  if (p === null || step === undefined) return { ...common, screen: "research", lines: [t.research.wait] };
   // Sentences light only once the junior has shown its world and said so (step "reading" lights none).
   const lit = step === "reading" ? new Set<number>() : new Set(p.shown.failing);
   const rel = p.shown.world.relations.find((r) => r.id === p.relationId);
@@ -96,6 +106,7 @@ export function viewOf(s: FlowSnapshot): FlowView {
     tappedWords: [...p.words],
     line: c.line === null || c.line.text === "" ? null : c.line.text,
     card: p.card,
+    note: t.problem.note,
     unitValue: p.unitValue,
     totalValue: p.totalValue,
     canPlace: step === "looking" || step === "placed",
@@ -106,25 +117,44 @@ export function viewOf(s: FlowSnapshot): FlowView {
 
 /** Every word the screen shows to the child (the consent lines are for the grown-up but are listed too). */
 export function childTexts(v: FlowView): string[] {
-  const out: string[] = [v.buttons.stop, v.buttons.dontKnow, v.buttons.hard, v.aiMark];
+  const t = v.text;
+  const out: string[] = [v.buttons.stop, v.buttons.dontKnow, v.buttons.hard, v.aiMark, t.title, t.alwaysLabel];
   switch (v.screen) {
-    case "problem":
+    case "problem": {
+      const p = t.problem;
       out.push(...v.statements.map((s) => s.text));
       if (v.line !== null) out.push(v.line);
       if (v.card !== null) out.push(v.card);
+      if (v.note !== null) out.push(v.note);
+      out.push(p.label, p.sentences, p.world, p.next, p.looking, p.yes, p.no, p.nextProblem, p.unitPad, p.totalPad, t.pad.clear, t.pad.ok);
+      out.push(t.draw.sentences, t.draw.glow, t.draw.world, t.draw.cardAria, t.draw.cardHere, t.draw.odd);
       break;
+    }
     case "stuck":
-      out.push(...v.lines, v.resume);
+      out.push(t.stuck.label, ...v.lines, v.resume);
       if (v.hold !== null) out.push(v.hold);
       break;
     case "hard":
     case "rest":
-      out.push(...v.lines, v.helpline.title, v.helpline.pending, ...v.helpline.entries.map(helplineLine));
+      out.push(v.screen === "hard" ? t.hard.label : t.rest.label, ...v.lines, v.helpline.title, v.helpline.pending, t.hard.close);
+      if (v.helpline.note !== null) out.push(v.helpline.note);
+      out.push(...v.helpline.entries.map((h) => helplineLine(h, v.lang)));
       break;
     case "ended":
+      out.push(t.ended.label, t.ended.line);
       break;
-    default:
-      out.push(...v.lines);
+    case "intro":
+      out.push(t.intro.label, ...v.lines, t.intro.start);
+      break;
+    case "consent":
+      out.push(t.consent.label, ...v.lines, t.consent.yes, t.consent.no);
+      break;
+    case "research":
+      out.push(t.research.label, ...v.lines);
+      break;
+    case "finished":
+      out.push(t.finished.label, ...v.lines, t.finished.end);
+      break;
   }
   return out;
 }

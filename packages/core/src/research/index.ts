@@ -286,43 +286,83 @@ export function kohaiReading(input: {
 
 type Action = Hypothesis["clauses"][number]["then"];
 
-const BY_TEXT: Record<string, string> = {
-  first_mentioned: "先に出てきた人を、1とみる",
-  second_mentioned: "あとに出てきた人を、1とみる",
-  known_value: "わかっている数の人を、1とみる",
-  asked: "聞かれている人を、1とみる",
-  larger_number: "数の大きいほうを、1とみる",
-  smaller_number: "数の小さいほうを、1とみる",
+type CardLang = "ja" | "en";
+
+const BY_TEXT: Record<CardLang, Record<string, string>> = {
+  ja: {
+    first_mentioned: "先に出てきた人を、1とみる",
+    second_mentioned: "あとに出てきた人を、1とみる",
+    known_value: "わかっている数の人を、1とみる",
+    asked: "聞かれている人を、1とみる",
+    larger_number: "数の大きいほうを、1とみる",
+    smaller_number: "数の小さいほうを、1とみる",
+  },
+  // The English card follows the same rules: no operation, no number but the 1 of "as 1", no judging
+  // word, and never "you" (原則1・10・11; HANDOFF §7 の4).
+  en: {
+    first_mentioned: "takes the person named first as 1",
+    second_mentioned: "takes the person named later as 1",
+    known_value: "takes the person whose count is given as 1",
+    asked: "takes the person asked about as 1",
+    larger_number: "takes the side with the bigger count as 1",
+    smaller_number: "takes the side with the smaller count as 1",
+  },
 };
 
+const CARD_WORDS = {
+  ja: {
+    quoted: (word: string, before: boolean) => `「${word}」の${before ? "前" : "後ろ"}の人を、1とみる`,
+    unquoted: (before: boolean) => `ある言葉の${before ? "前" : "後ろ"}の人を、1とみる`,
+    swap: "1とみる人を、入れかえて読む",
+    additiveNumerator: "分数の上の数だけ、ちがうと読む",
+    additiveValue: "分数の大きさだけ、ちがうと読む",
+    bySize: "数の大きさで、読み方を決める",
+    percent: "百分率を、そのままの数とみる",
+    same: "どの問題も、同じやり方で読む",
+    invert: "分数を、上と下を入れかえて読む",
+    flip: "ふえた・へったを、反対に読む",
+    question: "聞かれている人を、ほかの人として読む",
+    prefix: "後輩の読み方：",
+  },
+  en: {
+    quoted: (word: string, before: boolean) => `takes the person ${before ? "before" : "after"} "${word}" as 1`,
+    unquoted: (before: boolean) => `takes the person ${before ? "before" : "after"} a certain word as 1`,
+    swap: "swaps who is taken as 1",
+    additiveNumerator: "reads the top of the fraction as the gap between them",
+    additiveValue: "reads the size of the fraction as the gap between them",
+    bySize: "picks the reading by how big the counts are",
+    percent: "reads a percent as a plain count",
+    same: "reads every problem in the same way",
+    invert: "reads the fraction upside down",
+    flip: "reads gaining and losing the other way round",
+    question: "reads the person asked about as someone else",
+    prefix: "Junior's reading: ",
+  },
+} as const;
+
 /** The card's words for one action. They name no operation and no number other than the "1" (原則1・11). */
-function cardText(a: Action): string | null {
+function cardText(a: Action, lang: CardLang): string | null {
+  const w = CARD_WORDS[lang];
   switch (a.action) {
     case "no_change":
       return null;
     case "choose_reference":
-      if (typeof a.by === "string") return BY_TEXT[a.by] as string;
+      if (typeof a.by === "string") return BY_TEXT[lang][a.by] as string;
       // The word was written by Claude: it is shown only when it is a plain word with no number or
       // operation in it (原則1・11); otherwise the card says "a word" without quoting it.
-      return safeWord(a.by.word)
-        ? `「${a.by.word}」の${a.by.holder === "before_word" ? "前" : "後ろ"}の人を、1とみる`
-        : `ある言葉の${a.by.holder === "before_word" ? "前" : "後ろ"}の人を、1とみる`;
+      return safeWord(a.by.word) ? w.quoted(a.by.word, a.by.holder === "before_word") : w.unquoted(a.by.holder === "before_word");
     case "swap_reference":
-      return "1とみる人を、入れかえて読む";
+      return w.swap;
     case "set_relation_type_additive":
-      return a.amount === "numerator" ? "分数の上の数だけ、ちがうと読む" : "分数の大きさだけ、ちがうと読む";
+      return a.amount === "numerator" ? w.additiveNumerator : w.additiveValue;
     case "number_op":
-      return a.mode === "divide_large_by_small"
-        ? "数の大きさで、読み方を決める"
-        : a.mode === "percent_as_count"
-          ? "百分率を、そのままの数とみる"
-          : "どの問題も、同じやり方で読む";
+      return a.mode === "divide_large_by_small" ? w.bySize : a.mode === "percent_as_count" ? w.percent : w.same;
     case "invert_ratio":
-      return "分数を、上と下を入れかえて読む";
+      return w.invert;
     case "flip_event":
-      return "ふえた・へったを、反対に読む";
+      return w.flip;
     case "misread_question":
-      return "聞かれている人を、ほかの人として読む";
+      return w.question;
   }
 }
 
@@ -336,13 +376,14 @@ export function safeWord(w: string): boolean {
 /**
  * The card's one line for the junior's reading. Given the problem, it names the clause that acted there,
  * and none when the reading builds the correct world; without a problem, the first clause that changes anything.
+ * In English (lang "en") the card follows the same rules (HANDOFF §7 の4).
  */
-export function readingCard(h: Hypothesis, record?: ProblemRecord): string | null {
+export function readingCard(h: Hypothesis, record?: ProblemRecord, lang: CardLang = "ja"): string | null {
   const acting = record === undefined ? h.clauses : [...new Set(firedClauses(h, record))].sort((x, y) => x - y).map((i) => h.clauses[i] as Hypothesis["clauses"][number]);
   if (record !== undefined && sameReading(runRule(h, record), record.world, true)) return null;
   for (const c of acting) {
-    const text = cardText(c.then);
-    if (text !== null) return `後輩の読み方：${text}`;
+    const text = cardText(c.then, lang);
+    if (text !== null) return `${CARD_WORDS[lang].prefix}${text}`;
   }
   return null;
 }

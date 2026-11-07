@@ -55,7 +55,10 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
   const api = opts.api === undefined ? createHttpApi() : opts.api;
   const settings = await store.getSettings();
   const research = await store.loadResearch();
-  const actor = createActor(flowMachine, { input: { ...(opts.input ?? {}), introSeen: settings.introSeen, consented: settings.consented, research } });
+  // The screen's language is the device's choice (HANDOFF §7 の4) unless the caller names one.
+  const actor = createActor(flowMachine, {
+    input: { lang: settings.lang, ...(opts.input ?? {}), introSeen: settings.introSeen, consented: settings.consented, research },
+  });
 
   let stopped = false;
   let lastLine: Line | null = null;
