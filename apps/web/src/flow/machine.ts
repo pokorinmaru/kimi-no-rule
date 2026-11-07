@@ -251,6 +251,8 @@ export interface FlowContext {
   /** The agent's pool (null: failed or timed out); undefined until the controller answers. */
   researchResult: Hypothesis[] | null | undefined;
   researchApplied: boolean;
+  /** The research agent's pool that came after the wait (it runs on); taken once, from the next problem on. */
+  lateResearchApplied: boolean;
   session: SessionMisread | null;
   firstRecord: ProblemRecord | null;
   /** The reading the child left on the rule card when it made every gallery world fit; the junior reads with it. */
@@ -294,6 +296,8 @@ export type FlowEvent =
   | { type: "CLOSE" }
   | { type: "KOHAI_LINE"; seq: number; text: string }
   | { type: "RESEARCH_RESULT"; pool: Hypothesis[] | null }
+  /** The agent's pool arriving after the wait ended and the fallback was used. */
+  | { type: "RESEARCH_LATE"; pool: Hypothesis[] }
   | { type: "SAFETY_RESULT"; flag: SafetyFlagEvent }
   /** The screen's language (HANDOFF §7 の4): taken only while no problem is open, so a problem's lines and card stay in one language. */
   | { type: "SET_LANG"; lang: Lang };
@@ -769,6 +773,7 @@ export const flowMachine = setup({
     researchRequest: null,
     researchResult: undefined,
     researchApplied: false,
+    lateResearchApplied: false,
     session: null,
     firstRecord: null,
     taught: null,
@@ -806,6 +811,15 @@ export const flowMachine = setup({
       { guard: and(["unchecked", inSession]), actions: assign(({ context }) => ({ uncheckedStreak: context.uncheckedStreak + 1, highlight: true })) },
       { guard: "checkedNone", actions: assign({ uncheckedStreak: 0, highlight: false }) },
     ],
+    // The agent takes about a minute; the child never waits that long (the fallback is used at the wait's end).
+    // When its pool comes later, core checks it and it shapes the next problems; the session's one misreading
+    // stays as it was locked (Q30).
+    RESEARCH_LATE: {
+      guard: ({ context, event }) => event.type === "RESEARCH_LATE" && context.researchApplied && !context.lateResearchApplied && Array.isArray(event.pool),
+      actions: assign(({ context, event }) =>
+        event.type === "RESEARCH_LATE" ? { research: researched(context.research, event.pool, context.bank), lateResearchApplied: true } : {},
+      ),
+    },
     RESEARCH_RESULT: {
       guard: "researchOpen",
       actions: assign(({ event }) => ({ researchResult: event.type === "RESEARCH_RESULT" && Array.isArray(event.pool) ? event.pool : null })),

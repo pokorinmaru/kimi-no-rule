@@ -3,7 +3,7 @@
 // Written before the implementation.
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { COMMON_FRACTION_READINGS, FRACTION_BANK, initialState, observe, type Rational } from "@kimi/core";
+import { COMMON_FRACTION_READINGS, FRACTION_BANK, initialState, observe, type Hypothesis, type Rational } from "@kimi/core";
 import { KOHAI_TIMEOUT_MS, RESEARCH_TIMEOUT_MS, startSession, type FlowApi } from "./session.ts";
 import { createHttpApi } from "./api.ts";
 import { openStore, type FlowStore } from "../store/store.ts";
@@ -247,6 +247,28 @@ describe("the screen's language (HANDOFF §7 の4)", () => {
     await st.setLang("en");
     const s = await startSession({ store: st, api: down });
     expect(s.actor.getSnapshot().context.lang).toBe("en");
+    s.stop();
+  });
+});
+
+describe("the research agent runs on behind the flow (Q45)", () => {
+  it("the child goes on with the fallback after the wait, and a pool that comes later is used from then on", async () => {
+    const st = store();
+    await st.setConsent(true);
+    await st.setIntroSeen(true);
+    let release: (v: { kind: "submitted"; pool: Hypothesis[] }) => void = () => {};
+    const late = new Promise<{ kind: "submitted"; pool: Hypothesis[] }>((r) => (release = r));
+    const lateRule: Hypothesis = { ...(COMMON_FRACTION_READINGS.find((h) => h.id === "c_invert") as Hypothesis), id: "h_from_opus" };
+    const api: FlowApi = { kohai: () => never(), research: () => late as never, safety: () => never() };
+    const s = await startSession({ store: st, api, researchTimeoutMs: 50 });
+    await solveCurrent(s);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(s.actor.getSnapshot().context.researchApplied).toBe(true);
+    expect(s.actor.getSnapshot().context.research.pool.some((e) => e.hypothesis.id === "h_from_opus")).toBe(false);
+    release({ kind: "submitted", pool: [lateRule] });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(s.actor.getSnapshot().context.lateResearchApplied).toBe(true);
+    expect(s.actor.getSnapshot().context.research.pool.some((e) => e.hypothesis.id === "h_from_opus")).toBe(true);
     s.stop();
   });
 });

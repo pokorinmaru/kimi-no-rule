@@ -4,6 +4,7 @@
 import { createActor, type Actor } from "xstate";
 import { flowMachine, type FlowEvent, type FlowInput, type Line, type ResearchRequest, type ScenesRequest } from "./machine.ts";
 import { createHttpApi, type FlowApi } from "./api.ts";
+import type { Hypothesis } from "@kimi/core";
 import type { FlowStore } from "../store/store.ts";
 
 export type { FlowApi } from "./api.ts";
@@ -14,6 +15,8 @@ export const RESEARCH_TIMEOUT_MS = 8000;
 /** The everyday scenes' proposal (Opus): the program's pair shows at once, so a long wait costs nothing; later replies are dropped. */
 export const SCENES_TIMEOUT_MS = 25000;
 /** Two tries on the server (1.5 s, then 4 s while a new schema is prepared) and some room. */
+/** How long the research request may run on behind the flow (the agent's turns are about a minute). 【仮】 */
+export const RESEARCH_HARD_TIMEOUT_MS = 180_000;
 export const SAFETY_TIMEOUT_MS = 6000;
 
 export interface SessionOptions {
@@ -23,6 +26,7 @@ export interface SessionOptions {
   input?: Omit<FlowInput, "introSeen" | "consented" | "research">;
   kohaiTimeoutMs?: number;
   researchTimeoutMs?: number;
+  researchHardTimeoutMs?: number;
   safetyTimeoutMs?: number;
   scenesTimeoutMs?: number;
 }
@@ -91,14 +95,31 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
       actor.send({ type: "RESEARCH_RESULT", pool: null });
       return;
     }
-    void within(opts.researchTimeoutMs ?? RESEARCH_TIMEOUT_MS, (signal) => api.research(req, signal))
+    // The child waits at most the short wait; the request itself runs on (up to RESEARCH_HARD_TIMEOUT_MS), and a
+    // pool that comes after the wait is handed over as RESEARCH_LATE (the Opus agent takes about a minute).
+    const ctrl = new AbortController();
+    const hard = setTimeout(() => ctrl.abort(), opts.researchHardTimeoutMs ?? RESEARCH_HARD_TIMEOUT_MS);
+    let settled = false;
+    const settle = (pool: Hypothesis[] | null): void => {
+      if (settled || stopped) return;
+      settled = true;
+      actor.send({ type: "RESEARCH_RESULT", pool });
+    };
+    const soft = setTimeout(() => settle(null), opts.researchTimeoutMs ?? RESEARCH_TIMEOUT_MS);
+    api
+      .research(req, ctrl.signal)
       .then((reply) => {
-        if (stopped) return;
-        actor.send({ type: "RESEARCH_RESULT", pool: reply !== "timeout" && reply.kind === "submitted" ? reply.pool : null });
+        const pool = reply.kind === "submitted" ? reply.pool : null;
+        if (!settled) {
+          clearTimeout(soft);
+          settle(pool);
+        } else if (pool !== null && !stopped) actor.send({ type: "RESEARCH_LATE", pool });
       })
       .catch(() => {
-        if (!stopped) actor.send({ type: "RESEARCH_RESULT", pool: null });
-      });
+        clearTimeout(soft);
+        settle(null);
+      })
+      .finally(() => clearTimeout(hard));
   };
 
   // One call per reading the scenes are made for (指示書 第6.7節 手順5). The machine takes the reply only for that
