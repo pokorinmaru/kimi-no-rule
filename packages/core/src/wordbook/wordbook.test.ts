@@ -315,11 +315,12 @@ describe("the page's numbers are small and its second picture breaks", () => {
   it.each(WORDBOOK_PAGE_IDS)("%s: small counts, sets in ascending size; the 1 holder deals into whole things, the other holder does not", (id) => {
     const page = WORDBOOK_PAGES.find((p) => p.id === id);
     if (page === undefined) throw new Error(id);
-    // Small: every count at most 40 (the only counts of 12 or less that no problem uses are 7 and 11).
+    // Small: every count at most 51 (the only counts of 12 or less that no problem uses are 7 and 11; a later set is
+    // there for problems whose hidden values the smaller sets' pictures would show).
     const sizes = page.numbers.map((n) => Math.max(n.one, n.other));
     expect(sizes).toEqual([...sizes].sort((a, b) => a - b));
     for (const n of page.numbers) {
-      expect(Math.max(n.one, n.other)).toBeLessThanOrEqual(40);
+      expect(Math.max(n.one, n.other)).toBeLessThanOrEqual(51);
       expect(n.one % n.amount.den).toBe(0);
       // Taking the other holder as 1, its things on as many dishes as the bottom do not come out whole.
       expect(n.other % n.amount.den).not.toBe(0);
@@ -335,8 +336,9 @@ describe("the page's numbers are small and its second picture breaks", () => {
         expect(other.breaks, `${id} on ${r.world.problem_id}`).toBe(true);
         expect(other.holders.some((h) => h.count?.piece != null)).toBe(true);
       }
-    // With nothing to avoid, the smallest set.
+    // On the signboard, the smallest set (14 and 7) would show 8 shapes on the white bag's 2 dishes in picture (2):
+    // the signboard's hidden answer. The next set is taken.
     const sign = wordbookPage("no", signboardRecord, "ja");
-    expect(sign?.world.quantities.find((q) => q.id === "q_one")?.value?.num).toBe(14);
+    expect(sign?.world.quantities.find((q) => q.id === "q_one")?.value?.num).toBe(22);
   });
 });

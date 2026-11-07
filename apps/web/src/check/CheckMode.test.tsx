@@ -10,7 +10,8 @@ import { openStore, type FlowStore } from "../store/store.ts";
 import { FORBIDDEN_CHILD_PHRASES, hardLines } from "../flow/text.ts";
 import { CheckMode } from "./CheckMode.tsx";
 import { CHECK_TEXT } from "./text.ts";
-import { HELPLINES, helplineLine } from "../flow/text.ts";
+import { HELPLINES } from "../flow/text.ts";
+import { plainText } from "../plain-text.ts";
 
 let n = 0;
 const stores: FlowStore[] = [];
@@ -139,15 +140,18 @@ describe("the check screen", () => {
     typeNumber(answerOf(r));
     fireEvent.click(screen.getByTestId("btn-hard"));
     const hard = await screen.findByTestId("screen-hard");
-    for (const l of hardLines("ja")) expect(hard.textContent).toContain(l);
+    for (const l of hardLines("ja")) expect(plainText(hard)).toContain(l);
     expect(screen.queryByTestId("pad-ok")).toBeNull();
     expect(screen.queryByTestId("check-problem")).toBeNull();
     expect(screen.queryByTestId("btn-dont-know")).toBeNull();
     expect(screen.getByTestId("btn-stop")).toBeTruthy();
     // Only the checked helplines carry numbers (B2).
-    const others = HELPLINES.reduce((acc, h) => acc.replaceAll(helplineLine(h), ""), hard.textContent ?? "");
-    expect(others).not.toMatch(/\d{2,4}-\d{2,4}-\d{3,4}|0120/);
-    for (const h of HELPLINES) expect(hard.textContent).toContain(h.number);
+    // Each helpline is one card holding its name, its number and its hours, as checked; nothing else has a number.
+    const cards = [...hard.querySelectorAll('[data-role="helpline"]')];
+    expect(cards.map((c) => plainText(c))).toEqual(HELPLINES.map((h) => `${h.name}${h.number}${h.when}`));
+    const rest = hard.cloneNode(true) as Element;
+    for (const c of rest.querySelectorAll('[data-role="helpline"]')) c.remove();
+    expect(plainText(rest)).not.toMatch(/\d{2,4}-\d{2,4}-\d{3,4}|0120/);
     await vi.waitFor(async () => expect((await store.listSafety()).map((x) => x.kind)).toEqual(["hard_button"]));
     // What was answered before stays as a shorter check.
     await vi.waitFor(async () => expect((await store.listChecks())[0]?.items).toHaveLength(1));

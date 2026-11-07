@@ -68,9 +68,24 @@ function textNodes(root: Node): string[] {
   return out;
 }
 
-describe("the junior's misread signboard (6 goldfish dealt onto 4 dishes)", () => {
+describe("the junior's misread signboard, before the child says anything: nothing is dealt", () => {
   const r = bank("p_signboard");
-  const scene = sceneOf(r, runRule(rule("c_known_whole"), r));
+  it("兄's 6 stay in the tank (dealt, 2 shapes a dish and 8 in all would show the hidden 2 and 8); 弟 shows 4 and a cut half", () => {
+    const s = sceneOf(r, runRule(rule("c_known_whole"), r));
+    const { container } = render(<ObjectSceneView scene={s} reducedMotion />);
+    const ani = q(container, '[data-role="thing"][data-holder="h_ani"]');
+    expect(ani).toHaveLength(6);
+    expect(ani.every((t) => t.getAttribute("data-place") === "container")).toBe(true);
+    const oto = q(container, '[data-role="thing"][data-holder="h_otouto"]');
+    expect(oto).toHaveLength(5);
+    expect(oto.filter((t) => t.getAttribute("data-piece") === "1/2")).toHaveLength(1);
+    expect(q(container, '[data-role="dish"]')).toHaveLength(0);
+  });
+});
+
+describe("the misread signboard once the child has said one segment (2) and the answer (8): 6 goldfish dealt onto 4 dishes", () => {
+  const r = bank("p_signboard");
+  const scene = sceneOf(r, runRule(rule("c_known_whole"), r), [{ num: 2, den: 1 }, { num: 8, den: 1 }]);
 
   it("draws the older brother's 6 goldfish on 4 dishes, one and a half each, and the younger's 3 dishes", () => {
     const { container } = render(<ObjectSceneView scene={scene} reducedMotion />);
@@ -214,14 +229,17 @@ describe("no hidden correct value appears before the child says it (every bank p
         for (const holder of s.holders) {
           const things = q(container, `[data-role="thing"][data-holder="${holder.holderId}"]`);
           const wholes = things.filter((t) => t.getAttribute("data-piece") === "").length;
-          if (!holder.given) {
-            // As a count: neither all of a holder's things nor its whole things.
-            if (things.length > 0) expect(isHidden(wholes), `${holder.label} wholes ${String(wholes)}`).toBe(false);
+          // As a count of shapes (a cut piece is a shape of its own) or of whole things: a holder's things in all, unless
+          // they are the problem's own number kept in its container.
+          if (things.length > 0 && (!holder.given || holder.dishes > 0)) {
+            expect(isHidden(wholes), `${holder.label} wholes ${String(wholes)}`).toBe(false);
+            expect(isHidden(things.length), `${holder.label} shapes ${String(things.length)}`).toBe(false);
           }
           for (let d = 0; d < holder.dishes; d++) {
             const onDish = things.filter((t) => t.getAttribute("data-dish") === String(d));
             const w = onDish.filter((t) => t.getAttribute("data-piece") === "").length;
             expect(isHidden(w), `${holder.label} dish ${String(d)}`).toBe(false);
+            expect(isHidden(onDish.length), `${holder.label} dish ${String(d)} shapes`).toBe(false);
           }
         }
         unmount();
@@ -238,7 +256,7 @@ describe("motion (指示書 第8.6節)", () => {
     delete (Element.prototype as { animate?: unknown }).animate;
   });
   const r = bank("p_signboard");
-  const scene = sceneOf(r, runRule(rule("c_known_whole"), r));
+  const scene = sceneOf(r, runRule(rule("c_known_whole"), r), [{ num: 2, den: 1 }, { num: 8, den: 1 }]);
 
   it("deals the things from the container onto the dishes with the move preset, a few at a time, within 1.2 s of start", () => {
     render(<ObjectSceneView scene={scene} reducedMotion={false} />);
@@ -395,7 +413,7 @@ describe("the parts loader", () => {
 
   it("a piece keeps a clear gap from the whole thing before it, on a dish and in a container", () => {
     const r = bank("p_signboard");
-    const l = layoutStage(sceneOf(r, runRule(rule("c_known_whole"), r)));
+    const l = layoutStage(sceneOf(r, runRule(rule("c_known_whole"), r), [{ num: 2, den: 1 }, { num: 8, den: 1 }]));
     const onDish = l?.holders[0]?.things.filter((t) => t.dish === 0) ?? [];
     const piece = onDish.find((t) => t.piece !== null);
     const whole = onDish.find((t) => t.piece === null);
@@ -487,7 +505,7 @@ describe("the parts loader", () => {
         }
       }
     const r = bank("p_signboard");
-    const l = layoutStage(sceneOf(r, runRule(rule("c_known_whole"), r)));
+    const l = layoutStage(sceneOf(r, runRule(rule("c_known_whole"), r), [{ num: 2, den: 1 }, { num: 8, den: 1 }]));
     const ani = l?.holders[0];
     if (l === null || ani === undefined) throw new Error("layout");
     expect(ani.dishes).toHaveLength(4);
@@ -502,7 +520,7 @@ describe("the parts loader", () => {
 
   it("the deal leaves no empty container in the DOM, with or without motion", () => {
     const r = bank("p_signboard");
-    const { container } = render(<ObjectSceneView scene={sceneOf(r, runRule(rule("c_known_whole"), r))} reducedMotion />);
+    const { container } = render(<ObjectSceneView scene={sceneOf(r, runRule(rule("c_known_whole"), r), [{ num: 2, den: 1 }, { num: 8, den: 1 }])} reducedMotion />);
     expect(q(container, '[data-role="container"]')).toHaveLength(0);
     const kept = render(<ObjectSceneView scene={sceneOf(r, r.world)} reducedMotion />);
     expect(q(kept.container, '[data-role="container"]').length).toBeGreaterThan(0);
@@ -526,7 +544,7 @@ describe("words and accessibility", () => {
     const r = bank("p_signboard");
     const { container } = render(
       <main>
-        <ObjectSceneView scene={sceneOf(r, runRule(rule("c_known_whole"), r))} reducedMotion />
+        <ObjectSceneView scene={sceneOf(r, runRule(rule("c_known_whole"), r), [{ num: 2, den: 1 }, { num: 8, den: 1 }])} reducedMotion />
       </main>,
     );
     const res = await axe.run(container, { resultTypes: ["violations"] });
@@ -616,9 +634,18 @@ describe("continuous quantities: liquids in cups, yarn in lengths, no container"
     return r;
   };
 
-  it("juice in dL: the small bottle's 6 dL are 6 full cups, poured into 5 groups of 1 cup and a cup one fifth full", () => {
+  it("juice in dL, before the child says anything: not poured (2 cups a group would show the hidden one part, 2 dL)", () => {
     const r = stored("p_disc_c_first_whole_s_motoni_plain_2");
     const s = sceneOf(r, runRule(rule("c_swap"), r));
+    expect(s.share).toBeNull();
+    const { container } = render(<ObjectSceneView scene={s} reducedMotion />);
+    expect(q(container, '[data-role="share-group"]')).toHaveLength(0);
+    expect(q(container, '[data-role="thing"][data-holder="h_small"]')).toHaveLength(6);
+  });
+
+  it("juice in dL, once the child said one part (2) and the answer (10): 6 full cups poured into 5 groups of 1 cup and a cup one fifth full", () => {
+    const r = stored("p_disc_c_first_whole_s_motoni_plain_2");
+    const s = sceneOf(r, runRule(rule("c_swap"), r), [{ num: 2, den: 1 }, { num: 10, den: 1 }]);
     const l = layoutStage(s);
     if (l === null) throw new Error("layout");
     for (const h of l.holders) {
@@ -686,9 +713,16 @@ describe("continuous quantities: liquids in cups, yarn in lengths, no container"
           for (const v of numbersIn(t.replace(/(\d+)(まいの おさら|つに わけて)/g, (m, d: string) => (dishCounts.includes(Number(d)) ? "" : m))))
             expect(hidden.some((x) => eq(x, fromSchema(v))), `${t}`).toBe(false);
         for (const holder of s.holders) {
-          if (holder.given) continue;
-          const wholes = q(container, `[data-role="thing"][data-holder="${holder.holderId}"][data-piece=""]`).length;
+          if (holder.given && holder.dishes === 0) continue;
+          const all = q(container, `[data-role="thing"][data-holder="${holder.holderId}"]`);
+          const wholes = all.filter((t) => t.getAttribute("data-piece") === "").length;
+          // Whole cups or lengths, and all the shapes (a part-filled cup is a cup).
           if (wholes > 0) expect(isHidden(wholes), `${holder.label} ${String(wholes)}`).toBe(false);
+          if (all.length > 0) expect(isHidden(all.length), `${holder.label} shapes ${String(all.length)}`).toBe(false);
+          for (let d = 0; d < holder.dishes; d++) {
+            const inGroup = all.filter((t) => t.getAttribute("data-dish") === String(d));
+            expect(isHidden(inGroup.length), `${holder.label} group ${String(d)}`).toBe(false);
+          }
         }
         unmount();
       });

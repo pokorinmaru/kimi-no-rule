@@ -44,21 +44,38 @@ function assertNoHiddenDrawn(s: ObjectScene, where: string): void {
 describe("objectScene on the signboard", () => {
   const r = bank("p_signboard");
 
-  it("the junior who multiplies what is given: 6 goldfish dealt onto 4 dishes is 1 and a half each, the younger has 4 and a half", () => {
+  it("the junior who multiplies what is given: 6 goldfish are not dealt (2 shapes on each of 4 dishes, 8 in all, would show the hidden 2 and 8); the younger has 4 and a half", () => {
     const s = objectScene(asDrawn(runRule(rule("c_known_whole"), r)), r.world, { values: [] });
     expect(s).not.toBeNull();
     if (s === null) return;
     const ani = holder(s, "h_ani");
     const oto = holder(s, "h_otouto");
     expect(ani.isOne).toBe(true);
-    expect(ani.dishes).toBe(4);
+    expect(ani.dishes).toBe(0);
     expect(ani.count).toEqual({ wholes: 6, piece: null });
-    expect(oto.dishes).toBe(3);
+    expect(oto.dishes).toBe(0);
     expect(oto.count).toEqual({ wholes: 4, piece: n(1, 2) });
     expect(oto.impossible).toBe(true);
+    expect(s.share).toBeNull();
+    expect(s.item).toEqual({ id: "k_kingyo", noun: "金魚", counter: "匹", continuous: false });
+  });
+
+  it("one segment said (2) is not enough (8 shapes would still show the answer); with the answer said too, 4 dishes of 1 and a half", () => {
+    const only = objectScene(asDrawn(runRule(rule("c_known_whole"), r)), r.world, { values: [n(2)] });
+    expect(only?.share).toBeNull();
+    const s = objectScene(asDrawn(runRule(rule("c_known_whole"), r)), r.world, { values: [n(2), n(8)] });
+    if (s === null) throw new Error("scene");
+    expect(holder(s, "h_ani").dishes).toBe(4);
     expect(s.share).toEqual({ wholes: 1, piece: n(1, 2) });
     expect(s.breaks).toBe(true);
-    expect(s.item).toEqual({ id: "k_kingyo", noun: "金魚", counter: "匹", continuous: false });
+  });
+
+  it("counts the shapes: a cut piece is a shape of its own (wholes + 1), on a dish and over a holder's dishes", () => {
+    const s = objectScene(asDrawn(runRule(rule("c_known_whole"), r)), r.world, { values: [n(2), n(8)] });
+    if (s === null) throw new Error("scene");
+    const values = drawnValues(s).map(fromSchema);
+    // 1 and a half per dish: 1 whole, 2 shapes; 兄's 4 dishes: 4 wholes, 8 shapes; 弟's 3 dishes: 3 wholes, 6 shapes.
+    for (const v of [2, 8, 6, 4]) expect(values.some((x) => eq(x, rat(v))), String(v)).toBe(true);
   });
 
   it("hides the correct answer and the correct one segment until the child says them", () => {
@@ -130,7 +147,8 @@ describe("objectScene refuses what it does not draw", () => {
     const r = bank("p_signboard");
     const w: WorldScene = { ...r.world, item_kinds: r.world.item_kinds.map((k) => ({ ...k, countable: false })) };
     const misread = asDrawn(runRule(rule("c_known_whole"), { ...r, world: w }));
-    const s = objectScene(misread, w, { values: [] });
+    // The child has said one segment and the answer, so the dealing may show.
+    const s = objectScene(misread, w, { values: [n(2), n(8)] });
     if (s === null) throw new Error("scene");
     expect(s.item.continuous).toBe(true);
     expect(s.holders.find((h) => h.holderId === "h_otouto")?.count).toEqual({ wholes: 4, piece: n(1, 2) });

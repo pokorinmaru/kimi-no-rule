@@ -1,8 +1,19 @@
 // The whole first problem in a real browser, with the local server down: templates and the fallback pool
 // only (指示書 第11節 M7: the flow never stops when the server does). Every step is a tap.
 import { createRequire } from "node:module";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { FRACTION_BANK, judgeAnswer } from "@kimi/core";
+import { COLOR } from "../src/ui/tokens.ts";
+
+/** A locator's text as written, its furigana (the <rt> readings) aside. */
+const plainOf = (loc: Locator): Promise<string> =>
+  loc.evaluate((el) => {
+    const c = el.cloneNode(true) as Element;
+    for (const rt of c.querySelectorAll("rt")) rt.remove();
+    return c.textContent ?? "";
+  });
+
+const rgbOf = (hex: string): string => `rgb(${[1, 3, 5].map((i) => String(parseInt(hex.slice(i, i + 2), 16))).join(", ")})`;
 
 const axePath = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 
@@ -20,7 +31,14 @@ async function expectNoAxeViolations(page: Page, screen: string): Promise<void> 
 
 test("app shell renders with the AI mark and the three buttons", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("後輩と問題を読もう");
+  // The title as written, its furigana aside (指示書 第8.4b節).
+  const title = await page.getByRole("heading", { level: 1 }).evaluate((el) => {
+    const c = el.cloneNode(true) as Element;
+    for (const rt of c.querySelectorAll("rt")) rt.remove();
+    return c.textContent;
+  });
+  expect(title).toBe("後輩と問題を読もう");
+  await expect(page.locator("h1 rt").first()).toHaveText("こうはい");
   await expect(page.getByTestId("btn-stop")).toBeVisible();
   await expect(page.getByTestId("btn-dont-know")).toBeVisible();
   await expect(page.getByTestId("btn-hard")).toBeVisible();
@@ -75,7 +93,7 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   await expect(page.locator("main")).toContainText("8匹");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-guess-unknown").click();
-  await expect(page.getByTestId("reading-card")).toContainText("後輩の読み方：");
+  await expect.poll(() => plainOf(page.getByTestId("reading-card"))).toContain("後輩の読み方：");
   // On the second problem the two prediction buttons come in the other order (指示書 第11節 M7).
   const second = await page.getByTestId("predict").getByRole("button").allTextContents();
   expect(second.slice(0, 2)).toEqual([first[1], first[0]]);
@@ -228,8 +246,9 @@ test("in dark mode the page keeps its light background and readable text", async
   const page = await ctx.newPage();
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  // The warm off-white of the tokens (ui/tokens.ts COLOR.page), the same in every device mode.
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(bg).toBe("rgb(255, 255, 255)");
+  expect(bg).toBe(rgbOf(COLOR.page));
   const scheme = await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
   expect(scheme).toBe("light");
   await expectNoAxeViolations(page, "intro in dark mode");

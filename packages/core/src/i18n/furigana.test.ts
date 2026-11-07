@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { FRACTION_BANK } from "../../fixtures/problems/fraction-bank.ts";
 import { PROBLEM_READINGS } from "../../fixtures/problems/readings.ts";
-import { UI_READINGS, readingsFor, rubySegments, rubyTokens, spokenText } from "./furigana.ts";
+import { UI_READINGS, readingsFor, rubySegments, rubyTokens, spokenText, templateRuby, type RubySegment } from "./furigana.ts";
 
 const KANJI = /[一-鿿々]/;
 const discDir = fileURLToPath(new URL("../../../../content/problems/discriminating/", import.meta.url));
@@ -142,5 +142,46 @@ describe("the readings of the fixed lines", () => {
       expect(KANJI.test(w), w).toBe(true);
       expect(kana, w).toMatch(/^[ぁ-ゟ|]+$/);
     }
+  });
+});
+
+describe("templateRuby: furigana over the junior's lines", () => {
+  // Whole-screen review, 2026-11-08: the junior's lines had no furigana. Only a line made from core's templates gets
+  // ruby: its fixed words from UI_READINGS, a holder's or a thing's name from the problem's readings, and the child's
+  // own words and the numbers as they are. Any other line (a generated one) gets none, rather than a guessed reading.
+  const said = (segs: RubySegment[] | null) =>
+    segs?.map((s) => s.ruby ?? s.text).join("") ?? null;
+
+  it("reads a template line, a holder slot by the problem's readings", () => {
+    expect(
+      said(templateRuby("ひと区切りの大きさは、いくつでしょう", "ja", {})),
+    ).toBe("ひとくぎりのおおきさは、いくつでしょう");
+    expect(
+      said(
+        templateRuby(
+          "「1」は弟、でいいですか？",
+          "ja",
+          readingsFor("p_signboard"),
+        ),
+      ),
+    ).toBe("「1」はおとうと、でいいですか？");
+  });
+
+  it("leaves the child's own words and the numbers plain", () => {
+    const segs = templateRuby(
+      "「弟が1だよ」と聞こえました。",
+      "ja",
+      readingsFor("p_signboard"),
+    );
+    expect(segs?.map((s) => s.text).join("")).toBe(
+      "「弟が1だよ」と聞こえました。",
+    );
+    expect(segs?.find((s) => s.text.includes("弟"))?.ruby ?? null).toBeNull();
+    expect(segs?.find((s) => s.text === "聞")?.ruby).toBe("き");
+  });
+
+  it("gives no ruby to a line that is not a template's, nor in English", () => {
+    expect(templateRuby("大切な文を見てみよう", "ja", {})).toBeNull();
+    expect(templateRuby("How big is each part?", "en", {})).toBeNull();
   });
 });

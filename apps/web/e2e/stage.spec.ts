@@ -32,6 +32,21 @@ test("the junior's world shows the stage picture above the tape, without the ans
   const wholes = await younger.evaluateAll((els) => els.filter((e) => e.getAttribute("data-piece") === "").length);
   expect(wholes).not.toBe(answer);
   expect(await younger.count()).not.toBe(answer);
+  // No holder's things, counted as shapes (a cut piece is one) in all or on one dish, are the answer before the child says it.
+  const counts = await stage.locator('[data-role="thing"]').evaluateAll((els) => {
+    const out: number[] = [];
+    const by = new Map<string, Element[]>();
+    for (const e of els) by.set(e.getAttribute("data-holder") ?? "", [...(by.get(e.getAttribute("data-holder") ?? "") ?? []), e]);
+    for (const list of by.values()) {
+      out.push(list.length);
+      const dishes = new Map<string, number>();
+      for (const e of list) if (e.getAttribute("data-place") === "dish") dishes.set(e.getAttribute("data-dish") ?? "", (dishes.get(e.getAttribute("data-dish") ?? "") ?? 0) + 1);
+      out.push(...dishes.values());
+    }
+    return out;
+  });
+  expect(counts.length).toBeGreaterThan(0);
+  expect(counts).not.toContain(answer);
   // The holders' names in the sentences carry the picture's colours.
   await expect(page.locator('[data-statement="0"] [data-role="holder-name"]').first()).toHaveText(/兄/);
   await page.screenshot({ path: shot(`${process.env["STAGE_PREFIX"] ?? ""}stage-1024.png`), fullPage: true });

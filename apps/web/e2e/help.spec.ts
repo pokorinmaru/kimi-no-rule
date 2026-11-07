@@ -56,10 +56,12 @@ test("「わからない」 opens the staged questions, and the word book draws 
   // The page's two contrasting stage pictures, each captioned by which holder is taken as 1.
   await expect(page.getByTestId("wordbook-contrast")).toHaveCount(2);
   await expect(page.getByTestId("wordbook-caption").first()).toContainText("とみると");
-  // Side by side, and the whole page at most about 1,300 px tall.
+  // Side by side, the two pictures together at most 700 px tall (the page's own text and tape are the rest; the
+  // whole page was about 1,330 px on the signboard, whose set is 22 and 11: the smallest set, 14 and 7, would show
+  // 8 shapes in picture (2), the signboard's hidden answer).
   await expect(page.getByTestId("wordbook-contrasts")).toHaveAttribute("data-side-by-side", "true");
-  const tall = await page.getByTestId("screen-wordbook").evaluate((el) => el.getBoundingClientRect().height);
-  expect(tall).toBeLessThanOrEqual(1300);
+  const tall = await page.getByTestId("wordbook-contrasts").evaluate((el) => el.getBoundingClientRect().height);
+  expect(tall).toBeLessThanOrEqual(700);
   await keepsTheRules(page);
   await expectNoAxeViolations(page, "word book");
   await page.getByTestId("btn-book-close").click();

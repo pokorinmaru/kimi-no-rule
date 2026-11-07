@@ -7,9 +7,10 @@
 import { useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { Lang, Rational, WorldScene } from "@kimi/core";
 import { ui } from "../flow/text.ts";
-import { describeLayout, layoutWorld, type LayoutOptions, type TapeLayout, type ValueLabel } from "./layout.ts";
+import { SIZES, describeLayout, layoutWorld, type LayoutOptions, type TapeLayout, type ValueLabel } from "./layout.ts";
 import { useAnimation, useReducedMotion } from "./motion.ts";
 import { COLORS, FONT } from "./theme.ts";
+import { holderColors, type HolderColor } from "./holder-colors.ts";
 
 export interface WorldViewProps {
   /** A verified world from core (verifiedDrawWorld / verifiedCorrectWorld). */
@@ -51,7 +52,7 @@ const valueText = (v: ValueLabel): string | null =>
   v.kind === "number" ? `${v.text}${v.counter}` : v.kind === "unknown" ? "？" : null;
 const valueData = (v: ValueLabel): string => (v.kind === "number" ? v.text : "?");
 
-function Tape({ t, glow, reduced }: { t: TapeLayout; glow: boolean; reduced: boolean }) {
+function Tape({ t, glow, reduced, color }: { t: TapeLayout; glow: boolean; reduced: boolean; color: HolderColor | undefined }) {
   const bar = useRef<SVGGElement>(null);
   const halo = useRef<SVGRectElement>(null);
   useAnimation(bar, "grow", [{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], !reduced, `${String(t.width)}`);
@@ -66,9 +67,11 @@ function Tape({ t, glow, reduced }: { t: TapeLayout; glow: boolean; reduced: boo
       data-glow={glow ? "true" : "false"}
       data-impossible={t.impossible ? "true" : "false"}
     >
-      <text x={16} y={mid} dominantBaseline="central" fill={COLORS.ink} style={{ font: `700 22px ${FONT}` }}>
+      {/* The holder's name right next to its bar, in the holder's colour as in the stage picture and the sentences. */}
+      <text data-role="tape-label" x={t.x - 12} y={mid} textAnchor="end" dominantBaseline="central" fill={color?.ink ?? COLORS.ink} style={{ font: `700 22px ${FONT}` }}>
         {t.label}
       </text>
+      {color !== undefined && <rect x={t.x - 12 - Math.min(64, 22 * [...t.label].length)} y={mid + 14} width={Math.min(64, 22 * [...t.label].length)} height={4} rx={2} fill={color.fill} />}
       {glow && (
         <rect
           ref={halo}
@@ -265,6 +268,9 @@ export function WorldView(props: WorldViewProps) {
   };
 
   const card = l.card;
+  const colors = useMemo(() => new Map(holderColors(world.holders).map((h) => [h.id, h.color])), [world.holders]);
+  // Once the card is on a tape the tray is empty: it is left out, so the tapes sit close under the picture.
+  const top = card.placedOn !== null ? SIZES.trayHeight - 8 : 0;
   const chosen = candidate === null ? undefined : l.dropTargets[candidate];
   const cardShift = drag === null ? undefined : `translate(${String(drag.dx)} ${String(drag.dy)})`;
 
@@ -275,14 +281,14 @@ export function WorldView(props: WorldViewProps) {
         role="group"
         aria-label={label}
         aria-describedby={descId}
-        viewBox={`0 0 ${String(l.width)} ${String(l.height)}`}
+        viewBox={`0 ${String(top)} ${String(l.width)} ${String(l.height - top)}`}
         width="100%"
-        style={{ maxWidth: l.width, display: "block", background: COLORS.paper, touchAction: drag === null ? "auto" : "none" }}
+        style={{ maxWidth: l.width, display: "block", margin: "0 auto", background: COLORS.paper, touchAction: drag === null ? "auto" : "none" }}
         onPointerMove={onSvgPointerMove}
         onPointerUp={onSvgPointerUp}
       >
         {l.tapes.map((t) => (
-          <Tape key={t.holderId} t={t} glow={glowing.has(t.quantityId) || glowing.has(t.holderId)} reduced={reduced} />
+          <Tape key={t.holderId} t={t} glow={glowing.has(t.quantityId) || glowing.has(t.holderId)} reduced={reduced} color={colors.get(t.holderId)} />
         ))}
         {l.differences.map((d) => {
           const text = valueText(d.label);

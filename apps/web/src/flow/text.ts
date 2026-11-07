@@ -92,6 +92,12 @@ export interface HelplineText {
   entries: readonly Helpline[];
 }
 
+/** One card of the intro: a short title and two or three plain lines. */
+export interface IntroCard {
+  title: string;
+  lines: readonly string[];
+}
+
 /** Every word of the screens (the junior's lines are core's, not here). */
 export interface UiText {
   lang: Lang;
@@ -103,8 +109,20 @@ export interface UiText {
   reading: { label: string; aloud: string; stop: string; furigana: string };
   buttons: { stop: string; dontKnow: string; hard: string };
   alwaysLabel: string;
-  intro: { label: string; lines: readonly string[]; start: string };
-  consent: { label: string; lines: readonly string[]; yes: string; no: string };
+  /**
+   * The intro (原則10, 第9節 AIであることの明示): short cards for the child, then the same facts in fuller words for
+   * the grown-up behind 「おうちの人へ」 on the same screen. `lines` is every line of both, for the checks.
+   */
+  intro: {
+    label: string;
+    cards: readonly IntroCard[];
+    adultTitle: string;
+    adultLines: readonly string[];
+    lines: readonly string[];
+    start: string;
+  };
+  /** The grown-up's consent; `child` tells the child this part is for a grown-up at home. */
+  consent: { label: string; child: string; lines: readonly string[]; yes: string; no: string };
   problem: {
     label: string;
     sentences: string;
@@ -258,6 +276,18 @@ export function helplinesFor(lang: Lang): readonly Helpline[] {
   return lang === "en" ? HELPLINES_EN : HELPLINES;
 }
 
+/** The intro with `lines` made from its cards and the grown-up's details (every disclosure in one list). */
+function introText(i: Omit<UiText["intro"], "lines">): UiText["intro"] {
+  return {
+    ...i,
+    lines: [
+      ...i.cards.flatMap((c) => [c.title, ...c.lines]),
+      i.adultTitle,
+      ...i.adultLines,
+    ],
+  };
+}
+
 const JA: UiText = {
   lang: "ja",
   // The work's name (君のルールで世界を作る) is not shown to the child: it would attribute the reading to the
@@ -268,20 +298,47 @@ const JA: UiText = {
   reading: { label: "読むのを手伝う", aloud: "読み上げ", stop: "止める", furigana: "ふりがな" },
   buttons: { stop: "やめる", dontKnow: "わからない", hard: "つらい" },
   alwaysLabel: "いつでも使えるボタン",
-  intro: {
+  intro: introText({
     label: "はじめに",
-    lines: [
-      "これからいっしょに問題を読む「後輩」は、AIです。",
-      "後輩は人ではありません。心や気持ちもありません。",
-      "後輩は、いろいろな読み方で問題を読みます。1問目で「1」の札をどこに置いたかを見て、その読み方で読んでみることもあります。後輩のルールカードをきみが直すと、つぎの問題をそのカードで読むこともあります。うまく読めないこともあります。",
-      "このアプリが記録をしまうのは、このタブレットの中だけです。",
-      "「話して教える」をおして話すと、ブラウザが話したことを文字にして、後輩がわかるように AI の Claude に送ります。話したことは、このタブレットにはのこりません。",
-      "「やめる」「わからない」「つらい」は、いつでもおせます。",
+    cards: [
+      {
+        title: "後輩は AI です",
+        lines: [
+          "いっしょに問題を読む「後輩」は、AIです。",
+          "後輩は人ではありません。心や気持ちもありません。",
+        ],
+      },
+      {
+        title: "後輩の読み方",
+        lines: [
+          "後輩は、いろいろな読み方で問題を読みます。うまく読めないこともあります。",
+          "きみが「1」の札を置いた場所や、きみが直したルールカードの読み方で、つぎの問題を読むこともあります。",
+        ],
+      },
+      {
+        title: "記録と声",
+        lines: [
+          "記録は、このタブレットの中にだけしまいます。",
+          "「話して教える」で話したことは、文字にして AI の Claude に送ります。タブレットにはのこりません。",
+        ],
+      },
+      {
+        title: "いつでも止められる",
+        lines: ["「やめる」「わからない」「つらい」は、いつでもおせます。"],
+      },
+    ],
+    adultTitle: "おうちの人へ（くわしく）",
+    adultLines: [
+      "後輩は AI（Anthropic の Claude）で、人ではなく、心や気持ちもありません。",
+      "2問目からの後輩は、1問目で子どもが「1」の札を置いた場所から作った読み方や、子どもが直したルールカードの読み方で、問題を読むことがあります。",
+      "このアプリの記録は、この端末の中にだけしまいます。",
+      "「話して教える」で話したことは、ブラウザの音声認識が文字にし、後輩がわかるようにその文字を AI の Claude に送ります。話したことは、この端末には残しません。",
     ],
     start: "はじめる",
-  },
+  }),
   consent: {
     label: "おうちの人の同意",
+    child: "ここは、おうちの人が読むところです。おうちの人に見せてね。",
     lines: [
       "保護者の方へ",
       "後輩の言葉と読み方の研究のために、問題、子どもが置いた「1」の札（この端末に残っている前の回の置き方も含みます）、子どもがタップした問題文の言葉、子どもが直したルールカードの読み方（後輩の世界として）を、Anthropic の Claude に送ります。",
@@ -431,20 +488,49 @@ const EN: UiText = {
   reading: { label: "Reading help", aloud: "Read aloud", stop: "Stop reading", furigana: "Furigana" },
   buttons: { stop: "Stop", dontKnow: "I don't know", hard: "I feel bad" },
   alwaysLabel: "Buttons you can use any time",
-  intro: {
+  intro: introText({
     label: "Welcome",
-    lines: [
-      'The "junior" who reads the problems with you is an AI.',
-      "The junior is not a person. It has no heart and no feelings.",
-      'The junior reads problems in different ways. It may look at where you put the "1" card on the first problem and try reading that way. If you fix the junior’s rule card, it may read the next problem with that card. Sometimes it cannot read well.',
-      "This app keeps its records only on this tablet.",
-      'If you press "Tell by talking" and talk, the browser turns what you say into text and sends it to Claude, an AI, so the junior can understand it. What you say is not kept on this tablet.',
-      'You can press "Stop", "I don\'t know" or "I feel bad" at any time.',
+    cards: [
+      {
+        title: "The junior is an AI",
+        lines: [
+          'The "junior" who reads the problems with you is an AI.',
+          "The junior is not a person. It has no heart and no feelings.",
+        ],
+      },
+      {
+        title: "How the junior reads",
+        lines: [
+          "The junior reads problems in different ways. Sometimes it cannot read well.",
+          'It may read the next problem the way you placed the "1" card, or with the rule card you fixed.',
+        ],
+      },
+      {
+        title: "Records and your voice",
+        lines: [
+          "Records are kept only on this tablet.",
+          'What you say with "Tell by talking" is turned into text and sent to Claude, an AI. It is not kept on this tablet.',
+        ],
+      },
+      {
+        title: "You can stop any time",
+        lines: [
+          'You can press "Stop", "I don\'t know" or "I feel bad" at any time.',
+        ],
+      },
+    ],
+    adultTitle: "For parents (details)",
+    adultLines: [
+      "The junior is an AI (Anthropic's Claude). It is not a person and has no heart or feelings.",
+      'From the second problem, the junior may read with a way of reading made from where the child put the "1" card on the first problem, or with the rule card the child fixed.',
+      "This app keeps its records only on this device.",
+      'What the child says with "Tell by talking" is turned into text by the browser’s speech recognition, and that text is sent to Claude, an AI, so the junior can understand it. What was said is not kept on this device.',
     ],
     start: "Start",
-  },
+  }),
   consent: {
     label: "Consent from a parent or guardian",
+    child: "This part is for a grown-up at home. Please show it to them.",
     lines: [
       "For parents and guardians",
       'For the junior\'s words and for research on ways of reading, this app sends the problem, where the child put the "1" card (including earlier placements kept on this device) the words of the problem the child tapped, and the way of reading on the rule card the child fixed (as the junior world) to Anthropic\'s Claude.',

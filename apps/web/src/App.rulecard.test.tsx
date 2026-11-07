@@ -9,6 +9,7 @@ import { CARD_RULE_IDS, FRACTION_BANK, cardFailing, COMMON_FRACTION_READINGS, nu
 import { App } from "./App.tsx";
 import { judgeTotal, judgeUnit } from "./flow/problem.ts";
 import { hasForbiddenPhrase } from "./flow/text.ts";
+import { plainText } from "./plain-text.ts";
 
 afterEach(cleanup);
 
@@ -73,7 +74,7 @@ describe("the junior's rule card on the screen", () => {
     await solveOnScreen();
 
     const cardScreen = await screen.findByTestId("screen-card");
-    expect(screen.getByTestId("rule-card").textContent).toMatch(/^後輩の読み方：/);
+    expect(plainText(screen.getByTestId("rule-card"))).toMatch(/^後輩の読み方：/);
     const options = within(cardScreen)
       .getAllByRole("button")
       .filter((b) => b.hasAttribute("data-rule"));
@@ -97,7 +98,7 @@ describe("the junior's rule card on the screen", () => {
     // 身近な場面で見てみる (指示書 第6.7節 手順5): two scenes for the picked reading; with the swap one common-sense
     // sentence is lit, with the sentence's own reading none is.
     const scenes = within(cardScreen).getByTestId("scenes");
-    expect(within(scenes).getByText("身近な場面で見てみる")).toBeTruthy();
+    expect(plainText(within(scenes).getByRole("heading", { level: 3 }))).toBe("身近な場面で見てみる");
     expect(within(scenes).getAllByTestId("scene")).toHaveLength(2);
     expect(scenes.querySelectorAll('[data-role="scene-tape"]').length).toBeGreaterThanOrEqual(4);
     // The swap was picked last above.

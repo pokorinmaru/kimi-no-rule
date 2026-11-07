@@ -3,13 +3,15 @@
 // answer was kept. The three buttons stay (原則7): "わからない" leaves the problem, "つらい" stops the math.
 import { useEffect, useRef, useState } from "react";
 import { FRACTION_BANK, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational } from "@kimi/core";
-import { hardLines, helplineLine, ui } from "../flow/text.ts";
+import { hardLines, ui } from "../flow/text.ts";
 import type { CheckItem, FlowStore } from "../store/store.ts";
 import { AlwaysNav, Button, NumberPad } from "../ui/controls.tsx";
 import { judgeCheck, pickCheckProblems } from "./check.ts";
 import { checkText } from "./text.ts";
 import { ReadingTools } from "../ui/ReadAloud.tsx";
 import { RubyText } from "../ui/Ruby.tsx";
+import { Helplines } from "../ui/Helplines.tsx";
+import { COLOR, SPACE, TYPE, prose } from "../ui/tokens.ts";
 import { createSpeaker, type Speaker } from "../voice/speaker.ts";
 
 const browserSpeaker: Speaker = createSpeaker();
@@ -114,26 +116,27 @@ export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_
       {phase === "hard" ? (
         <section aria-label={t.hard.label} data-testid="screen-hard">
           {hardLines(lang).map((l) => (
-            <p key={l}>{l}</p>
+            <p key={l} style={prose}>
+              <RubyText text={l} on={rubyOn && lang === "ja"} />
+            </p>
           ))}
-          <h2 style={{ fontSize: 20 }}>{HELPLINE.title}</h2>
-          <p>{HELPLINE.pending}</p>
-          {HELPLINE.note !== null && <p>{HELPLINE.note}</p>}
-          <ul data-testid="helplines">
-            {HELPLINE.entries.map((h) => (
-              <li key={h.number}>{helplineLine(h, lang)}</li>
-            ))}
-          </ul>
-          <Button onClick={onExit}>{CHECK_TEXT.close}</Button>
+          <Helplines helpline={HELPLINE} lang={lang} furigana={rubyOn} />
+          <p style={{ marginTop: SPACE.xl }}>
+            <Button onClick={onExit}>{CHECK_TEXT.close}</Button>
+          </p>
         </section>
       ) : (
         <section aria-label={CHECK_TEXT.title}>
-          <h2 style={{ fontSize: 22 }}>{CHECK_TEXT.title}</h2>
+          <h2 style={{ fontSize: TYPE.large, margin: `0 0 ${String(SPACE.sm)}px` }}>{CHECK_TEXT.title}</h2>
           {phase === "loading" && <p>{t.preparing}</p>}
           {mathOn && current !== undefined && (
             <>
-              <p>{CHECK_TEXT.lead}</p>
-              <p>{CHECK_TEXT.progress(index + 1, problems.length)}</p>
+              <p style={prose}>
+                <RubyText text={CHECK_TEXT.lead} on={rubyOn && lang === "ja"} />
+              </p>
+              <p style={{ color: COLOR.inkSoft, fontSize: TYPE.small }}>
+                <RubyText text={CHECK_TEXT.progress(index + 1, problems.length)} on={rubyOn && lang === "ja"} />
+              </p>
               {t.problem.note !== null && <p data-testid="problem-note">{t.problem.note}</p>}
               <ReadingTools
                 lang={lang}
@@ -149,13 +152,13 @@ export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_
                   <li
                     key={s.index}
                     data-reading={readingIndex === s.index ? "true" : "false"}
-                    style={readingIndex === s.index ? { outline: "4px solid #1f2933", outlineOffset: 2, background: "#fff6d5" } : {}}
+                    style={readingIndex === s.index ? { outline: `4px solid ${COLOR.ink}`, outlineOffset: 2, background: COLOR.highlight } : {}}
                   >
                     <RubyText text={s.text} on={rubyOn} readings={readingsFor(current.world.problem_id)} />
                   </li>
                 ))}
               </ol>
-              {phase === "answer" && <NumberPad key={current.world.problem_id} label={CHECK_TEXT.pad} onAnswer={onAnswer} lang={lang} />}
+              {phase === "answer" && <NumberPad key={current.world.problem_id} label={CHECK_TEXT.pad} labelNode={<RubyText text={CHECK_TEXT.pad} on={rubyOn && lang === "ja"} />} onAnswer={onAnswer} lang={lang} />}
               {phase === "kept" && (
                 <>
                   <p data-testid="check-line" aria-live="polite">

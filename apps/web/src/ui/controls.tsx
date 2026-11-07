@@ -1,70 +1,276 @@
 // Controls shared by the junior's flow and the AI-free check: the big buttons, the three always-visible
 // buttons (原則7) and the number pad. They draw and report taps only; nothing here judges a number.
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+// Their look comes from ui/tokens.ts: rounded, with the picture parts' dark outline and a short "sticker" shadow.
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import type { Lang, Rational } from "@kimi/core";
 import { ui, type UiText } from "../flow/text.ts";
+import { BORDER, COLOR, RADIUS, SHADOW, SPACE, TYPE } from "./tokens.ts";
 
-const big: CSSProperties = { minHeight: 48, minWidth: 48, padding: "8px 18px", fontSize: 20, borderRadius: 12, border: "2px solid #52606d", background: "#fff", cursor: "pointer" };
-const primary: CSSProperties = { ...big, background: "#1f6feb", color: "#fff", borderColor: "#1f6feb" };
+export type ButtonKind = "primary" | "secondary" | "quiet";
 
-export function Button(props: { onClick: () => void; children: ReactNode; kind?: "primary"; highlight?: boolean; testId?: string }) {
-  const style = { ...(props.kind === "primary" ? primary : big), ...(props.highlight === true ? { outline: "4px solid #f5a623", outlineOffset: 2 } : {}) };
+const base: CSSProperties = {
+  minHeight: 56,
+  minWidth: 56,
+  padding: `${String(SPACE.sm)}px ${String(SPACE.xl)}px`,
+  fontFamily: "inherit",
+  fontSize: TYPE.body,
+  fontWeight: 700,
+  lineHeight: 1.8,
+  borderRadius: RADIUS.md,
+  border: `${String(BORDER.width)}px solid ${COLOR.outline}`,
+  background: COLOR.surface,
+  color: COLOR.ink,
+  boxShadow: SHADOW.button,
+  cursor: "pointer",
+};
+
+/** How a button of each kind looks: the one main action filled, the others white, the grown-ups' ones quiet. */
+export const BUTTON_STYLE: Record<ButtonKind, CSSProperties> = {
+  primary: {
+    ...base,
+    background: COLOR.primary,
+    color: COLOR.onPrimary,
+    minHeight: 60,
+    padding: `${String(SPACE.sm)}px ${String(SPACE.xxl)}px`,
+    fontSize: TYPE.large,
+  },
+  secondary: base,
+  quiet: {
+    ...base,
+    minHeight: 48,
+    fontSize: TYPE.small,
+    fontWeight: 400,
+    border: `${String(BORDER.thin)}px solid ${COLOR.inkSoft}`,
+    boxShadow: "none",
+    color: COLOR.ink,
+    background: COLOR.surface,
+  },
+};
+
+export function Button(props: {
+  onClick: () => void;
+  children: ReactNode;
+  kind?: ButtonKind;
+  highlight?: boolean;
+  testId?: string;
+  style?: CSSProperties;
+}) {
+  const style = {
+    ...BUTTON_STYLE[props.kind ?? "secondary"],
+    ...(props.highlight === true
+      ? { outline: `4px solid ${COLOR.attention}`, outlineOffset: 2 }
+      : {}),
+    ...props.style,
+  };
   return (
-    <button type="button" style={style} onClick={props.onClick} data-testid={props.testId}>
+    <button
+      type="button"
+      className="k-btn"
+      style={style}
+      onClick={props.onClick}
+      data-testid={props.testId}
+    >
+      {props.children}
+    </button>
+  );
+}
+
+/** A switch the child presses on and off (the language, furigana, an option of the rule card): pressed looks pressed. */
+export function Toggle(props: {
+  pressed: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  testId?: string;
+  lang?: string;
+  dataRule?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="k-btn"
+      lang={props.lang}
+      aria-pressed={props.pressed}
+      data-testid={props.testId}
+      data-rule={props.dataRule}
+      onClick={props.onClick}
+      style={{
+        ...base,
+        minHeight: 48,
+        fontSize: TYPE.small,
+        padding: `${String(SPACE.xs)}px ${String(SPACE.lg)}px`,
+        fontWeight: props.pressed ? 700 : 400,
+        background: props.pressed ? COLOR.pressed : COLOR.surface,
+        border: `${String(props.pressed ? BORDER.width : BORDER.thin)}px solid ${props.pressed ? COLOR.outline : COLOR.inkSoft}`,
+        boxShadow: props.pressed ? SHADOW.buttonPressed : "none",
+      }}
+    >
       {props.children}
     </button>
   );
 }
 
 /** The three buttons every screen keeps (原則7): stop, don't know, it's hard. Without onDontKnow the
- * middle one is left out (the math has stopped there, Q30). */
-export function AlwaysNav(props: { lang?: Lang; buttons?: UiText["buttons"]; highlight?: boolean; onStop: () => void; onDontKnow?: () => void; onHard: () => void }) {
+ * middle one is left out (the math has stopped there, Q30). A band fixed to the bottom of the screen; the page
+ * leaves room under its last content (tokens BAR_SPACE), so the band never covers it. */
+export function AlwaysNav(props: {
+  lang?: Lang;
+  buttons?: UiText["buttons"];
+  highlight?: boolean;
+  onStop: () => void;
+  onDontKnow?: () => void;
+  onHard: () => void;
+}) {
   const t = ui(props.lang ?? "ja");
   const buttons = props.buttons ?? t.buttons;
   const hl = props.highlight === true;
+  const small: CSSProperties = {
+    minHeight: 56,
+    fontSize: TYPE.body,
+    padding: `${String(SPACE.xs)}px ${String(SPACE.lg)}px`,
+    boxShadow: SHADOW.buttonPressed,
+  };
   return (
     <nav
       aria-label={t.alwaysLabel}
       data-testid="always"
-      style={{ position: "sticky", bottom: 0, display: "flex", gap: 12, flexWrap: "wrap", marginTop: 24, borderTop: "1px solid #cbd2d9", padding: "12px 0", background: "#fff" }}
+      style={{
+        position: "fixed",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 10,
+        background: COLOR.bar,
+        borderTop: `${String(BORDER.thin)}px solid ${COLOR.line}`,
+        boxShadow: SHADOW.bar,
+      }}
     >
-      <Button onClick={props.onStop} highlight={hl} testId="btn-stop">
-        {buttons.stop}
-      </Button>
-      {props.onDontKnow !== undefined && (
-        <Button onClick={props.onDontKnow} highlight={hl} testId="btn-dont-know">
-          {buttons.dontKnow}
+      <div
+        style={{
+          maxWidth: 760,
+          margin: "0 auto",
+          padding: `${String(SPACE.md)}px ${String(SPACE.lg)}px calc(${String(SPACE.md)}px + env(safe-area-inset-bottom, 0px))`,
+          display: "flex",
+          gap: SPACE.md,
+          flexWrap: "wrap",
+        }}
+      >
+        <Button
+          onClick={props.onStop}
+          highlight={hl}
+          testId="btn-stop"
+          style={small}
+        >
+          {buttons.stop}
         </Button>
-      )}
-      <Button onClick={props.onHard} highlight={hl} testId="btn-hard">
-        {buttons.hard}
-      </Button>
+        {props.onDontKnow !== undefined && (
+          <Button
+            onClick={props.onDontKnow}
+            highlight={hl}
+            testId="btn-dont-know"
+            style={small}
+          >
+            {buttons.dontKnow}
+          </Button>
+        )}
+        <Button
+          onClick={props.onHard}
+          highlight={hl}
+          testId="btn-hard"
+          style={small}
+        >
+          {buttons.hard}
+        </Button>
+      </div>
     </nav>
   );
 }
 
-/** A number pad for the child's answer: digits only (the bank's answers are whole numbers). */
-export function NumberPad({ label, onAnswer, lang = "ja" }: { label: string; onAnswer: (v: Rational) => void; lang?: Lang }) {
+/** A number pad for the child's answer: digits only (the bank's answers are whole numbers). Keys of 64px, laid
+ * out like a phone's; the number shows big, "？" until the child types. */
+export function NumberPad({
+  label,
+  onAnswer,
+  lang = "ja",
+  labelNode,
+}: {
+  label: string;
+  onAnswer: (v: Rational) => void;
+  lang?: Lang;
+  labelNode?: ReactNode;
+}) {
   const [digits, setDigits] = useState("");
   const t = ui(lang).pad;
+  const key: CSSProperties = {
+    minWidth: 72,
+    minHeight: 64,
+    padding: 0,
+    fontSize: TYPE.title,
+  };
+  const press = (d: string) => setDigits((x) => (x.length < 3 ? x + d : x));
   return (
-    <div role="group" aria-label={label} style={{ marginTop: 12 }}>
-      <p>
-        {label}
-        <output aria-live="polite" data-testid="pad-value" style={{ display: "inline-block", minWidth: 64, marginLeft: 12, padding: "2px 12px", border: "2px solid #52606d", borderRadius: 8, textAlign: "center" }}>
+    <div
+      role="group"
+      aria-label={label}
+      data-role="number-pad"
+      style={{
+        marginTop: SPACE.lg,
+        padding: SPACE.lg,
+        background: COLOR.surface,
+        border: `${String(BORDER.thin)}px solid ${COLOR.line}`,
+        borderRadius: RADIUS.lg,
+        boxShadow: SHADOW.card,
+        width: "fit-content",
+        maxWidth: "100%",
+      }}
+    >
+      <p
+        style={{
+          margin: `0 0 ${String(SPACE.md)}px`,
+          display: "flex",
+          alignItems: "center",
+          gap: SPACE.md,
+          flexWrap: "wrap",
+        }}
+      >
+        <span>{labelNode ?? label}</span>
+        <output
+          aria-live="polite"
+          data-testid="pad-value"
+          style={{
+            display: "inline-block",
+            minWidth: 96,
+            padding: `${String(SPACE.xs)}px ${String(SPACE.lg)}px`,
+            border: `${String(BORDER.width)}px solid ${COLOR.outline}`,
+            borderRadius: RADIUS.md,
+            textAlign: "center",
+            fontSize: TYPE.title,
+            fontWeight: 700,
+            background: COLOR.page,
+          }}
+        >
           {digits === "" ? "？" : digits}
         </output>
       </p>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {/* Two rows of five digits, then the clear key and the OK key: short enough to sit under the world. */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 72px)", gap: SPACE.md }}>
         {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].map((d) => (
-          <Button key={d} onClick={() => setDigits((x) => (x.length < 3 ? x + d : x))} testId={`pad-${d}`}>
+          <Button key={d} onClick={() => press(d)} testId={`pad-${d}`} style={key}>
             {d}
           </Button>
         ))}
-        <Button onClick={() => setDigits("")}>{t.clear}</Button>
+        <Button onClick={() => setDigits("")} style={{ ...key, gridColumn: "span 2", fontSize: TYPE.body }}>
+          {t.clear}
+        </Button>
         <Button
           kind="primary"
           testId="pad-ok"
+          style={{ ...key, gridColumn: "span 3", fontSize: TYPE.large }}
           onClick={() => {
             if (digits === "") return;
             onAnswer({ num: Number(digits), den: 1 });
@@ -82,7 +288,12 @@ export function NumberPad({ label, onAnswer, lang = "ja" }: { label: string; onA
  * A button the grown-up holds down for `holdMs` (or holds Enter or Space): the parent screen's door, so a
  * child does not open it by a tap (指示書 第7.4節). With holdMs 0 a press opens it at once (tests).
  */
-export function HoldButton(props: { onHold: () => void; holdMs: number; children: ReactNode; testId?: string }) {
+export function HoldButton(props: {
+  onHold: () => void;
+  holdMs: number;
+  children: ReactNode;
+  testId?: string;
+}) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancel = () => {
     if (timer.current !== null) clearTimeout(timer.current);
@@ -100,7 +311,8 @@ export function HoldButton(props: { onHold: () => void; holdMs: number; children
   return (
     <button
       type="button"
-      style={big}
+      className="k-btn"
+      style={BUTTON_STYLE.quiet}
       data-testid={props.testId}
       onPointerDown={start}
       onPointerUp={cancel}

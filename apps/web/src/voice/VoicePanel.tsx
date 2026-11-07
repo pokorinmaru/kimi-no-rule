@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Lang } from "@kimi/core";
 import { Button } from "../ui/controls.tsx";
+import { COLOR, TYPE } from "../ui/tokens.ts";
 import type { UiText } from "../flow/text.ts";
 import type { Recognizer } from "./recognizer.ts";
 
@@ -52,7 +53,7 @@ export function VoicePanel(props: {
   }, [rec, onFinal]);
 
   const note = (line: string) => (
-    <p data-testid="voice-note" style={{ fontSize: 16, color: "#52606d", margin: "8px 0 0" }}>
+    <p data-testid="voice-note" style={{ fontSize: TYPE.small, color: COLOR.inkSoft, margin: "8px 0 0" }}>
       {line}
     </p>
   );
@@ -62,7 +63,7 @@ export function VoicePanel(props: {
   if (status === "talking") {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-        <p data-testid="voice-interim" aria-live="polite" style={{ margin: 0, fontSize: 20, color: "#334e68" }}>
+        <p data-testid="voice-interim" aria-live="polite" style={{ margin: 0, fontSize: TYPE.body, color: COLOR.ink }}>
           {interim === "" ? props.text.listening : interim}
         </p>
         <Button onClick={() => rec.stop()} testId="btn-talk-stop">
@@ -75,7 +76,6 @@ export function VoicePanel(props: {
   return (
     <p style={{ margin: "8px 0 0" }}>
       <Button
-        kind="primary"
         testId="btn-talk"
         onClick={() => {
           setInterim("");

@@ -104,7 +104,7 @@ export {
   type SlotValues,
   type TemplateKey,
 } from "./i18n/index.ts";
-export { UI_READINGS, readingsFor, rubySegments, rubyTokens, spokenText, type Readings, type RubySegment } from "./i18n/furigana.ts";
+export { UI_READINGS, readingsFor, rubySegments, rubyTokens, spokenText, templateRuby, type Readings, type RubySegment } from "./i18n/furigana.ts";
 export { parseRestated, restate, type RestatedSentence } from "./restate/index.ts";
 export { hasChildText, redactExplanation, redactInterpretation } from "./redact/index.ts";
 export {

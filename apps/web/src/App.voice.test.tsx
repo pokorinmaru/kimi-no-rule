@@ -11,6 +11,7 @@ import { App } from "./App.tsx";
 import { openStore, type FlowStore } from "./store/store.ts";
 import { FakeRecognizer } from "./voice/fake.ts";
 import type { FlowApi } from "./flow/session.ts";
+import { plainText } from "./plain-text.ts";
 
 const SAID = "弟が1だよ、弟の金魚の3/4だから";
 const toOtouto: AnyOp = { op: "set_relation_reference", target_id: "r_ratio", reference: "q_otouto", evidence: "" };
@@ -83,7 +84,7 @@ describe("the mic on the problem screen", () => {
     expect((await screen.findByTestId("voice-interim")).textContent).toContain("弟が");
     act(() => rec.say(["弟が1"], SAID));
     await waitFor(() => expect(screen.getByTestId("btn-confirm-yes")).toBeTruthy());
-    expect(screen.getByTestId("junior-line").textContent).toContain(SAID);
+    expect(plainText(screen.getByTestId("junior-line"))).toContain(SAID);
     expect(interpret).toEqual([{ problem_id: "p_signboard", transcript: SAID, lang: "ja" }]);
     expect(safety).toEqual([SAID]);
     // The interim words are gone once the words are final.
@@ -103,7 +104,7 @@ describe("the mic on the problem screen", () => {
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     fireEvent.click(await screen.findByTestId("btn-talk"));
     act(() => sp.last().say([], SAID));
-    await waitFor(() => expect(TEMPLATES["kohai.listening"].ja).toContain(screen.getByTestId("junior-line").textContent));
+    await waitFor(() => expect(TEMPLATES["kohai.listening"].ja).toContain(plainText(screen.getByTestId("junior-line"))));
     expect(screen.queryByTestId("btn-talk")).toBeNull();
     await act(async () => {
       release();

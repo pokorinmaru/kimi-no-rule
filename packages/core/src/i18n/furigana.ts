@@ -2,6 +2,7 @@
 // browser reads the spoken form; neither changes a word of the problem (no paraphrase), and nothing here judges
 // or computes a number: a fraction is only said the way the problem writes it (3/4 is said 4分の3).
 import { PROBLEM_READINGS, type Readings } from "../../fixtures/problems/readings.ts";
+import { TEMPLATES } from "./index.ts";
 
 export type { Readings } from "../../fixtures/problems/readings.ts";
 
@@ -80,6 +81,62 @@ export const UI_READINGS: Readings = {
   使: "つか",
   上げ: "あ",
   止: "と",
+  // The intro's cards, the rule card, the junior's lines, the AI-free check and the 「つらい」 screen (whole-screen
+  // review, 2026-11-08). A counter or a date after a digit is keyed with the digit, so it is read as said there.
+  心: "こころ",
+  気持ち: "き|も",
+  置い: "お",
+  場所: "ば|しょ",
+  場面: "ば|めん",
+  身近: "み|ぢか",
+  文字: "も|じ",
+  送り: "おく",
+  記録: "き|ろく",
+  の中: "なか",
+  日本語: "に|ほん|ご",
+  回: "かい",
+  持っ: "も",
+  光っ: "ひか",
+  一度: "いち|ど",
+  入れ: "い",
+  問目: "もん|め",
+  問の: "もん",
+  家の: "いえ",
+  休み: "やす",
+  の日: "ひ",
+  近く: "ちか",
+  電話: "でん|わ",
+  電話代: "でん|わ|だい",
+  相談: "そう|だん",
+  児童相談所: "じ|どう|そう|だん|じょ",
+  虐待対応: "ぎゃく|たい|たい|おう",
+  子ども: "こ",
+  子供: "こ|ども",
+  人権: "じん|けん",
+  番: "ばん",
+  毎日: "まい|にち",
+  月曜日: "げつ|よう|び",
+  金曜日: "きん|よう|び",
+  午前: "ご|ぜん",
+  午後: "ご|ご",
+  一部: "いち|ぶ",
+  "4時間": "じ|かん",
+  "0時": "じ",
+  "1時": "じ",
+  "2時": "じ",
+  "3時": "じ",
+  "4時": "じ",
+  "5時": "じ",
+  "6時": "じ",
+  "7時": "じ",
+  "8時": "じ",
+  "9時": "じ",
+  "30分": "ぷん",
+  "15分": "ふん",
+  "1月": "がつ",
+  "2月": "がつ",
+  "29日": "にち",
+  "3日": "か",
 };
 
 /** The readings of a prepared problem's sentences; a problem without written readings gets none (no guessing). */
@@ -201,4 +258,87 @@ export function spokenText(text: string, readings: Readings): string {
     .replace(/(\d+)\/(\d+)/g, "$2分の$1")
     .replace(/dL/g, "デシリットル")
     .replace(/%/g, "パーセント");
+}
+
+interface TemplateShape {
+  re: RegExp;
+  fixed: string[];
+  slots: string[];
+}
+
+let shapes: TemplateShape[] | null = null;
+function templateShapes(): TemplateShape[] {
+  if (shapes !== null) return shapes;
+  const esc = (x: string): string => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  shapes = Object.values(TEMPLATES).flatMap((t) =>
+    t.ja.map((v: string) => {
+      const parts = v.split(/\{(holder|item|number|transcript)\}/);
+      const fixed = parts.filter((_, i) => i % 2 === 0);
+      const slots = parts.filter((_, i) => i % 2 === 1);
+      return {
+        re: new RegExp(`^${fixed.map(esc).join("(.+?)")}$`, "u"),
+        fixed,
+        slots,
+      };
+    }),
+  );
+  return shapes;
+}
+
+function oneTemplate(
+  text: string,
+  slotReadings: Readings,
+): RubySegment[] | null {
+  for (const s of templateShapes()) {
+    const m = s.re.exec(text);
+    if (m === null) continue;
+    const out: RubySegment[] = [];
+    const add = (segs: RubySegment[]): void => {
+      for (const g of segs)
+        if (g.ruby === null) pushPlain(out, g.text);
+        else out.push({ ...g });
+    };
+    s.fixed.forEach((f, i) => {
+      add(rubySegments(f, UI_READINGS));
+      const value = m[i + 1];
+      if (value === undefined) return;
+      const kind = s.slots[i];
+      // A holder's or a thing's name is the problem's own word; the child's words and a number stay as they are.
+      add(
+        kind === "holder" || kind === "item"
+          ? rubySegments(value, slotReadings)
+          : [{ text: value, ruby: null }],
+      );
+    });
+    return out;
+  }
+  return null;
+}
+
+/**
+ * The furigana of a junior's line in Japanese when it is made of core's templates (one, or several joined by a space):
+ * the fixed words by UI_READINGS, a holder's or a thing's name by the problem's readings, the child's own words and
+ * the numbers plain. Any other line (generated words) gets null: no reading is guessed for words not written here.
+ */
+export function templateRuby(
+  text: string,
+  lang: "ja" | "en",
+  slotReadings: Readings,
+): RubySegment[] | null {
+  if (lang !== "ja") return null;
+  const whole = oneTemplate(text, slotReadings);
+  if (whole !== null) return whole;
+  for (let i = text.indexOf(" "); i > 0; i = text.indexOf(" ", i + 1)) {
+    const head = oneTemplate(text.slice(0, i), slotReadings);
+    if (head === null) continue;
+    const rest = templateRuby(text.slice(i + 1), lang, slotReadings);
+    if (rest === null) continue;
+    const out = head.map((x) => ({ ...x }));
+    pushPlain(out, " ");
+    for (const g of rest)
+      if (g.ruby === null) pushPlain(out, g.text);
+      else out.push(g);
+    return out;
+  }
+  return null;
 }

@@ -12,6 +12,7 @@ import { CheckMode } from "./check/CheckMode.tsx";
 import { ui } from "./flow/text.ts";
 import { openStore, type FlowStore } from "./store/store.ts";
 import { FakeSpeaker } from "./voice/fake.ts";
+import { plainText } from "./plain-text.ts";
 
 const stores: FlowStore[] = [];
 afterEach(async () => {
@@ -62,7 +63,7 @@ describe("「読み上げ」 on the problem screen", () => {
     }
     const line = screen.getByTestId("junior-line");
     if (line.textContent !== "…") {
-      expect(sp.spoken.at(-1)?.text).toBe(line.textContent);
+      expect(sp.spoken.at(-1)?.text).toBe(plainText(line));
       expect(line.getAttribute("data-reading")).toBe("true");
       act(() => sp.finish());
     }

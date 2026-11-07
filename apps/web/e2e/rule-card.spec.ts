@@ -3,8 +3,16 @@
 // again, and only the sentences' light changes; the everyday scenes are read with the picked rule too. The answers
 // are found here with core and never read off the screen.
 import { createRequire } from "node:module";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { FRACTION_BANK, judgeAnswer, judgeUnitValue, numbersIn, sceneAvoidValues, type ProblemRecord } from "@kimi/core";
+
+/** A locator's text as written, its furigana (the <rt> readings) aside. */
+const plainOf = (loc: Locator): Promise<string> =>
+  loc.evaluate((el) => {
+    const c = el.cloneNode(true) as Element;
+    for (const rt of c.querySelectorAll("rt")) rt.remove();
+    return c.textContent ?? "";
+  });
 
 const axePath = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 
@@ -82,7 +90,7 @@ test("two solved problems open the junior's card; choosing who is 1 builds the g
   await solve(page);
 
   await expect(page.getByTestId("screen-card")).toBeVisible();
-  await expect(page.getByTestId("rule-card")).toContainText("後輩の読み方：");
+  await expect.poll(() => plainOf(page.getByTestId("rule-card"))).toContain("後輩の読み方：");
   await expect(page.getByTestId("gallery-item")).toHaveCount(2);
   // The AI mark and the three buttons stay on the card screen.
   await expect(page.locator('[data-role="ai-badge"]').first()).toBeVisible();
@@ -91,7 +99,7 @@ test("two solved problems open the junior's card; choosing who is 1 builds the g
 
   await page.getByTestId("card-option-c_swap").click();
   await expect(page.getByTestId("card-option-c_swap")).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("rule-card")).toContainText("1とみる人を、入れかえて読む");
+  await expect.poll(() => plainOf(page.getByTestId("rule-card"))).toContain("1とみる人を、入れかえて読む");
   const swapped = await gallery(page);
   // Swapping lights a sentence on every world of the gallery.
   for (const g of JSON.parse(swapped) as { lit: string[] }[]) expect(g.lit.length).toBeGreaterThan(0);
@@ -100,7 +108,7 @@ test("two solved problems open the junior's card; choosing who is 1 builds the g
   // lit in one and kept in the other. The server is down, so these are the program's scenes.
   const scenes = page.getByTestId("scenes");
   await expect(scenes).toBeVisible();
-  await expect(scenes).toContainText("身近な場面で見てみる");
+  await expect.poll(() => plainOf(scenes)).toContain("身近な場面で見てみる");
   await expect(scenes.getByTestId("scene")).toHaveCount(2);
   await expect(scenes.locator('[data-role="common-sense"][data-glow="true"]')).toHaveCount(1);
   expect(await scenes.locator('[data-role="scene-tape"]').count()).toBeGreaterThanOrEqual(4);
@@ -109,7 +117,7 @@ test("two solved problems open the junior's card; choosing who is 1 builds the g
   expect(await axeViolations(page)).toEqual([]);
 
   await page.getByTestId("card-option-c_correct").click();
-  await expect(page.getByTestId("rule-card")).toContainText("文が言うとおりの人を、1とみる");
+  await expect.poll(() => plainOf(page.getByTestId("rule-card"))).toContain("文が言うとおりの人を、1とみる");
   await expect(page.locator('[data-testid="gallery-item"] [data-glow="true"][data-statement]')).toHaveCount(0);
   await expect(scenes.getByTestId("scene")).toHaveCount(2);
   await expect(scenes.locator('[data-role="common-sense"][data-glow="true"]')).toHaveCount(0);

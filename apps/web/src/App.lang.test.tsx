@@ -10,6 +10,7 @@ import { App } from "./App.tsx";
 import { CheckMode } from "./check/CheckMode.tsx";
 import { openStore, type FlowStore } from "./store/store.ts";
 import { hasForbiddenPhrase, helplinesFor } from "./flow/text.ts";
+import { plainText } from "./plain-text.ts";
 
 const stores: FlowStore[] = [];
 afterEach(async () => {
@@ -61,7 +62,7 @@ describe("the language switch", () => {
     const name = "kimi-app-lang-1";
     render(<App storeName={name} api={null} parentHoldMs={0} />);
     await screen.findByTestId("btn-next");
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("後輩と問題を読もう");
+    expect(plainText(screen.getByRole("heading", { level: 1 }))).toBe("後輩と問題を読もう");
     fireEvent.click(screen.getByTestId("lang-en"));
     expect(await screen.findByText("Start")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Read problems with the junior");

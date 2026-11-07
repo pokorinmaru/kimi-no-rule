@@ -8,6 +8,8 @@ import type { Lang } from "@kimi/core";
 import { ui } from "../flow/text.ts";
 import { READ_RATE, type Speaker } from "../voice/speaker.ts";
 import { RubyText } from "./Ruby.tsx";
+import { Toggle } from "./controls.tsx";
+import { SPACE } from "./tokens.ts";
 
 export interface ReadLine {
   /** What the browser says (core's spoken form for a Japanese line). */
@@ -15,17 +17,6 @@ export interface ReadLine {
   /** "ja-JP" or "en-US". */
   lang: string;
 }
-
-const small = {
-  minHeight: 48,
-  minWidth: 48,
-  padding: "6px 14px",
-  fontSize: 18,
-  borderRadius: 12,
-  border: "2px solid #52606d",
-  color: "#1f2933",
-  cursor: "pointer",
-} as const;
 
 export function ReadingTools(props: {
   lang: Lang;
@@ -81,26 +72,20 @@ export function ReadingTools(props: {
 
   const supported = speaker.isSupported() && lines.length > 0;
   return (
-    <div role="group" aria-label={t.label} style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 8px" }}>
+    <div role="group" aria-label={t.label} style={{ display: "flex", gap: SPACE.sm, flexWrap: "wrap", margin: `0 0 ${String(SPACE.md)}px` }}>
       {supported &&
         (playing ? (
-          <button type="button" data-testid="btn-read-stop" onClick={stop} style={{ ...small, background: "#fff" }}>
+          <Toggle pressed onClick={stop} testId="btn-read-stop">
             <RubyText text={t.stop} on={props.furigana && props.lang === "ja"} />
-          </button>
+          </Toggle>
         ) : (
-          <button type="button" data-testid="btn-read-aloud" onClick={play} style={{ ...small, background: "#fff" }}>
+          <Toggle pressed={false} onClick={play} testId="btn-read-aloud">
             <RubyText text={t.aloud} on={props.furigana && props.lang === "ja"} />
-          </button>
+          </Toggle>
         ))}
-      <button
-        type="button"
-        data-testid="btn-furigana"
-        aria-pressed={props.furigana}
-        onClick={() => props.onFurigana(!props.furigana)}
-        style={{ ...small, background: props.furigana ? "#e4ecf7" : "#fff", fontWeight: props.furigana ? 700 : 400 }}
-      >
+      <Toggle pressed={props.furigana} onClick={() => props.onFurigana(!props.furigana)} testId="btn-furigana">
         {t.furigana}
-      </button>
+      </Toggle>
     </div>
   );
 }

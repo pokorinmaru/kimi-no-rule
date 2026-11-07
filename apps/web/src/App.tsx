@@ -1,9 +1,9 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type StatementCheck } from "@kimi/core";
+import { UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type Readings, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
-import { Kohai } from "./draw/Kohai.tsx";
+import { Kohai, KohaiSays } from "./draw/Kohai.tsx";
 import type { KohaiPose } from "./flow/pose.ts";
 import { SceneView } from "./draw/SceneView.tsx";
 import { SentenceList, splitByHolders } from "./draw/SentenceList.tsx";
@@ -14,18 +14,20 @@ import { holderColors } from "./draw/holder-colors.ts";
 import { startSession, type Session } from "./flow/session.ts";
 import { TRANSFER_LINKS, bankFor } from "./flow/bank.ts";
 import { viewOf, type CardScreenView, type FlowSnapshot, type FlowView, type GuessView, type HelpView, type ProblemView, type WordbookView } from "./flow/view.ts";
-import { helplineLine, ui, type UiText } from "./flow/text.ts";
+import { ui, type UiText } from "./flow/text.ts";
 import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
 import { CheckMode } from "./check/CheckMode.tsx";
 import { ParentNote } from "./parent/ParentNote.tsx";
 import { scoreOf } from "./check/check.ts";
 import { checkText } from "./check/text.ts";
-import { AlwaysNav, Button, HoldButton, NumberPad } from "./ui/controls.tsx";
+import { AlwaysNav, Button, HoldButton, NumberPad, Toggle } from "./ui/controls.tsx";
 import { VoicePanel, type RecognizerFactory } from "./voice/VoicePanel.tsx";
 import { createRecognizer } from "./voice/recognizer.ts";
 import { createSpeaker, type Speaker } from "./voice/speaker.ts";
 import { ReadingTools, type ReadLine } from "./ui/ReadAloud.tsx";
-import { RubyText } from "./ui/Ruby.tsx";
+import { JuniorText, RubyText } from "./ui/Ruby.tsx";
+import { Helplines } from "./ui/Helplines.tsx";
+import { BAR_SPACE, BORDER, COLOR, GLOBAL_CSS, RADIUS, SPACE, TYPE, card, prose } from "./ui/tokens.ts";
 
 /** The browser's own speech recognition, in the screen's language (the user chose the Web Speech API). */
 const browserSpeech: RecognizerFactory = (lang) => createRecognizer(lang);
@@ -51,7 +53,28 @@ interface VoiceHooks {
  * shown to the child: it would attribute the reading to the child (原則10, 指示書 第11節 M7). */
 export const APP_TITLE = ui("ja").title;
 
-const page: CSSProperties = { maxWidth: 760, margin: "0 auto", padding: "16px", fontFamily: "system-ui, sans-serif", fontSize: 20, lineHeight: 1.6, color: "#1f2933" };
+// The page column: 760 px of content (the stage picture is laid out for 728 px inside the world's card), and room at
+// the bottom for the band of the three buttons, so it never covers the last content.
+const page: CSSProperties = {
+  maxWidth: 792,
+  margin: "0 auto",
+  padding: `${String(SPACE.lg)}px ${String(SPACE.lg)}px ${String(BAR_SPACE + SPACE.xl)}px`,
+  boxSizing: "border-box",
+  fontFamily: TYPE.font,
+  fontSize: TYPE.body,
+  lineHeight: TYPE.lineHeight,
+  color: COLOR.ink,
+};
+/** The card around the junior's world: the stage picture and the tapes together, 728 px inside. */
+const worldCard: CSSProperties = { ...card, padding: `${String(SPACE.md)}px 14px`, margin: `${String(SPACE.md)}px 0` };
+/** A screen's heading. */
+const h2: CSSProperties = { fontSize: TYPE.large, lineHeight: 1.5, margin: `${String(SPACE.sm)}px 0 ${String(SPACE.md)}px` };
+/** A short note in quieter text. */
+const note: CSSProperties = { fontSize: TYPE.small, color: COLOR.inkSoft, margin: `0 0 ${String(SPACE.sm)}px` };
+/** A row of buttons. */
+const actions: CSSProperties = { display: "flex", gap: SPACE.md, flexWrap: "wrap", alignItems: "center", marginTop: SPACE.lg };
+/** The line being read aloud: a fixed outline and a light ground (no motion). */
+const readingStyle: CSSProperties = { outline: `4px solid ${COLOR.ink}`, outlineOffset: 2, background: COLOR.highlight };
 /** The three buttons every screen keeps (原則7): stop, don't know, it's hard. */
 function Always({ view, send }: { view: FlowView; send: Session["send"] }) {
   return (
@@ -67,11 +90,14 @@ function Always({ view, send }: { view: FlowView; send: Session["send"] }) {
   );
 }
 
-function Lines({ lines }: { lines: readonly string[] }) {
+/** Fixed lines as prose, with furigana when it is on (the app's own words: UI_READINGS). */
+function Lines({ lines, ruby }: { lines: readonly string[]; ruby: boolean }) {
   return (
     <>
       {lines.map((l) => (
-        <p key={l}>{l}</p>
+        <p key={l} style={{ ...prose, margin: `0 0 ${String(SPACE.md)}px` }}>
+          <RubyText text={l} on={ruby} />
+        </p>
       ))}
     </>
   );
@@ -107,68 +133,66 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
   return (
     <section aria-label={t.label} data-problem-id={view.problemId}>
       {view.note !== null && (
-        <p data-testid="problem-note" style={{ fontSize: 16, color: "#52606d", margin: "0 0 8px" }}>
+        <p data-testid="problem-note" style={note}>
           {view.note}
         </p>
       )}
       {view.card !== null && (
-        <p data-testid="reading-card" style={{ display: "inline-block", padding: "6px 14px", border: "2px dashed #9aa5b1", borderRadius: 10, background: "#f5f7fa" }}>
-          {view.card}
+        <p
+          data-testid="reading-card"
+          style={{ display: "inline-block", padding: `${String(SPACE.xs)}px ${String(SPACE.lg)}px`, border: `${String(BORDER.thin)}px dashed ${COLOR.inkSoft}`, borderRadius: RADIUS.md, background: COLOR.surfaceSoft, margin: `0 0 ${String(SPACE.md)}px` }}
+        >
+          <RubyText text={view.card} on={rubyUi} />
         </p>
       )}
       <ReadingTools lang={view.lang} lines={readLines} speaker={reading.speaker} onReading={setReadingIndex} furigana={reading.furigana} onFurigana={reading.onFurigana} />
-      <SentenceList
-        statements={view.statements}
-        readings={ruby ? problemReadings : null}
-        readingIndex={readingIndex}
-        holders={holderColors(view.world.holders)}
-        checks={view.step === "reading" ? null : checks}
-        {...(view.canPlace ? { onTapWord: (i: number, t: number) => send({ type: "TAP_WORD", statementIndex: i, token: t }) } : {})}
-        label={t.sentences}
-        lang={view.lang}
-      />
+      <div style={{ ...card, padding: `${String(SPACE.sm)}px ${String(SPACE.lg)}px` }}>
+        <SentenceList
+          statements={view.statements}
+          readings={ruby ? problemReadings : null}
+          readingIndex={readingIndex}
+          holders={holderColors(view.world.holders)}
+          checks={view.step === "reading" ? null : checks}
+          {...(view.canPlace ? { onTapWord: (i: number, t: number) => send({ type: "TAP_WORD", statementIndex: i, token: t }) } : {})}
+          label={t.sentences}
+          lang={view.lang}
+        />
+      </div>
       {/* No line, no row: a "…" would look like the junior thinking where it says nothing (Q30; run-through, 2026-11-08). */}
       {view.line !== null && (
-        <div data-role="junior-row" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
-          <Kohai pose={view.pose} />
-          <AiBadge />
-          <p
-            data-testid="junior-line"
-            aria-live="polite"
-            data-reading={readingIndex !== null && readingIndex === view.statements.length ? "true" : "false"}
-            style={{ margin: 0, ...(readingIndex !== null && readingIndex === view.statements.length ? { outline: "4px solid #1f2933", outlineOffset: 2, background: "#fff6d5" } : {}) }}
-          >
-            {view.line}
-          </p>
-        </div>
+        <KohaiSays pose={view.pose} reading={readingIndex !== null && readingIndex === view.statements.length}>
+          <JuniorText text={view.line} on={rubyUi} lang={view.lang} readings={problemReadings} />
+        </KohaiSays>
       )}
       {voice !== null && voice.canHear && (
         // The child may tell the junior by talking (指示書 第7.1節 手順5); the card below always stays.
         <VoicePanel lang={view.lang} text={t.voice} make={voice.make} canTalk={view.voice.canTalk} off={view.voice.off} onFinal={voice.hear} />
       )}
-      {view.stage !== null && <ObjectSceneView scene={view.stage} lang={view.lang} />}
-      <WorldView
-        {...(view.orderOnly ? { correct: view.world } : {})}
-        world={view.world}
-        cardHolder={cardHolder}
-        childNumbers={childNumbers}
-        unitValue={view.unitValue}
-        answered={answered}
-        glowIds={view.glowIds}
-        failingSentences={view.step === "reading" ? [] : failing}
-        label={t.world}
-        lang={view.lang}
-        {...(view.canPlace ? { onPlaceCard: placeOn } : {})}
-      />
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+      <div data-role="world-card" style={worldCard}>
+        {view.stage !== null && <ObjectSceneView scene={view.stage} lang={view.lang} />}
+        <WorldView
+          {...(view.orderOnly ? { correct: view.world } : {})}
+          world={view.world}
+          cardHolder={cardHolder}
+          childNumbers={childNumbers}
+          unitValue={view.unitValue}
+          answered={answered}
+          glowIds={view.glowIds}
+          failingSentences={view.step === "reading" ? [] : failing}
+          label={t.world}
+          lang={view.lang}
+          {...(view.canPlace ? { onPlaceCard: placeOn } : {})}
+        />
+      </div>
+      <div style={actions}>
         {view.predict !== null && (
           // The child's prediction about the junior's world, before any sentence lights (指示書 第7.1節 手順4).
           // The buttons look alike and none is chosen beforehand; their order changes on every problem.
-          <div role="group" aria-label={view.predict.label} data-testid="predict" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <p style={{ margin: 0 }} data-testid="predict-question">
+          <div role="group" aria-label={view.predict.label} data-testid="predict" style={{ display: "flex", flexDirection: "column", gap: SPACE.md }}>
+            <p style={{ margin: 0, fontSize: TYPE.large, fontWeight: 700 }} data-testid="predict-question">
               <RubyText text={view.predict.question} on={rubyUi} />
             </p>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: SPACE.md, flexWrap: "wrap" }}>
               {view.predict.choices.map((c) => (
                 <Button key={c.answer} onClick={() => send({ type: "PREDICT", answer: c.answer })} testId={`btn-predict-${c.answer}`}>
                   {c.label}
@@ -178,7 +202,7 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
           </div>
         )}
         {view.step === "looking" && (
-          <p data-testid="looking-line">
+          <p data-testid="looking-line" style={{ ...prose, margin: 0, fontWeight: 700 }}>
             <RubyText text={t.looking} on={rubyUi} />
           </p>
         )}
@@ -203,8 +227,8 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
           </Button>
         )}
       </div>
-      {view.step === "unit" && <NumberPad lang={view.lang} label={t.unitPad} onAnswer={(v) => send({ type: "ANSWER_UNIT", value: v })} />}
-      {view.step === "total" && <NumberPad lang={view.lang} label={t.totalPad} onAnswer={(v) => send({ type: "ANSWER_TOTAL", value: v })} />}
+      {view.step === "unit" && <NumberPad lang={view.lang} label={t.unitPad} labelNode={<RubyText text={t.unitPad} on={rubyUi} />} onAnswer={(v) => send({ type: "ANSWER_UNIT", value: v })} />}
+      {view.step === "total" && <NumberPad lang={view.lang} label={t.totalPad} labelNode={<RubyText text={t.totalPad} on={rubyUi} />} onAnswer={(v) => send({ type: "ANSWER_TOTAL", value: v })} />}
     </section>
   );
 }
@@ -238,39 +262,54 @@ function GuessScreen({ view, send, reading }: { view: GuessView; send: Session["
   return (
     <section aria-label={view.label} data-testid="screen-guess" data-problem-id={view.problemId}>
       {view.note !== null && (
-        <p data-testid="problem-note" style={{ fontSize: 16, color: "#52606d", margin: "0 0 8px" }}>
+        <p data-testid="problem-note" style={note}>
           {view.note}
         </p>
       )}
-      <h2 style={{ fontSize: 20, margin: "0 0 8px" }}>
+      <h2 style={h2}>
         <RubyText text={view.label} on={rubyUi} />
       </h2>
       <ReadingTools lang={view.lang} lines={readLines} speaker={reading.speaker} onReading={setReadingIndex} furigana={reading.furigana} onFurigana={reading.onFurigana} />
-      <SentenceList statements={view.statements.map((s) => ({ ...s, lit: false }))} readings={reading.furigana ? problemReadings : null} readingIndex={readingIndex} checks={null} label={view.text.problem.sentences} lang={view.lang} />
+      <div style={{ ...card, padding: `${String(SPACE.sm)}px ${String(SPACE.lg)}px` }}>
+        <SentenceList statements={view.statements.map((s) => ({ ...s, lit: false }))} readings={reading.furigana ? problemReadings : null} readingIndex={readingIndex} checks={null} label={view.text.problem.sentences} lang={view.lang} />
+      </div>
       {view.tapes.length > 0 && (
-        <div role="group" aria-label={draw.world} data-testid="guess-tapes" style={{ display: "grid", gap: 10, margin: "12px 0" }}>
-          <p style={{ margin: 0, fontSize: 18 }}>
+        <div role="group" aria-label={draw.world} data-testid="guess-tapes" style={{ ...worldCard, display: "grid", gap: SPACE.md }}>
+          <p style={{ margin: 0 }}>
             <RubyText text={view.cardLine} on={rubyUi} /> <RubyText text={view.optional} on={rubyUi} />
           </p>
           {view.tapes.map((t) => {
             const on = view.one === t.holderId;
             return (
-              <div key={t.holderId} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ minWidth: 72 }}>{name(t.label)}</span>
+              <div key={t.holderId} style={{ display: "flex", alignItems: "center", gap: SPACE.md }}>
+                <span style={{ minWidth: 72, textAlign: "right", fontWeight: 700 }}>{name(t.label)}</span>
                 {/* Every outline has the same length and no segment: nothing in the drawing leans to an answer. */}
                 <button
                   type="button"
                   data-testid={`guess-tape-${t.holderId}`}
                   aria-pressed={on}
                   onClick={() => placeOne(on ? null : t.holderId)}
-                  style={{ flex: "1 1 auto", maxWidth: 420, minHeight: 48, border: "3px solid #52606d", borderRadius: 6, background: "#fff", color: "#1f2933", fontSize: 20, position: "relative", cursor: "pointer" }}
+                  style={{
+                    flex: "1 1 auto",
+                    maxWidth: 420,
+                    minHeight: 56,
+                    border: `${String(BORDER.width)}px solid ${COLOR.outline}`,
+                    borderRadius: RADIUS.sm,
+                    background: COLOR.surface,
+                    color: COLOR.ink,
+                    fontFamily: "inherit",
+                    fontSize: TYPE.body,
+                    fontWeight: 700,
+                    position: "relative",
+                    cursor: "pointer",
+                  }}
                 >
                   {/* The accessible name holds the visible text (the tape's name, its label and the card). */}
                   <span style={srOnly}>{draw.tape(t.label)} </span>
                   {t.value}
                   {on && <span style={srOnly}> {draw.cardHere}</span>}
                   {on && (
-                    <span data-role="reference_mark" style={{ position: "absolute", left: 6, top: 6, padding: "0 8px", borderRadius: 6, background: "#1f2933", color: "#fff", fontWeight: 700 }}>
+                    <span data-role="reference_mark" style={{ position: "absolute", left: 6, top: 8, padding: "0 10px", borderRadius: RADIUS.sm, background: COLOR.ink, color: COLOR.surface, fontWeight: 700 }}>
                       1
                     </span>
                   )}
@@ -280,11 +319,11 @@ function GuessScreen({ view, send, reading }: { view: GuessView; send: Session["
           })}
         </div>
       )}
-      <div role="group" aria-label={view.label} data-testid="guess" style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-        <p style={{ margin: 0 }} data-testid="guess-question">
+      <div role="group" aria-label={view.label} data-testid="guess" style={{ display: "flex", flexDirection: "column", gap: SPACE.md, marginTop: SPACE.lg }}>
+        <p style={{ margin: 0, fontSize: TYPE.large, fontWeight: 700 }} data-testid="guess-question">
           <RubyText text={view.question} on={rubyUi} />
         </p>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: SPACE.md, flexWrap: "wrap" }}>
           {view.choices.map((c) => (
             <Button key={c.holderId ?? "unknown"} onClick={() => send({ type: "GUESS", larger: c.holderId })} testId={`btn-guess-${c.holderId ?? "unknown"}`}>
               {c.holderId === null ? <RubyText text={c.label} on={rubyUi} /> : name(c.label)}
@@ -302,59 +341,41 @@ function GuessScreen({ view, send, reading }: { view: GuessView; send: Session["
  * the new worlds (the tapes grow again unless motion is reduced). Nothing here says right or wrong: the
  * sentences' light is the only feedback, and the asked value stays "？".
  */
-function CardScreen({ view, send }: { view: CardScreenView; send: Session["send"] }) {
+function CardScreen({ view, send, ruby }: { view: CardScreenView; send: Session["send"]; ruby: boolean }) {
   const t = view.text;
   return (
     <section aria-label={t.ruleCard.label} data-testid="screen-card">
-      <h2 style={{ fontSize: 20, margin: "0 0 8px" }}>{t.ruleCard.label}</h2>
-      <div data-role="junior-row" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <Kohai pose={view.pose} />
-        <AiBadge />
-        <div>
-          {view.lines.map((l) => (
-            <p key={l} style={{ margin: 0 }}>
-              {l}
-            </p>
-          ))}
-        </div>
-      </div>
-      <div style={{ margin: "12px 0", padding: "10px 14px", border: "2px dashed #9aa5b1", borderRadius: 10, background: "#f5f7fa" }}>
-        <p data-testid="rule-card" aria-live="polite" style={{ margin: "0 0 8px" }}>
-          {view.card ?? ""}
+      <h2 style={h2}>
+        <RubyText text={t.ruleCard.label} on={ruby} />
+      </h2>
+      <KohaiSays pose={view.pose} live={false} testId="card-lines">
+        {view.lines.map((l) => (
+          <p key={l} style={{ margin: 0 }}>
+            <RubyText text={l} on={ruby} />
+          </p>
+        ))}
+      </KohaiSays>
+      <div style={{ margin: `${String(SPACE.md)}px 0`, padding: `${String(SPACE.md)}px ${String(SPACE.lg)}px`, border: `${String(BORDER.thin)}px dashed ${COLOR.inkSoft}`, borderRadius: RADIUS.md, background: COLOR.surfaceSoft }}>
+        <p data-testid="rule-card" aria-live="polite" style={{ margin: `0 0 ${String(SPACE.sm)}px`, fontWeight: 700 }}>
+          <RubyText text={view.card ?? ""} on={ruby} />
         </p>
-        <div role="group" aria-label={view.slotLabel} data-testid="card-slot" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div role="group" aria-label={view.slotLabel} data-testid="card-slot" style={{ display: "flex", gap: SPACE.sm, flexWrap: "wrap" }}>
           {view.options.map((o) => (
-            <button
-              key={o.ruleId}
-              type="button"
-              data-rule={o.ruleId}
-              data-testid={`card-option-${o.ruleId}`}
-              aria-pressed={o.chosen}
-              onClick={() => send({ type: "CARD_PICK", ruleId: o.ruleId })}
-              style={{
-                minHeight: 48,
-                padding: "8px 14px",
-                fontSize: 18,
-                borderRadius: 12,
-                border: "2px solid #52606d",
-                // The chosen option looks pressed only; no option is marked as better than another.
-                background: o.chosen ? "#e4ecf7" : "#fff",
-                color: "#1f2933",
-                fontWeight: o.chosen ? 700 : 400,
-                cursor: "pointer",
-              }}
-            >
+            // The chosen option looks pressed only; no option is marked as better than another.
+            <Toggle key={o.ruleId} dataRule={o.ruleId} testId={`card-option-${o.ruleId}`} pressed={o.chosen} onClick={() => send({ type: "CARD_PICK", ruleId: o.ruleId })}>
               {o.label}
-            </button>
+            </Toggle>
           ))}
         </div>
       </div>
-      <h3 style={{ fontSize: 18 }}>{view.galleryLabel}</h3>
-      <ul data-testid="gallery" style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 16 }}>
+      <h3 style={{ fontSize: TYPE.body, margin: `${String(SPACE.lg)}px 0 ${String(SPACE.sm)}px` }}>
+        <RubyText text={view.galleryLabel} on={ruby} />
+      </h3>
+      <ul data-testid="gallery" style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: SPACE.lg }}>
         {view.gallery.map((g) => {
           const checks: StatementCheck[] = g.statements.map((s) => ({ index: s.index, verdict: s.lit ? "fails" : "holds", cues: [] }) as StatementCheck);
           return (
-            <li key={g.problemId} data-testid="gallery-item" data-problem-id={g.problemId} style={{ borderTop: "1px solid #cbd2d9", paddingTop: 8 }}>
+            <li key={g.problemId} data-testid="gallery-item" data-problem-id={g.problemId} style={worldCard}>
               <SentenceList statements={g.statements} checks={checks} label={t.problem.sentences} lang={view.lang} {...(g.world !== null ? { holders: holderColors(g.world.holders) } : {})} />
               {g.stage !== null && <ObjectSceneView scene={g.stage} lang={view.lang} />}
               {g.world !== null && (
@@ -372,19 +393,23 @@ function CardScreen({ view, send }: { view: CardScreenView; send: Session["send"
       </ul>
       {view.scenes !== null && (
         // 身近な場面で見てみる (指示書 第6.7節 手順5): two everyday scenes read with the card's rule; only the lit sentence says where it stops fitting.
-        <section aria-label={view.scenes.label} data-testid="scenes" style={{ marginTop: 16 }}>
-          <h3 style={{ fontSize: 18 }}>{view.scenes.label}</h3>
-          <p style={{ margin: "0 0 8px" }}>{view.scenes.note}</p>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 16 }}>
+        <section aria-label={view.scenes.label} data-testid="scenes" style={{ marginTop: SPACE.lg }}>
+          <h3 style={{ fontSize: TYPE.body, margin: `0 0 ${String(SPACE.sm)}px` }}>
+            <RubyText text={view.scenes.label} on={ruby} />
+          </h3>
+          <p style={{ ...prose, margin: `0 0 ${String(SPACE.sm)}px` }}>
+            <RubyText text={view.scenes.note} on={ruby} />
+          </p>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: SPACE.lg }}>
             {view.scenes.items.map((item) => (
-              <li key={item.key} style={{ borderTop: "1px solid #cbd2d9", paddingTop: 8 }}>
+              <li key={item.key} style={worldCard}>
                 <SceneView item={item} drawing={view.scenes?.drawing ?? ""} lang={view.lang} />
               </li>
             ))}
           </ul>
         </section>
       )}
-      <p style={{ marginTop: 12 }}>
+      <p style={actions}>
         <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-card-next">
           {view.next}
         </Button>
@@ -393,22 +418,13 @@ function CardScreen({ view, send }: { view: CardScreenView; send: Session["send"
   );
 }
 
-/** The junior's line with the AI mark, as on the problem screen. */
-function JuniorLine({ line, reading, pose }: { line: string | null; reading: boolean; pose: KohaiPose }) {
+/** The junior's line in its bubble with the AI mark, as on the problem screen. */
+function JuniorLine({ line, reading, pose, ruby, lang, readings }: { line: string | null; reading: boolean; pose: KohaiPose; ruby: boolean; lang: Lang; readings: Readings }) {
   if (line === null) return null;
   return (
-    <div data-role="junior-row" style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
-      <Kohai pose={pose} />
-      <AiBadge />
-      <p
-        data-testid="junior-line"
-        aria-live="polite"
-        data-reading={reading ? "true" : "false"}
-        style={{ margin: 0, ...(reading ? { outline: "4px solid #1f2933", outlineOffset: 2, background: "#fff6d5" } : {}) }}
-      >
-        {line}
-      </p>
-    </div>
+    <KohaiSays pose={pose} reading={reading}>
+      <JuniorText text={line} on={ruby} lang={lang} readings={readings} />
+    </KohaiSays>
   );
 }
 
@@ -435,17 +451,13 @@ function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["se
   return (
     <section aria-label={t.label} data-testid="screen-help" data-stage={view.stage}>
       <ReadingTools lang={view.lang} lines={readLines} speaker={reading.speaker} onReading={setReadingIndex} furigana={reading.furigana} onFurigana={reading.onFurigana} />
-      <ol aria-label={view.text.problem.sentences} style={{ padding: 0, margin: 0 }}>
+      <ol aria-label={view.text.problem.sentences} style={{ ...card, margin: 0, listStyle: "none" }}>
         {shown.map((s, i) => (
-          <li
-            key={s.index}
-            data-statement={s.index}
-            style={{ listStyle: "none", fontSize: 22, padding: "4px 8px", ...(readingIndex === i ? { outline: "4px solid #1f2933", background: "#fff6d5" } : {}) }}
-          >
+          <li key={s.index} data-statement={s.index} style={{ listStyle: "none", fontSize: TYPE.large, padding: `${String(SPACE.xs)}px ${String(SPACE.sm)}px`, borderRadius: RADIUS.sm, ...(readingIndex === i ? readingStyle : {}) }}>
             {s.tokens.map((tok, k) =>
               view.lit !== null && s.index === view.lit.statementIndex && lit.has(k) ? (
                 // Every relation word of the sentence is lit the same way (no one of them stands out).
-                <mark key={k} data-role="lit-word" style={{ background: "#ffe08a", borderRadius: 4, padding: "0 2px", color: "#1f2933" }}>
+                <mark key={k} data-role="lit-word" style={{ background: COLOR.attention, borderRadius: 6, padding: "0 4px", margin: "0 2px", color: COLOR.ink }}>
                   {word(tok)}
                 </mark>
               ) : (
@@ -455,8 +467,8 @@ function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["se
           </li>
         ))}
       </ol>
-      <JuniorLine line={view.line} reading={readingIndex !== null && readingIndex === shown.length} pose={view.pose} />
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+      <JuniorLine line={view.line} reading={readingIndex !== null && readingIndex === shown.length} pose={view.pose} ruby={rubyUi} lang={view.lang} readings={problemReadings} />
+      <div style={actions}>
         {view.stage === "read" && (
           <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-help-read">
             <RubyText text={t.read} on={rubyUi} />
@@ -464,7 +476,7 @@ function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["se
         )}
         {view.stage === "order" && (
           // The two holders look alike; neither is chosen beforehand and nothing says which fits.
-          <div role="group" aria-label={t.orderLabel} data-testid="help-order" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <div role="group" aria-label={t.orderLabel} data-testid="help-order" style={{ display: "flex", gap: SPACE.md, flexWrap: "wrap" }}>
             {view.choices.map((c) => (
               <Button key={c.holderId} onClick={() => send({ type: "ORDER_GUESS", holderId: c.holderId })} testId={`btn-order-${c.holderId}`}>
                 {word(c.label)}
@@ -518,16 +530,16 @@ function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Ses
   const title = page === null ? "" : view.lang === "ja" ? "「" + page.title + "」" : ' "' + page.title + '"';
   return (
     <section aria-label={t.label} data-testid="screen-wordbook" data-page={page?.id ?? ""}>
-      <h2 style={{ fontSize: 20, margin: "0 0 8px" }}>
-        {t.label}
+      <h2 style={h2}>
+        <RubyText text={t.label} on={reading.furigana && view.lang === "ja"} readings={bookReadings} />
         <span data-testid="wordbook-title">{title}</span>
       </h2>
       <ReadingTools lang={view.lang} lines={readLines} speaker={reading.speaker} onReading={setReadingIndex} furigana={reading.furigana} onFurigana={reading.onFurigana} />
-      <JuniorLine line={view.line} reading={readingIndex === 0 && off === 1} pose={view.pose} />
+      <JuniorLine line={view.line} reading={readingIndex === 0 && off === 1} pose={view.pose} ruby={reading.furigana && view.lang === "ja"} lang={view.lang} readings={bookReadings} />
       {page !== null && (
         <>
           {page.lines.map((l, i) => (
-            <p key={l} data-testid="wordbook-line" style={{ margin: "4px 0", ...(readingIndex === i + off ? { outline: "4px solid #1f2933", background: "#fff6d5" } : {}) }}>
+            <p key={l} data-testid="wordbook-line" style={{ ...prose, margin: `${String(SPACE.xs)}px 0`, ...(readingIndex === i + off ? readingStyle : {}) }}>
               {/* The holders' names in the stage picture's colours, as on the problem screen. */}
               {splitByHolders(l, bookHolders).map((part, k) =>
                 part.holder === null ? (
@@ -540,13 +552,13 @@ function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Ses
               )}
             </p>
           ))}
-          <p data-testid="wordbook-one" style={{ fontWeight: 700 }}>
+          <p data-testid="wordbook-one" style={{ fontWeight: 700, margin: `${String(SPACE.md)}px 0` }}>
             {t.one} <span style={{ color: oneColor?.ink, borderBottom: oneColor === undefined ? undefined : `3px solid ${oneColor.fill}` }}>{oneLabel}</span>
           </p>
           {page.contrast !== null && (
             // Contrasting cases (指示書 第7.1節 ことばの絵本): the page's example read as the wording says, and read with the
             // other holder as 1. Each is captioned by which holder is taken as 1, never by a verdict.
-            <div data-testid="wordbook-contrasts" data-side-by-side={contrastSide ? "true" : "false"} style={{ display: "flex", flexWrap: "wrap", gap: CONTRAST_GAP, margin: "8px 0" }}>
+            <div data-testid="wordbook-contrasts" data-side-by-side={contrastSide ? "true" : "false"} style={{ ...worldCard, display: "flex", flexWrap: "wrap", gap: CONTRAST_GAP }}>
               {[
                 { scene: page.contrast.asWorded, caption: page.contrast.captions[0] },
                 ...(page.contrast.otherAsOne === null ? [] : [{ scene: page.contrast.otherAsOne, caption: page.contrast.captions[1] ?? "" }]),
@@ -560,10 +572,12 @@ function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Ses
               ))}
             </div>
           )}
-          <WorldView world={page.world} cardHolder={page.oneHolderId} label={view.text.draw.world} lang={view.lang} />
+          <div style={worldCard}>
+            <WorldView world={page.world} cardHolder={page.oneHolderId} label={view.text.draw.world} lang={view.lang} />
+          </div>
         </>
       )}
-      <p style={{ marginTop: 12 }}>
+      <p style={actions}>
         <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-book-close">
           {t.close}
         </Button>
@@ -583,30 +597,11 @@ export function checkDate(at: string): string {
 function LangSwitch({ lang, onChange }: { lang: Lang; onChange: (l: Lang) => void }) {
   const t = ui(lang).langSwitch;
   return (
-    <div role="group" aria-label={t.label} style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0" }}>
+    <div role="group" aria-label={t.label} style={{ display: "flex", gap: SPACE.sm, flexWrap: "wrap", margin: `${String(SPACE.sm)}px 0 ${String(SPACE.lg)}px` }}>
       {(["ja", "en"] as const).map((l) => (
-        <button
-          key={l}
-          type="button"
-          lang={l}
-          aria-pressed={lang === l}
-          data-testid={`lang-${l}`}
-          onClick={() => onChange(l)}
-          style={{
-            minHeight: 48,
-            minWidth: 48,
-            padding: "8px 18px",
-            fontSize: 18,
-            borderRadius: 12,
-            border: "2px solid #52606d",
-            background: lang === l ? "#e4ecf7" : "#fff",
-            color: "#1f2933",
-            fontWeight: lang === l ? 700 : 400,
-            cursor: "pointer",
-          }}
-        >
+        <Toggle key={l} lang={l} pressed={lang === l} testId={`lang-${l}`} onClick={() => onChange(l)}>
           {t[l]}
-        </button>
+        </Toggle>
       ))}
     </div>
   );
@@ -616,7 +611,7 @@ function LangSwitch({ lang, onChange }: { lang: Lang; onChange: (l: Lang) => voi
 function CheckResults({ rows, text }: { rows: readonly CheckRow[]; text: UiText["parent"] }) {
   return (
     <div data-testid="check-results">
-      <h3 style={{ fontSize: 20 }}>{text.checksTitle}</h3>
+      <h3 style={{ fontSize: TYPE.body }}>{text.checksTitle}</h3>
       {rows.length === 0 ? (
         <p>{text.checksNone}</p>
       ) : (
@@ -627,7 +622,7 @@ function CheckResults({ rows, text }: { rows: readonly CheckRow[]; text: UiText[
           })}
         </ul>
       )}
-      <p style={{ fontSize: 16 }}>{text.checksNote}</p>
+      <p style={{ ...note, ...prose, fontSize: TYPE.small }}>{text.checksNote}</p>
     </div>
   );
 }
@@ -661,14 +656,20 @@ function ParentScreen({
   }, [store, done]);
   return (
     <section aria-label={t.label}>
-      <h2>{t.label}</h2>
+      <h2 style={h2}>{t.label}</h2>
       <LangSwitch lang={lang} onChange={onLang} />
       {t.lines.map((l) => (
-        <p key={l}>{l}</p>
+        <p key={l} style={prose}>
+          {l}
+        </p>
       ))}
       <CheckResults rows={checks} text={t} />
       <ParentNote store={store} lang={lang} reload={done} />
-      {!asked && <Button onClick={() => setAsked(true)}>{t.deleteAsk}</Button>}
+      {!asked && (
+        <Button kind="quiet" onClick={() => setAsked(true)}>
+          {t.deleteAsk}
+        </Button>
+      )}
       {asked && !done && (
         <>
           <p>{t.deleteWarn}</p>
@@ -686,7 +687,7 @@ function ParentScreen({
       )}
       {done && <p data-testid="deleted">{t.deleted}</p>}
       <p>
-        <a href="#/try" data-testid="link-try">
+        <a href="#/try" data-testid="link-try" style={{ color: COLOR.ink, fontSize: TYPE.small, textDecorationColor: COLOR.inkSoft, textUnderlineOffset: 4 }}>
           {t.tryLink}
         </a>
       </p>
@@ -711,25 +712,75 @@ function Screen({
   reading: ReadingHooks;
 }) {
   const t = view.text;
+  // The app's own fixed lines get furigana in Japanese while the switch is on (whole-screen review, 2026-11-08).
+  const ruby = reading.furigana && view.lang === "ja";
   switch (view.screen) {
     case "intro":
+      // The AI and privacy disclosure (原則10, 第9節) as a few short cards for the child, every fact kept; the same
+      // facts in fuller words for the grown-up behind 「おうちの人へ」 on this screen. はじめる is the one main action.
       return (
-        <section aria-label={t.intro.label}>
+        <section aria-label={t.intro.label} data-testid="screen-intro">
           <LangSwitch lang={view.lang} onChange={onLang} />
-          <Lines lines={view.lines} />
-          <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-next">
-            {t.intro.start}
-          </Button>
+          <ol data-testid="intro-cards" style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: SPACE.lg }}>
+            {t.intro.cards.map((c, i) => (
+              <li key={c.title} data-role="intro-card" style={{ ...card, margin: 0 }}>
+                <h2 style={{ display: "flex", alignItems: "center", gap: SPACE.md, fontSize: TYPE.large, lineHeight: 1.5, margin: `0 0 ${String(SPACE.sm)}px` }}>
+                  <span aria-hidden="true" style={{ display: "inline-grid", placeItems: "center", width: 36, height: 36, flex: "none", borderRadius: RADIUS.pill, background: COLOR.surfaceSoft, border: `${String(BORDER.thin)}px solid ${COLOR.outline}`, fontSize: TYPE.small }}>
+                    {String(i + 1)}
+                  </span>
+                  <span>
+                    <RubyText text={c.title} on={ruby} />
+                  </span>
+                </h2>
+                {i === 0 && (
+                  // The first card is about the junior: it is shown here with its AI mark, as on every screen.
+                  <span style={{ float: "right", display: "flex", flexDirection: "column", alignItems: "center", gap: SPACE.xs, margin: `0 0 ${String(SPACE.sm)}px ${String(SPACE.md)}px` }}>
+                    <Kohai pose="read" />
+                    <AiBadge />
+                  </span>
+                )}
+                {c.lines.map((l) => (
+                  <p key={l} style={{ ...prose, margin: `0 0 ${String(SPACE.sm)}px` }}>
+                    <RubyText text={l} on={ruby} />
+                  </p>
+                ))}
+              </li>
+            ))}
+          </ol>
+          <p style={{ ...actions, justifyContent: "center", marginTop: SPACE.xl }}>
+            <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-next" style={{ minWidth: 280, minHeight: 68 }}>
+              {t.intro.start}
+            </Button>
+          </p>
         </section>
       );
     case "consent":
       return (
-        <section aria-label={t.consent.label}>
-          <Lines lines={view.lines} />
-          <Button kind="primary" onClick={() => send({ type: "CONSENT_YES" })} testId="btn-consent-yes">
-            {t.consent.yes}
-          </Button>{" "}
-          <Button onClick={() => send({ type: "CONSENT_NO" })}>{t.consent.no}</Button>
+        <section aria-label={t.consent.label} data-testid="screen-consent">
+          {/* For the child: this part is the grown-up's (a line of the app, not the junior's). */}
+          <p data-testid="consent-child" style={{ ...prose, maxWidth: "none", margin: `0 0 ${String(SPACE.md)}px`, padding: `${String(SPACE.sm)}px ${String(SPACE.lg)}px`, borderRadius: RADIUS.md, background: COLOR.highlight, fontWeight: 700 }}>
+            <RubyText text={t.consent.child} on={ruby} />
+          </p>
+          <div style={card}>
+            {view.lines.map((l, i) =>
+              i === 0 ? (
+                <h2 key={l} style={h2}>
+                  {l}
+                </h2>
+              ) : (
+                <p key={l} style={{ ...prose, maxWidth: "none", fontSize: TYPE.small, margin: `0 0 ${String(SPACE.md)}px` }}>
+                  {l}
+                </p>
+              ),
+            )}
+          </div>
+          <p style={actions}>
+            {/* The two answers look alike: nothing nudges the grown-up to agree. */}
+            <Button onClick={() => send({ type: "CONSENT_YES" })} testId="btn-consent-yes">
+              {t.consent.yes}
+            </Button>
+            <Button onClick={() => send({ type: "CONSENT_NO" })}>{t.consent.no}</Button>
+          </p>
         </section>
       );
     case "guess":
@@ -737,7 +788,7 @@ function Screen({
     case "problem":
       return <ProblemScreen view={view} send={send} voice={voice} reading={reading} />;
     case "card":
-      return <CardScreen view={view} send={send} />;
+      return <CardScreen view={view} send={send} ruby={ruby} />;
     case "help":
       return <HelpScreen view={view} send={send} reading={reading} />;
     case "wordbook":
@@ -746,44 +797,47 @@ function Screen({
     case "finished":
       return (
         <section aria-label={view.screen === "research" ? t.research.label : t.finished.label}>
-          <Lines lines={view.lines} />
+          <Lines lines={view.lines} ruby={ruby} />
           {view.screen === "finished" && (
-            <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-next">
-              {t.finished.end}
-            </Button>
+            <p style={actions}>
+              <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-next">
+                {t.finished.end}
+              </Button>
+            </p>
           )}
         </section>
       );
     case "stuck":
       return (
         <section aria-label={t.stuck.label}>
-          <Lines lines={view.lines} />
-          <Button kind="primary" onClick={() => send({ type: "RESUME" })} testId="btn-resume">
-            {view.resume}
-          </Button>{" "}
-          {view.hold !== null && <Button onClick={() => send({ type: "HOLD" })}>{view.hold}</Button>}
+          <Lines lines={view.lines} ruby={ruby} />
+          <p style={actions}>
+            <Button kind="primary" onClick={() => send({ type: "RESUME" })} testId="btn-resume">
+              {view.resume}
+            </Button>
+            {view.hold !== null && (
+              <Button onClick={() => send({ type: "HOLD" })}>
+                <RubyText text={view.hold} on={ruby} />
+              </Button>
+            )}
+          </p>
         </section>
       );
     case "hard":
     case "rest":
       return (
         <section aria-label={view.screen === "hard" ? t.hard.label : t.rest.label} data-testid={`screen-${view.screen}`}>
-          <Lines lines={view.lines} />
-          <h2 style={{ fontSize: 20 }}>{view.helpline.title}</h2>
-          <p>{view.helpline.pending}</p>
-          {view.helpline.note !== null && <p>{view.helpline.note}</p>}
-          <ul data-testid="helplines">
-            {view.helpline.entries.map((h) => (
-              <li key={h.number}>{helplineLine(h, view.lang)}</li>
-            ))}
-          </ul>
-          <Button onClick={() => send({ type: "CLOSE" })}>{t.hard.close}</Button>
+          <Lines lines={view.lines} ruby={ruby} />
+          <Helplines helpline={view.helpline} lang={view.lang} furigana={reading.furigana} />
+          <p style={actions}>
+            <Button onClick={() => send({ type: "CLOSE" })}>{t.hard.close}</Button>
+          </p>
         </section>
       );
     case "ended":
       return (
         <section aria-label={t.ended.label} data-testid="screen-ended">
-          <p>{t.ended.line}</p>
+          <p style={prose}>{t.ended.line}</p>
         </section>
       );
   }
@@ -890,8 +944,11 @@ export function App({
 
   return (
     <main style={page} lang={lang}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ fontSize: 24, margin: 0 }}>{t.title}</h1>
+      <style>{GLOBAL_CSS}</style>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: SPACE.md, margin: `0 0 ${String(SPACE.md)}px` }}>
+        <h1 style={{ fontSize: TYPE.title, lineHeight: 1.5, margin: 0 }}>
+          <RubyText text={t.title} on={furigana && lang === "ja"} />
+        </h1>
         <AiBadge />
       </header>
       {view === null && <p>{t.preparing}</p>}
@@ -931,19 +988,32 @@ export function App({
         />
       )}
       {view !== null && !parent && !check && <Screen view={view} send={send} onLang={changeLang} voice={voice} reading={reading} />}
-      {view !== null && !check && view.screen !== "ended" && <Always view={view} send={send} />}
+      {/* The grown-ups' doors: quiet, under the child's screen, apart from its one main action. */}
       {!parent && !check && (view?.screen === "intro" || view?.screen === "consent" || view?.screen === "ended") && (
-        <p style={{ marginTop: 24, display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {(view.screen === "intro" || view.screen === "ended") && (
-            <Button onClick={() => setCheck(true)} testId="btn-check">
-              {checkText(lang).entry}
-            </Button>
+        <section data-role="adult-doors" aria-label={t.parent.label} style={{ marginTop: SPACE.xxxl, padding: `${String(SPACE.md)}px ${String(SPACE.lg)}px`, border: `${String(BORDER.thin)}px solid ${COLOR.line}`, borderRadius: RADIUS.md, background: COLOR.surfaceSoft }}>
+          {view.screen === "intro" && (
+            <details data-testid="intro-adult">
+              <summary style={{ cursor: "pointer", fontSize: TYPE.small, fontWeight: 700, minHeight: 44, lineHeight: "44px" }}>{view.text.intro.adultTitle}</summary>
+              {view.text.intro.adultLines.map((l) => (
+                <p key={l} style={{ ...prose, fontSize: TYPE.small, margin: `${String(SPACE.sm)}px 0` }}>
+                  {l}
+                </p>
+              ))}
+            </details>
           )}
-          <HoldButton onHold={() => setParent(true)} holdMs={parentHoldMs} testId="btn-parent">
-            {t.parentDoor}
-          </HoldButton>
-        </p>
+          <p style={{ display: "flex", gap: SPACE.md, flexWrap: "wrap", margin: `${String(SPACE.sm)}px 0 0` }}>
+            {(view.screen === "intro" || view.screen === "ended") && (
+              <Button kind="quiet" onClick={() => setCheck(true)} testId="btn-check">
+                {checkText(lang).entry}
+              </Button>
+            )}
+            <HoldButton onHold={() => setParent(true)} holdMs={parentHoldMs} testId="btn-parent">
+              {t.parentDoor}
+            </HoldButton>
+          </p>
+        </section>
       )}
+      {view !== null && !check && view.screen !== "ended" && <Always view={view} send={send} />}
     </main>
   );
 }

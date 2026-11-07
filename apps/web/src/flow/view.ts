@@ -443,7 +443,7 @@ export function childTexts(v: FlowView): string[] {
       out.push(t.intro.label, ...v.lines, t.intro.start);
       break;
     case "consent":
-      out.push(t.consent.label, ...v.lines, t.consent.yes, t.consent.no);
+      out.push(t.consent.label, t.consent.child, ...v.lines, t.consent.yes, t.consent.no);
       break;
     case "research":
       out.push(t.research.label, ...v.lines);

@@ -70,10 +70,18 @@ function amountOf(v: Exact): StageAmount {
   return { wholes: Number(wholes), piece: piece.num === 0n ? null : toSchema(piece) };
 }
 
-/** The numbers a child can read off an amount as drawn: its value, and its whole things when a piece is beside them. */
+/**
+ * The numbers a child can read off an amount as drawn: its value, and when a piece is beside its whole things, the
+ * whole things and the shapes drawn (a cut piece, or a part-filled cup, is a shape of its own: wholes + 1).
+ */
 function countsOf(a: StageAmount): Exact[] {
   const v = fromSchema(amountValue(a));
-  return a.piece === null ? [v] : [v, rat(a.wholes)];
+  return a.piece === null ? [v] : [v, rat(a.wholes), rat(a.wholes + 1)];
+}
+
+/** The numbers a holder's dishes let a child count: its whole things and its shapes over all its dishes. */
+function dishCounts(dishes: number, share: StageAmount): Exact[] {
+  return share.piece === null ? [rat(dishes * share.wholes)] : [rat(dishes * share.wholes), rat(dishes * (share.wholes + 1))];
 }
 
 /** The value of an amount, as one rational. */
@@ -141,7 +149,7 @@ export function objectScene(shown: WorldScene, correct: WorldScene, said: { valu
     if (q === undefined || v === undefined) return null;
     const negative = v.num < 0n;
     const isGiven = given(q, v);
-    // Hidden when its value, or the number of its whole things beside a cut piece, is a hidden value.
+    // Hidden when its value, or the number of its whole things or of its shapes beside a cut piece, is a hidden value.
     const hide = !isGiven && !negative && countsOf(amountOf(v)).some(isHiddenValue);
     const count = hide || negative ? null : amountOf(v);
     if (count !== null && count.wholes > MAX_THINGS) return null;
@@ -154,8 +162,8 @@ export function objectScene(shown: WorldScene, correct: WorldScene, said: { valu
     holders.push({ holderId: h.id, label: h.label, quantityId: q.id, count, hidden: hide, given: isGiven, isOne, dishes, impossible: negative || (countable && !isInteger(v)) });
   }
 
-  // One dish's share: the "1" holder's value cut in q. When the share, or a count of whole things the dealing
-  // shows, is a hidden value, nothing is dealt.
+  // One dish's share: the "1" holder's value cut in q. When the share, or a count the dealing shows (the whole things
+  // or the shapes on a dish, or over a holder's dishes), is a hidden value, nothing is dealt.
   let share: StageAmount | null = null;
   let breaks = false;
   const one = holders.find((x) => x.isOne);
@@ -168,7 +176,7 @@ export function objectScene(shown: WorldScene, correct: WorldScene, said: { valu
       if (x.dishes > 0 && (v === undefined || !eq(mul(s, rat(x.dishes)), v))) x.dishes = 0;
     }
     const a = amountOf(s);
-    const shows = [...countsOf(a), ...(a.piece === null ? [] : holders.filter((x) => x.dishes > 0).map((x) => rat(x.dishes * a.wholes)))];
+    const shows = [...countsOf(a), ...holders.filter((x) => x.dishes > 0).flatMap((x) => dishCounts(x.dishes, a))];
     if (shows.some(isHiddenValue)) {
       for (const x of holders) x.dishes = 0;
     } else {
@@ -207,12 +215,13 @@ export function objectScene(shown: WorldScene, correct: WorldScene, said: { valu
 }
 
 /**
- * Every number the scene lets a child count beyond the problem's own numbers: each drawn holder's count (and its
- * whole things beside a piece), the share of a dish (and its whole things), and the whole things on a holder's
- * dishes when the dealing cuts.
+ * Every number the scene lets a child count beyond the problem's own numbers: each drawn holder's count (and, beside
+ * a piece, its whole things and its shapes: a cut piece or a part-filled cup is a shape of its own), the share of a
+ * dish (likewise), and the whole things and the shapes over a holder's dishes.
  */
 export function drawnValues(s: ObjectScene): Rational[] {
-  const counts = (a: StageAmount): Rational[] => (a.piece === null ? [amountValue(a)] : [amountValue(a), { num: a.wholes, den: 1 }]);
+  const counts = (a: StageAmount): Rational[] =>
+    a.piece === null ? [amountValue(a)] : [amountValue(a), { num: a.wholes, den: 1 }, { num: a.wholes + 1, den: 1 }];
   const share = s.share;
   const p = s.pairing;
   const smallGiven = p === null ? true : s.holders.find((h) => h.holderId !== p.larger)?.given === true;
@@ -220,6 +229,10 @@ export function drawnValues(s: ObjectScene): Rational[] {
     ...(p === null ? [] : [{ num: p.extra, den: 1 }, ...(smallGiven ? [] : [{ num: p.paired, den: 1 }])]),
     ...s.holders.flatMap((h) => (h.count === null || h.given ? [] : counts(h.count))),
     ...(share === null ? [] : counts(share)),
-    ...(share === null || share.piece === null ? [] : s.holders.filter((h) => h.dishes > 0).map((h) => ({ num: h.dishes * share.wholes, den: 1 }))),
+    ...(share === null
+      ? []
+      : s.holders
+          .filter((h) => h.dishes > 0)
+          .flatMap((h) => (share.piece === null ? [{ num: h.dishes * share.wholes, den: 1 }] : [{ num: h.dishes * share.wholes, den: 1 }, { num: h.dishes * (share.wholes + 1), den: 1 }]))),
   ];
 }

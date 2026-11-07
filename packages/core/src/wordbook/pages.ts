@@ -40,7 +40,7 @@ export const WORDBOOK_PAGES: readonly WordbookPageData[] = [
     one: { ja: "黒いふくろ", en: "black bag" },
     other: { ja: "白いふくろ", en: "white bag" },
     thing: { noun: "あめ", counter: "こ" },
-    numbers: [{ one: 14, other: 7, amount: { num: 1, den: 2 } }, { one: 22, other: 11, amount: { num: 1, den: 2 } }, { one: 26, other: 13, amount: { num: 1, den: 2 } }],
+    numbers: [{ one: 14, other: 7, amount: { num: 1, den: 2 } }, { one: 22, other: 11, amount: { num: 1, den: 2 } }, { one: 26, other: 13, amount: { num: 1, den: 2 } }, { one: 34, other: 17, amount: { num: 1, den: 2 } }],
     operator: "fraction_of",
     lines: {
       ja: [
@@ -61,7 +61,7 @@ export const WORDBOOK_PAGES: readonly WordbookPageData[] = [
     one: { ja: "左のかご", en: "left basket" },
     other: { ja: "右のかご", en: "right basket" },
     thing: { noun: "ビー玉", counter: "こ" },
-    numbers: [{ one: 14, other: 7, amount: { num: 1, den: 2 } }, { one: 22, other: 11, amount: { num: 1, den: 2 } }, { one: 26, other: 13, amount: { num: 1, den: 2 } }],
+    numbers: [{ one: 14, other: 7, amount: { num: 1, den: 2 } }, { one: 22, other: 11, amount: { num: 1, den: 2 } }, { one: 26, other: 13, amount: { num: 1, den: 2 } }, { one: 34, other: 17, amount: { num: 1, den: 2 } }],
     operator: "fraction_of",
     lines: {
       ja: [
@@ -82,7 +82,7 @@ export const WORDBOOK_PAGES: readonly WordbookPageData[] = [
     one: { ja: "銀のかん", en: "silver tin" },
     other: { ja: "金のかん", en: "gold tin" },
     thing: { noun: "せんべい", counter: "まい" },
-    numbers: [{ one: 14, other: 7, amount: { num: 1, den: 2 } }, { one: 22, other: 11, amount: { num: 1, den: 2 } }, { one: 26, other: 13, amount: { num: 1, den: 2 } }],
+    numbers: [{ one: 14, other: 7, amount: { num: 1, den: 2 } }, { one: 22, other: 11, amount: { num: 1, den: 2 } }, { one: 26, other: 13, amount: { num: 1, den: 2 } }, { one: 34, other: 17, amount: { num: 1, den: 2 } }],
     operator: "fraction_of",
     lines: {
       ja: [
@@ -103,7 +103,7 @@ export const WORDBOOK_PAGES: readonly WordbookPageData[] = [
     one: { ja: "上のたな", en: "top shelf" },
     other: { ja: "下のたな", en: "bottom shelf" },
     thing: { noun: "ビーズ", counter: "こ" },
-    numbers: [{ one: 14, other: 7, amount: { num: 1, den: 2 } }, { one: 22, other: 11, amount: { num: 1, den: 2 } }, { one: 26, other: 13, amount: { num: 1, den: 2 } }],
+    numbers: [{ one: 14, other: 7, amount: { num: 1, den: 2 } }, { one: 22, other: 11, amount: { num: 1, den: 2 } }, { one: 26, other: 13, amount: { num: 1, den: 2 } }, { one: 34, other: 17, amount: { num: 1, den: 2 } }],
     operator: "fraction_of",
     lines: {
       ja: [
@@ -124,7 +124,7 @@ export const WORDBOOK_PAGES: readonly WordbookPageData[] = [
     one: { ja: "小さいつぼ", en: "small pot" },
     other: { ja: "大きいつぼ", en: "big pot" },
     thing: { noun: "どんぐり", counter: "こ" },
-    numbers: [{ one: 14, other: 21, amount: { num: 3, den: 2 } }, { one: 22, other: 33, amount: { num: 3, den: 2 } }, { one: 26, other: 39, amount: { num: 3, den: 2 } }],
+    numbers: [{ one: 14, other: 21, amount: { num: 3, den: 2 } }, { one: 22, other: 33, amount: { num: 3, den: 2 } }, { one: 26, other: 39, amount: { num: 3, den: 2 } }, { one: 34, other: 51, amount: { num: 3, den: 2 } }],
     operator: "times",
     lines: {
       ja: [

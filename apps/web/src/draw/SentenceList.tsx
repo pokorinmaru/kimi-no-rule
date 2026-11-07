@@ -7,6 +7,7 @@ import { useAnimation, useReducedMotion } from "./motion.ts";
 import { COLORS, FONT } from "./theme.ts";
 import { rubyNodes } from "../ui/Ruby.tsx";
 import type { HolderColor } from "./holder-colors.ts";
+import { COLOR } from "../ui/tokens.ts";
 
 /** A holder's name in the sentences and its colour in the stage picture (指示書 第8.4節: with an underline too). */
 export interface HolderInk {
@@ -125,7 +126,7 @@ function Sentence({
         // The sentence being read aloud: a fixed solid outline and a light ground (no motion).
         outline: reading ? `4px solid ${COLORS.ink}` : "none",
         outlineOffset: 2,
-        background: reading ? "#fff6d5" : "transparent",
+        background: reading ? COLOR.highlight : "transparent",
       }}
     >
       {glow && (
