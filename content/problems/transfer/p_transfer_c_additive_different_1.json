@@ -1,0 +1,284 @@
+{
+  "schema_version": "1",
+  "world": {
+    "schema_version": "3",
+    "problem_id": "p_transfer_c_additive_different_1",
+    "problem_type": "ratio",
+    "problem_text": "母の毛糸は20mです。母の毛糸の長さをもとにすると、娘の毛糸の長さの割合は3/4です。娘の毛糸は何mですか。",
+    "grade": 6,
+    "problem_lang": "ja",
+    "holders": [
+      {
+        "id": "h_mother",
+        "label": "母"
+      },
+      {
+        "id": "h_daughter",
+        "label": "娘"
+      }
+    ],
+    "item_kinds": [
+      {
+        "id": "k_yarn",
+        "noun": "毛糸",
+        "counter": "m",
+        "asset_key": null,
+        "countable": false
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_mother",
+        "holder": "h_mother",
+        "item_kind": "k_yarn",
+        "at_event": null,
+        "value": {
+          "num": 20,
+          "den": 1
+        }
+      },
+      {
+        "id": "q_daughter",
+        "holder": "h_daughter",
+        "item_kind": "k_yarn",
+        "at_event": null,
+        "value": null
+      }
+    ],
+    "relations": [
+      {
+        "id": "r_ratio",
+        "operator": "fraction_of",
+        "subject": "q_daughter",
+        "reference": "q_mother",
+        "reference_list": null,
+        "amount": {
+          "num": 3,
+          "den": 4
+        },
+        "other_description": null
+      }
+    ],
+    "events": [],
+    "question": {
+      "target_type": "quantity",
+      "target_id": "q_daughter"
+    },
+    "word_links": [
+      {
+        "phrase": "母の毛糸は20m",
+        "lang": "ja",
+        "element_id": "q_mother"
+      },
+      {
+        "phrase": "娘の毛糸の長さの割合は3/4",
+        "lang": "ja",
+        "element_id": "r_ratio"
+      },
+      {
+        "phrase": "娘の毛糸は何m",
+        "lang": "ja",
+        "element_id": "q_daughter"
+      }
+    ]
+  },
+  "consistency": "consistent",
+  "pair_id": null,
+  "source": "research",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.7,
+    "human_checked": false
+  },
+  "expected_answer": {
+    "num": 15,
+    "den": 1
+  },
+  "statements": [
+    {
+      "index": 0,
+      "text": "母の毛糸は20mです。",
+      "element_ids": [
+        "q_mother"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "母",
+        "の",
+        "毛糸",
+        "は",
+        "20",
+        "m",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 1,
+      "text": "母の毛糸の長さをもとにすると、娘の毛糸の長さの割合は3/4です。",
+      "element_ids": [
+        "r_ratio"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "母",
+        "の",
+        "毛糸",
+        "の",
+        "長さ",
+        "を",
+        "もとにすると",
+        "、",
+        "娘",
+        "の",
+        "毛糸",
+        "の",
+        "長さ",
+        "の",
+        "割合",
+        "は",
+        "3/4",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 2,
+      "text": "娘の毛糸は何mですか。",
+      "element_ids": [
+        "q_daughter"
+      ],
+      "is_question": true,
+      "speaker_holder_id": null,
+      "tokens": [
+        "娘",
+        "の",
+        "毛糸",
+        "は",
+        "何",
+        "m",
+        "ですか",
+        "。"
+      ]
+    }
+  ],
+  "syntax_marks": [
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_mother",
+      "word": "母",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 0,
+      "token_start": 5,
+      "token_end": 5,
+      "element_id": "k_yarn",
+      "word": "m",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_mother",
+      "word": "母",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "relation_word",
+      "statement_index": 1,
+      "token_start": 6,
+      "token_end": 6,
+      "element_id": "r_ratio",
+      "word": "もとにすると",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 8,
+      "token_end": 8,
+      "element_id": "h_daughter",
+      "word": "娘",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "relation_word",
+      "statement_index": 1,
+      "token_start": 14,
+      "token_end": 14,
+      "element_id": "r_ratio",
+      "word": "割合",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "ratio_notation",
+      "statement_index": 1,
+      "token_start": 16,
+      "token_end": 16,
+      "element_id": "r_ratio",
+      "word": "3/4",
+      "ratio_kind": [
+        "fraction",
+        "lt1"
+      ],
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 1,
+      "token_start": 5,
+      "token_end": 17,
+      "element_id": "r_ratio",
+      "word": "をもとにすると、娘の毛糸の長さの割合は3/4です",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 2,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_daughter",
+      "word": "娘",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 2,
+      "token_start": 5,
+      "token_end": 5,
+      "element_id": "k_yarn",
+      "word": "m",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    }
+  ],
+  "companion_ids": []
+}

@@ -1,0 +1,282 @@
+{
+  "schema_version": "1",
+  "world": {
+    "schema_version": "3",
+    "problem_id": "p_transfer_c_additive_same_1",
+    "problem_type": "ratio",
+    "problem_text": "小さいかごのみかんは6こです。小さいかごのみかんは、大きいかごのみかんの2/5です。大きいかごのみかんは何こですか。",
+    "grade": 6,
+    "problem_lang": "ja",
+    "holders": [
+      {
+        "id": "h_small",
+        "label": "小さいかご"
+      },
+      {
+        "id": "h_large",
+        "label": "大きいかご"
+      }
+    ],
+    "item_kinds": [
+      {
+        "id": "k_mikan",
+        "noun": "みかん",
+        "counter": "こ",
+        "asset_key": null,
+        "countable": true
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_small",
+        "holder": "h_small",
+        "item_kind": "k_mikan",
+        "at_event": null,
+        "value": {
+          "num": 6,
+          "den": 1
+        }
+      },
+      {
+        "id": "q_large",
+        "holder": "h_large",
+        "item_kind": "k_mikan",
+        "at_event": null,
+        "value": null
+      }
+    ],
+    "relations": [
+      {
+        "id": "r_frac",
+        "operator": "fraction_of",
+        "subject": "q_small",
+        "reference": "q_large",
+        "reference_list": null,
+        "amount": {
+          "num": 2,
+          "den": 5
+        },
+        "other_description": null
+      }
+    ],
+    "events": [],
+    "question": {
+      "target_type": "quantity",
+      "target_id": "q_large"
+    },
+    "word_links": [
+      {
+        "phrase": "小さいかごのみかんは6こ",
+        "lang": "ja",
+        "element_id": "q_small"
+      },
+      {
+        "phrase": "大きいかごのみかんの2/5",
+        "lang": "ja",
+        "element_id": "r_frac"
+      },
+      {
+        "phrase": "大きいかごのみかんは何こ",
+        "lang": "ja",
+        "element_id": "q_large"
+      }
+    ]
+  },
+  "consistency": "inconsistent",
+  "pair_id": null,
+  "source": "research",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.35,
+    "human_checked": false
+  },
+  "expected_answer": {
+    "num": 15,
+    "den": 1
+  },
+  "statements": [
+    {
+      "index": 0,
+      "text": "小さいかごのみかんは6こです。",
+      "element_ids": [
+        "q_small"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "小さい",
+        "かご",
+        "の",
+        "みかん",
+        "は",
+        "6",
+        "こ",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 1,
+      "text": "小さいかごのみかんは、大きいかごのみかんの2/5です。",
+      "element_ids": [
+        "r_frac"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "小さい",
+        "かご",
+        "の",
+        "みかん",
+        "は",
+        "、",
+        "大きい",
+        "かご",
+        "の",
+        "みかん",
+        "の",
+        "2/5",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 2,
+      "text": "大きいかごのみかんは何こですか。",
+      "element_ids": [
+        "q_large"
+      ],
+      "is_question": true,
+      "speaker_holder_id": null,
+      "tokens": [
+        "大きい",
+        "かご",
+        "の",
+        "みかん",
+        "は",
+        "何",
+        "こ",
+        "です",
+        "か",
+        "。"
+      ]
+    }
+  ],
+  "syntax_marks": [
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 0,
+      "token_end": 1,
+      "element_id": "h_small",
+      "word": "小さいかご",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 0,
+      "token_start": 6,
+      "token_end": 6,
+      "element_id": "k_mikan",
+      "word": "こ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 0,
+      "token_end": 1,
+      "element_id": "h_small",
+      "word": "小さいかご",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 6,
+      "token_end": 7,
+      "element_id": "h_large",
+      "word": "大きいかご",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "relation_word",
+      "statement_index": 1,
+      "token_start": 10,
+      "token_end": 10,
+      "element_id": "r_frac",
+      "word": "の",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "ratio_notation",
+      "statement_index": 1,
+      "token_start": 11,
+      "token_end": 11,
+      "element_id": "r_frac",
+      "word": "2/5",
+      "ratio_kind": [
+        "fraction",
+        "lt1"
+      ],
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 1,
+      "token_start": 4,
+      "token_end": 12,
+      "element_id": "r_frac",
+      "word": "は、大きいかごのみかんの2/5です",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 2,
+      "token_start": 0,
+      "token_end": 1,
+      "element_id": "h_large",
+      "word": "大きいかご",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 2,
+      "token_start": 6,
+      "token_end": 6,
+      "element_id": "k_mikan",
+      "word": "こ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 2,
+      "token_start": 5,
+      "token_end": 8,
+      "element_id": "q_large",
+      "word": "何こですか",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    }
+  ],
+  "companion_ids": []
+}

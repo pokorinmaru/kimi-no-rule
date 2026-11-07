@@ -1,0 +1,302 @@
+{
+  "schema_version": "1",
+  "world": {
+    "schema_version": "3",
+    "problem_id": "p_transfer_c_first_whole_different_1",
+    "problem_type": "ratio",
+    "problem_text": "祖父がとったトマトは15こです。祖父がとったトマトの数は、父がとったトマトの数を1とみると3/5にあたります。父がとったトマトは何こですか。",
+    "grade": 6,
+    "problem_lang": "ja",
+    "holders": [
+      {
+        "id": "h_grandpa",
+        "label": "祖父"
+      },
+      {
+        "id": "h_father",
+        "label": "父"
+      }
+    ],
+    "item_kinds": [
+      {
+        "id": "k_tomato",
+        "noun": "トマト",
+        "counter": "こ",
+        "asset_key": null,
+        "countable": true
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_grandpa",
+        "holder": "h_grandpa",
+        "item_kind": "k_tomato",
+        "at_event": null,
+        "value": {
+          "num": 15,
+          "den": 1
+        }
+      },
+      {
+        "id": "q_father",
+        "holder": "h_father",
+        "item_kind": "k_tomato",
+        "at_event": null,
+        "value": null
+      }
+    ],
+    "relations": [
+      {
+        "id": "r_frac",
+        "operator": "fraction_of",
+        "subject": "q_grandpa",
+        "reference": "q_father",
+        "reference_list": null,
+        "amount": {
+          "num": 3,
+          "den": 5
+        },
+        "other_description": null
+      }
+    ],
+    "events": [],
+    "question": {
+      "target_type": "quantity",
+      "target_id": "q_father"
+    },
+    "word_links": [
+      {
+        "phrase": "祖父がとったトマトは15こ",
+        "lang": "ja",
+        "element_id": "q_grandpa"
+      },
+      {
+        "phrase": "父がとったトマトの数を1とみると3/5にあたります",
+        "lang": "ja",
+        "element_id": "r_frac"
+      },
+      {
+        "phrase": "父がとったトマトは何こですか",
+        "lang": "ja",
+        "element_id": "q_father"
+      }
+    ]
+  },
+  "consistency": "inconsistent",
+  "pair_id": null,
+  "source": "research",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.45,
+    "human_checked": false
+  },
+  "expected_answer": {
+    "num": 25,
+    "den": 1
+  },
+  "statements": [
+    {
+      "index": 0,
+      "text": "祖父がとったトマトは15こです。",
+      "element_ids": [
+        "q_grandpa"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "祖父",
+        "が",
+        "とった",
+        "トマト",
+        "は",
+        "15",
+        "こ",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 1,
+      "text": "祖父がとったトマトの数は、父がとったトマトの数を1とみると3/5にあたります。",
+      "element_ids": [
+        "r_frac"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "祖父",
+        "が",
+        "とった",
+        "トマト",
+        "の",
+        "数",
+        "は",
+        "、",
+        "父",
+        "が",
+        "とった",
+        "トマト",
+        "の",
+        "数",
+        "を",
+        "1",
+        "と",
+        "みる",
+        "と",
+        "3/5",
+        "に",
+        "あたります",
+        "。"
+      ]
+    },
+    {
+      "index": 2,
+      "text": "父がとったトマトは何こですか。",
+      "element_ids": [
+        "q_father"
+      ],
+      "is_question": true,
+      "speaker_holder_id": null,
+      "tokens": [
+        "父",
+        "が",
+        "とった",
+        "トマト",
+        "は",
+        "何",
+        "こ",
+        "です",
+        "か",
+        "。"
+      ]
+    }
+  ],
+  "syntax_marks": [
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_grandpa",
+      "word": "祖父",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 0,
+      "token_start": 6,
+      "token_end": 6,
+      "element_id": "k_tomato",
+      "word": "こ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_grandpa",
+      "word": "祖父",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 8,
+      "token_end": 8,
+      "element_id": "h_father",
+      "word": "父",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 1,
+      "token_start": 14,
+      "token_end": 21,
+      "element_id": "r_frac",
+      "word": "を1とみると3/5にあたります",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "relation_word",
+      "statement_index": 1,
+      "token_start": 15,
+      "token_end": 18,
+      "element_id": "r_frac",
+      "word": "1とみると",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "ratio_notation",
+      "statement_index": 1,
+      "token_start": 19,
+      "token_end": 19,
+      "element_id": "r_frac",
+      "word": "3/5",
+      "ratio_kind": [
+        "fraction",
+        "lt1"
+      ],
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "relation_word",
+      "statement_index": 1,
+      "token_start": 21,
+      "token_end": 21,
+      "element_id": "r_frac",
+      "word": "あたります",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 2,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_father",
+      "word": "父",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 2,
+      "token_start": 6,
+      "token_end": 6,
+      "element_id": "k_tomato",
+      "word": "こ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 2,
+      "token_start": 5,
+      "token_end": 8,
+      "element_id": "q_father",
+      "word": "何こですか",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    }
+  ],
+  "companion_ids": []
+}

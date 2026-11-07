@@ -1,0 +1,273 @@
+{
+  "schema_version": "1",
+  "world": {
+    "schema_version": "3",
+    "problem_id": "p_transfer_c_known_whole_different_1",
+    "problem_type": "ratio",
+    "problem_text": "小さい箱のクッキーの数は、大きい箱のクッキーの数に対して3/5です。小さい箱のクッキーは12こです。大きい箱のクッキーは何こですか。",
+    "grade": 6,
+    "problem_lang": "ja",
+    "holders": [
+      {
+        "id": "h_small",
+        "label": "小さい箱"
+      },
+      {
+        "id": "h_large",
+        "label": "大きい箱"
+      }
+    ],
+    "item_kinds": [
+      {
+        "id": "k_cookie",
+        "noun": "クッキー",
+        "counter": "こ",
+        "asset_key": null,
+        "countable": true
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_small",
+        "holder": "h_small",
+        "item_kind": "k_cookie",
+        "at_event": null,
+        "value": {
+          "num": 12,
+          "den": 1
+        }
+      },
+      {
+        "id": "q_large",
+        "holder": "h_large",
+        "item_kind": "k_cookie",
+        "at_event": null,
+        "value": null
+      }
+    ],
+    "relations": [
+      {
+        "id": "r_frac",
+        "operator": "fraction_of",
+        "subject": "q_small",
+        "reference": "q_large",
+        "reference_list": null,
+        "amount": {
+          "num": 3,
+          "den": 5
+        },
+        "other_description": null
+      }
+    ],
+    "events": [],
+    "question": {
+      "target_type": "quantity",
+      "target_id": "q_large"
+    },
+    "word_links": [
+      {
+        "phrase": "小さい箱のクッキーの数",
+        "lang": "ja",
+        "element_id": "q_small"
+      },
+      {
+        "phrase": "大きい箱のクッキーの数",
+        "lang": "ja",
+        "element_id": "q_large"
+      },
+      {
+        "phrase": "3/5",
+        "lang": "ja",
+        "element_id": "r_frac"
+      }
+    ]
+  },
+  "consistency": "inconsistent",
+  "pair_id": null,
+  "source": "research",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.7,
+    "human_checked": false
+  },
+  "expected_answer": {
+    "num": 20,
+    "den": 1
+  },
+  "statements": [
+    {
+      "index": 0,
+      "text": "小さい箱のクッキーの数は、大きい箱のクッキーの数に対して3/5です。",
+      "element_ids": [
+        "q_small",
+        "q_large",
+        "r_frac"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "小さい箱",
+        "の",
+        "クッキー",
+        "の",
+        "数",
+        "は",
+        "、",
+        "大きい箱",
+        "の",
+        "クッキー",
+        "の",
+        "数",
+        "に対して",
+        "3/5",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 1,
+      "text": "小さい箱のクッキーは12こです。",
+      "element_ids": [
+        "q_small"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "小さい箱",
+        "の",
+        "クッキー",
+        "は",
+        "12",
+        "こ",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 2,
+      "text": "大きい箱のクッキーは何こですか。",
+      "element_ids": [
+        "q_large"
+      ],
+      "is_question": true,
+      "speaker_holder_id": null,
+      "tokens": [
+        "大きい箱",
+        "の",
+        "クッキー",
+        "は",
+        "何",
+        "こ",
+        "です",
+        "か",
+        "。"
+      ]
+    }
+  ],
+  "syntax_marks": [
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_small",
+      "word": "小さい箱",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 7,
+      "token_end": 7,
+      "element_id": "h_large",
+      "word": "大きい箱",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "relation_word",
+      "statement_index": 0,
+      "token_start": 12,
+      "token_end": 12,
+      "element_id": "r_frac",
+      "word": "に対して",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "ratio_notation",
+      "statement_index": 0,
+      "token_start": 13,
+      "token_end": 13,
+      "element_id": "r_frac",
+      "word": "3/5",
+      "ratio_kind": [
+        "fraction",
+        "lt1"
+      ],
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_small",
+      "word": "小さい箱",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 1,
+      "token_start": 5,
+      "token_end": 5,
+      "element_id": "k_cookie",
+      "word": "こ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 2,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_large",
+      "word": "大きい箱",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 2,
+      "token_start": 5,
+      "token_end": 5,
+      "element_id": "k_cookie",
+      "word": "こ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 2,
+      "token_start": 4,
+      "token_end": 7,
+      "element_id": "q_large",
+      "word": "何こですか",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    }
+  ],
+  "companion_ids": []
+}

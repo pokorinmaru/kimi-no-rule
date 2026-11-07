@@ -1,0 +1,278 @@
+{
+  "schema_version": "1",
+  "world": {
+    "schema_version": "3",
+    "problem_id": "p_transfer_c_swap_different_1",
+    "problem_type": "ratio",
+    "problem_text": "青いバケツの水の量を1とみると、赤いバケツの水の量は2/5にあたります。赤いバケツの水は6Lです。青いバケツの水は何Lですか。",
+    "grade": 6,
+    "problem_lang": "ja",
+    "holders": [
+      {
+        "id": "h_blue",
+        "label": "青いバケツ"
+      },
+      {
+        "id": "h_red",
+        "label": "赤いバケツ"
+      }
+    ],
+    "item_kinds": [
+      {
+        "id": "k_water",
+        "noun": "水",
+        "counter": "L",
+        "asset_key": null,
+        "countable": false
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_blue",
+        "holder": "h_blue",
+        "item_kind": "k_water",
+        "at_event": null,
+        "value": null
+      },
+      {
+        "id": "q_red",
+        "holder": "h_red",
+        "item_kind": "k_water",
+        "at_event": null,
+        "value": {
+          "num": 6,
+          "den": 1
+        }
+      }
+    ],
+    "relations": [
+      {
+        "id": "r_frac",
+        "operator": "fraction_of",
+        "subject": "q_red",
+        "reference": "q_blue",
+        "reference_list": null,
+        "amount": {
+          "num": 2,
+          "den": 5
+        },
+        "other_description": null
+      }
+    ],
+    "events": [],
+    "question": {
+      "target_type": "quantity",
+      "target_id": "q_blue"
+    },
+    "word_links": [
+      {
+        "phrase": "青いバケツの水の量を1とみると",
+        "lang": "ja",
+        "element_id": "q_blue"
+      },
+      {
+        "phrase": "赤いバケツの水の量は2/5にあたります",
+        "lang": "ja",
+        "element_id": "r_frac"
+      },
+      {
+        "phrase": "赤いバケツの水は6Lです",
+        "lang": "ja",
+        "element_id": "q_red"
+      },
+      {
+        "phrase": "青いバケツの水は何Lですか",
+        "lang": "ja",
+        "element_id": "q_blue"
+      }
+    ]
+  },
+  "consistency": "inconsistent",
+  "pair_id": null,
+  "source": "research",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.7,
+    "human_checked": false
+  },
+  "expected_answer": {
+    "num": 15,
+    "den": 1
+  },
+  "statements": [
+    {
+      "index": 0,
+      "text": "青いバケツの水の量を1とみると、赤いバケツの水の量は2/5にあたります。",
+      "element_ids": [
+        "q_blue",
+        "r_frac"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "青いバケツ",
+        "の",
+        "水",
+        "の",
+        "量",
+        "を",
+        "1",
+        "とみると",
+        "、",
+        "赤いバケツ",
+        "の",
+        "水",
+        "の",
+        "量",
+        "は",
+        "2/5",
+        "にあたります",
+        "。"
+      ]
+    },
+    {
+      "index": 1,
+      "text": "赤いバケツの水は6Lです。",
+      "element_ids": [
+        "q_red"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "赤いバケツ",
+        "の",
+        "水",
+        "は",
+        "6",
+        "L",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 2,
+      "text": "青いバケツの水は何Lですか。",
+      "element_ids": [
+        "q_blue"
+      ],
+      "is_question": true,
+      "speaker_holder_id": null,
+      "tokens": [
+        "青いバケツ",
+        "の",
+        "水",
+        "は",
+        "何",
+        "L",
+        "ですか",
+        "。"
+      ]
+    }
+  ],
+  "syntax_marks": [
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_blue",
+      "word": "青いバケツ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 0,
+      "token_start": 5,
+      "token_end": 7,
+      "element_id": "r_frac",
+      "word": "を1とみると",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 9,
+      "token_end": 9,
+      "element_id": "h_red",
+      "word": "赤いバケツ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "ratio_notation",
+      "statement_index": 0,
+      "token_start": 15,
+      "token_end": 15,
+      "element_id": "r_frac",
+      "word": "2/5",
+      "ratio_kind": [
+        "fraction",
+        "lt1"
+      ],
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "relation_word",
+      "statement_index": 0,
+      "token_start": 16,
+      "token_end": 16,
+      "element_id": "r_frac",
+      "word": "にあたります",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_red",
+      "word": "赤いバケツ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 1,
+      "token_start": 5,
+      "token_end": 5,
+      "element_id": "q_red",
+      "word": "L",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 2,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_blue",
+      "word": "青いバケツ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 2,
+      "token_start": 5,
+      "token_end": 5,
+      "element_id": "q_blue",
+      "word": "L",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    }
+  ],
+  "companion_ids": []
+}

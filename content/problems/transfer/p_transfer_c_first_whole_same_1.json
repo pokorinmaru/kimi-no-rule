@@ -1,0 +1,300 @@
+{
+  "schema_version": "1",
+  "world": {
+    "schema_version": "3",
+    "problem_id": "p_transfer_c_first_whole_same_1",
+    "problem_type": "ratio",
+    "problem_text": "みんなでつるを折りました。姉が折ったつるは10羽です。これは、母が折ったつるの数の2/5です。母が折ったつるは何羽ですか。",
+    "grade": 6,
+    "problem_lang": "ja",
+    "holders": [
+      {
+        "id": "h_sister",
+        "label": "姉"
+      },
+      {
+        "id": "h_mother",
+        "label": "母"
+      }
+    ],
+    "item_kinds": [
+      {
+        "id": "k_crane",
+        "noun": "つる",
+        "counter": "羽",
+        "asset_key": null,
+        "countable": true
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_sister",
+        "holder": "h_sister",
+        "item_kind": "k_crane",
+        "at_event": null,
+        "value": {
+          "num": 10,
+          "den": 1
+        }
+      },
+      {
+        "id": "q_mother",
+        "holder": "h_mother",
+        "item_kind": "k_crane",
+        "at_event": null,
+        "value": null
+      }
+    ],
+    "relations": [
+      {
+        "id": "r_frac",
+        "operator": "fraction_of",
+        "subject": "q_sister",
+        "reference": "q_mother",
+        "reference_list": null,
+        "amount": {
+          "num": 2,
+          "den": 5
+        },
+        "other_description": null
+      }
+    ],
+    "events": [],
+    "question": {
+      "target_type": "quantity",
+      "target_id": "q_mother"
+    },
+    "word_links": [
+      {
+        "phrase": "姉が折ったつるは10羽です",
+        "lang": "ja",
+        "element_id": "q_sister"
+      },
+      {
+        "phrase": "これは、母が折ったつるの数の2/5です",
+        "lang": "ja",
+        "element_id": "r_frac"
+      },
+      {
+        "phrase": "母が折ったつるは何羽ですか",
+        "lang": "ja",
+        "element_id": "q_mother"
+      }
+    ]
+  },
+  "consistency": "inconsistent",
+  "pair_id": null,
+  "source": "research",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.75,
+    "human_checked": false
+  },
+  "expected_answer": {
+    "num": 25,
+    "den": 1
+  },
+  "statements": [
+    {
+      "index": 0,
+      "text": "みんなでつるを折りました。",
+      "element_ids": [],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "みんな",
+        "で",
+        "つる",
+        "を",
+        "折り",
+        "ました",
+        "。"
+      ]
+    },
+    {
+      "index": 1,
+      "text": "姉が折ったつるは10羽です。",
+      "element_ids": [
+        "q_sister"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "姉",
+        "が",
+        "折っ",
+        "た",
+        "つる",
+        "は",
+        "10",
+        "羽",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 2,
+      "text": "これは、母が折ったつるの数の2/5です。",
+      "element_ids": [
+        "r_frac"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "これ",
+        "は",
+        "、",
+        "母",
+        "が",
+        "折っ",
+        "た",
+        "つる",
+        "の",
+        "数",
+        "の",
+        "2/5",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 3,
+      "text": "母が折ったつるは何羽ですか。",
+      "element_ids": [
+        "q_mother"
+      ],
+      "is_question": true,
+      "speaker_holder_id": null,
+      "tokens": [
+        "母",
+        "が",
+        "折っ",
+        "た",
+        "つる",
+        "は",
+        "何",
+        "羽",
+        "です",
+        "か",
+        "。"
+      ]
+    }
+  ],
+  "syntax_marks": [
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_sister",
+      "word": "姉",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 1,
+      "token_start": 7,
+      "token_end": 7,
+      "element_id": "k_crane",
+      "word": "羽",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "demonstrative",
+      "statement_index": 2,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "q_sister",
+      "word": "これ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 2,
+      "token_start": 3,
+      "token_end": 3,
+      "element_id": "h_mother",
+      "word": "母",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "relation_word",
+      "statement_index": 2,
+      "token_start": 10,
+      "token_end": 10,
+      "element_id": "r_frac",
+      "word": "の",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "ratio_notation",
+      "statement_index": 2,
+      "token_start": 11,
+      "token_end": 11,
+      "element_id": "r_frac",
+      "word": "2/5",
+      "ratio_kind": [
+        "fraction",
+        "lt1"
+      ],
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 2,
+      "token_start": 0,
+      "token_end": 12,
+      "element_id": "r_frac",
+      "word": "これは、母が折ったつるの数の2/5です",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 3,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_mother",
+      "word": "母",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 3,
+      "token_start": 7,
+      "token_end": 7,
+      "element_id": "k_crane",
+      "word": "羽",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 3,
+      "token_start": 6,
+      "token_end": 9,
+      "element_id": "q_mother",
+      "word": "何羽ですか",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    }
+  ],
+  "companion_ids": []
+}

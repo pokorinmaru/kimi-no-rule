@@ -1,0 +1,270 @@
+{
+  "schema_version": "1",
+  "world": {
+    "schema_version": "3",
+    "problem_id": "p_transfer_c_known_whole_same_1",
+    "problem_type": "ratio",
+    "problem_text": "祖母がつんだいちごは12こです。これは、母がつんだいちごの数の3/4です。母がつんだいちごは何こですか。",
+    "grade": 6,
+    "problem_lang": "ja",
+    "holders": [
+      {
+        "id": "h_grandma",
+        "label": "祖母"
+      },
+      {
+        "id": "h_mother",
+        "label": "母"
+      }
+    ],
+    "item_kinds": [
+      {
+        "id": "k_ichigo",
+        "noun": "いちご",
+        "counter": "こ",
+        "asset_key": null,
+        "countable": true
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_grandma",
+        "holder": "h_grandma",
+        "item_kind": "k_ichigo",
+        "at_event": null,
+        "value": {
+          "num": 12,
+          "den": 1
+        }
+      },
+      {
+        "id": "q_mother",
+        "holder": "h_mother",
+        "item_kind": "k_ichigo",
+        "at_event": null,
+        "value": null
+      }
+    ],
+    "relations": [
+      {
+        "id": "r_frac",
+        "operator": "fraction_of",
+        "subject": "q_grandma",
+        "reference": "q_mother",
+        "reference_list": null,
+        "amount": {
+          "num": 3,
+          "den": 4
+        },
+        "other_description": null
+      }
+    ],
+    "events": [],
+    "question": {
+      "target_type": "quantity",
+      "target_id": "q_mother"
+    },
+    "word_links": [
+      {
+        "phrase": "祖母がつんだいちごは12こ",
+        "lang": "ja",
+        "element_id": "q_grandma"
+      },
+      {
+        "phrase": "母がつんだいちごの数の3/4",
+        "lang": "ja",
+        "element_id": "r_frac"
+      },
+      {
+        "phrase": "母がつんだいちごは何こですか",
+        "lang": "ja",
+        "element_id": "q_mother"
+      }
+    ]
+  },
+  "consistency": "inconsistent",
+  "pair_id": null,
+  "source": "research",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.65,
+    "human_checked": false
+  },
+  "expected_answer": {
+    "num": 16,
+    "den": 1
+  },
+  "statements": [
+    {
+      "index": 0,
+      "text": "祖母がつんだいちごは12こです。",
+      "element_ids": [
+        "q_grandma"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "祖母",
+        "が",
+        "つんだ",
+        "いちご",
+        "は",
+        "12",
+        "こ",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 1,
+      "text": "これは、母がつんだいちごの数の3/4です。",
+      "element_ids": [
+        "r_frac"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "これ",
+        "は",
+        "、",
+        "母",
+        "が",
+        "つんだ",
+        "いちご",
+        "の",
+        "数",
+        "の",
+        "3/4",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 2,
+      "text": "母がつんだいちごは何こですか。",
+      "element_ids": [
+        "q_mother"
+      ],
+      "is_question": true,
+      "speaker_holder_id": null,
+      "tokens": [
+        "母",
+        "が",
+        "つんだ",
+        "いちご",
+        "は",
+        "何",
+        "こ",
+        "です",
+        "か",
+        "。"
+      ]
+    }
+  ],
+  "syntax_marks": [
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_grandma",
+      "word": "祖母",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 0,
+      "token_start": 6,
+      "token_end": 6,
+      "element_id": "k_ichigo",
+      "word": "こ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "demonstrative",
+      "statement_index": 1,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "q_grandma",
+      "word": "これ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 3,
+      "token_end": 3,
+      "element_id": "h_mother",
+      "word": "母",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "relation_word",
+      "statement_index": 1,
+      "token_start": 9,
+      "token_end": 9,
+      "element_id": "r_frac",
+      "word": "の",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "ratio_notation",
+      "statement_index": 1,
+      "token_start": 10,
+      "token_end": 10,
+      "element_id": "r_frac",
+      "word": "3/4",
+      "ratio_kind": [
+        "fraction",
+        "lt1"
+      ],
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 2,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_mother",
+      "word": "母",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 2,
+      "token_start": 6,
+      "token_end": 6,
+      "element_id": "k_ichigo",
+      "word": "こ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 2,
+      "token_start": 5,
+      "token_end": 8,
+      "element_id": "q_mother",
+      "word": "何こですか",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    }
+  ],
+  "companion_ids": []
+}
