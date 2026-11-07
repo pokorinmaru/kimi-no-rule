@@ -162,6 +162,7 @@ export {
 export {
   WORDBOOK_PAGES,
   WORDBOOK_PAGE_IDS,
+  WORDBOOK_READINGS,
   helpSentence,
   isWordbookPageId,
   pageNumbers,

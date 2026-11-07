@@ -11,7 +11,7 @@ import { worldValues } from "../scenes/values.ts";
 import { eq, fromSchema } from "../rational/index.ts";
 import { WORDBOOK_PAGES, WORDBOOK_PAGE_IDS, type WordbookNumbers, type WordbookPageData, type WordbookPageId } from "./pages.ts";
 
-export { WORDBOOK_PAGES, WORDBOOK_PAGE_IDS, type WordbookNumbers, type WordbookPageData, type WordbookPageId } from "./pages.ts";
+export { WORDBOOK_PAGES, WORDBOOK_PAGE_IDS, WORDBOOK_READINGS, type WordbookNumbers, type WordbookPageData, type WordbookPageId } from "./pages.ts";
 
 type Lang = "ja" | "en";
 

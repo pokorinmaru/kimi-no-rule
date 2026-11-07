@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 // The calls to the local worker (apps/worker). Nothing here keeps a body; a non-2xx reply throws, so the
 // session falls back to templates, the fallback pool, or "unchecked".
 import type { AnyOp, Hypothesis, Lang, SceneChoice } from "@kimi/core";
@@ -53,7 +54,11 @@ export interface FlowApi {
   interpret?(req: InterpretRequest, signal: AbortSignal): Promise<InterpretReply>;
 }
 
-export const DEFAULT_API_BASE = "http://localhost:8787";
+/**
+ * The local server. A build may point elsewhere with VITE_API_BASE: the e2e build points at a port nobody
+ * listens on, so the tests never reach a local server that happens to run with a key (run-through, 2026-11-08).
+ */
+export const DEFAULT_API_BASE: string = (import.meta.env["VITE_API_BASE"] as string | undefined) ?? "http://localhost:8787";
 
 export function createHttpApi(base: string = DEFAULT_API_BASE, fetchImpl: typeof fetch = (...a) => fetch(...a)): FlowApi {
   const post = async <T>(path: string, body: unknown, signal: AbortSignal): Promise<T> => {

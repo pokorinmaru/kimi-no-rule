@@ -138,3 +138,23 @@ export const WORDBOOK_PAGES: readonly WordbookPageData[] = [
     },
   },
 ];
+
+/**
+ * The furigana of the pages' kanji (as the problems' readings, 指示書 第8.4b節), with the app's own readings under them.
+ * Okurigana after a kanji is context (「白い」: しろ over 白).
+ */
+export const WORDBOOK_READINGS: Readonly<Record<string, string>> = {
+  白い: "しろ",
+  黒い: "くろ",
+  左: "ひだり",
+  右: "みぎ",
+  ビー玉: "だま",
+  金: "きん",
+  銀: "ぎん",
+  対して: "たい",
+  上: "うえ",
+  下: "した",
+  小さい: "ちい",
+  大きい: "おお",
+  倍: "ばい",
+};

@@ -109,6 +109,29 @@ describe("the junior's staged questions on the screen", () => {
     expect(screen.getByTestId("btn-order-h_ani").querySelector("rt")).not.toBeNull();
   });
 
+  // Run-through, 2026-11-08: the word book's 白 and 黒 had no furigana with it on; read aloud as written too.
+  it("puts furigana on the word book's page and reads its kanji by their readings", async () => {
+    const name = await ready("ja");
+    const sp = new FakeSpeaker();
+    render(<App storeName={name} api={null} speaker={sp} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
+    fireEvent.click(await screen.findByTestId("btn-predict-odd"));
+    fireEvent.click(screen.getByTestId("btn-dont-know"));
+    await screen.findByTestId("screen-help");
+    fireEvent.click(screen.getByTestId("btn-help-read"));
+    fireEvent.click(screen.getByTestId("btn-order-h_otouto"));
+    fireEvent.click(screen.getByTestId("btn-open-book"));
+    const book = await screen.findByTestId("screen-wordbook");
+    const lines = [...book.querySelectorAll('[data-testid="wordbook-line"]')];
+    expect(lines.length).toBeGreaterThan(0);
+    for (const l of lines) expect(l.querySelector("rt"), l.textContent ?? "").not.toBeNull();
+    fireEvent.click(screen.getByTestId("btn-read-aloud"));
+    for (let i = 0; i < 10; i++) act(() => sp.finish());
+    const said = sp.spoken.map((u) => u.text).join("");
+    expect(said).toContain("しろい");
+    expect(said).not.toMatch(/白|黒/);
+  });
+
   it("the word book opens by itself after the first fix on the session's first wording", async () => {
     const name = await ready();
     render(<App storeName={name} api={null} speaker={new FakeSpeaker()} />);

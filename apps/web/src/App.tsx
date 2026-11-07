@@ -1,7 +1,7 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type StatementCheck } from "@kimi/core";
+import { UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { SceneView } from "./draw/SceneView.tsx";
 import { SentenceList } from "./draw/SentenceList.tsx";
@@ -121,17 +121,20 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
         label={t.sentences}
         lang={view.lang}
       />
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
-        <AiBadge />
-        <p
-          data-testid="junior-line"
-          aria-live="polite"
-          data-reading={readingIndex !== null && readingIndex === view.statements.length ? "true" : "false"}
-          style={{ margin: 0, ...(readingIndex !== null && readingIndex === view.statements.length ? { outline: "4px solid #1f2933", outlineOffset: 2, background: "#fff6d5" } : {}) }}
-        >
-          {view.line ?? "…"}
-        </p>
-      </div>
+      {/* No line, no row: a "…" would look like the junior thinking where it says nothing (Q30; run-through, 2026-11-08). */}
+      {view.line !== null && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+          <AiBadge />
+          <p
+            data-testid="junior-line"
+            aria-live="polite"
+            data-reading={readingIndex !== null && readingIndex === view.statements.length ? "true" : "false"}
+            style={{ margin: 0, ...(readingIndex !== null && readingIndex === view.statements.length ? { outline: "4px solid #1f2933", outlineOffset: 2, background: "#fff6d5" } : {}) }}
+          >
+            {view.line}
+          </p>
+        </div>
+      )}
       {voice !== null && voice.canHear && (
         // The child may tell the junior by talking (指示書 第7.1節 手順5); the card below always stays.
         <VoicePanel lang={view.lang} text={t.voice} make={voice.make} canTalk={view.voice.canTalk} off={view.voice.off} onFinal={voice.hear} />
@@ -382,6 +385,7 @@ function CardScreen({ view, send }: { view: CardScreenView; send: Session["send"
 
 /** The junior's line with the AI mark, as on the problem screen. */
 function JuniorLine({ line, reading }: { line: string | null; reading: boolean }) {
+  if (line === null) return null;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
       <AiBadge />
@@ -391,7 +395,7 @@ function JuniorLine({ line, reading }: { line: string | null; reading: boolean }
         data-reading={reading ? "true" : "false"}
         style={{ margin: 0, ...(reading ? { outline: "4px solid #1f2933", outlineOffset: 2, background: "#fff6d5" } : {}) }}
       >
-        {line ?? "…"}
+        {line}
       </p>
     </div>
   );
@@ -476,12 +480,15 @@ function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["se
  * ことばの絵本 (指示書 第7.1節): one page for the problem's wording, an everyday example drawn as tapes with the "1"
  * card on the holder the wording takes as 1. Its numbers and holders are never the problem's (core decides).
  */
+/** The word book's furigana: the app's own words and the pages' kanji (core's readings; run-through, 2026-11-08). */
+const bookReadings = { ...UI_READINGS, ...WORDBOOK_READINGS };
+
 function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Session["send"]; reading: ReadingHooks }) {
   const t = view.text.wordbook;
   const [readingIndex, setReadingIndex] = useState<number | null>(null);
   const page = view.page;
   const sayLang = view.lang === "ja" ? "ja-JP" : "en-US";
-  const say = (l: string): ReadLine => ({ text: view.lang === "ja" ? spokenText(l, {}) : l, lang: sayLang });
+  const say = (l: string): ReadLine => ({ text: view.lang === "ja" ? spokenText(l, bookReadings) : l, lang: sayLang });
   const readLines: ReadLine[] = [...(view.line === null ? [] : [say(view.line)]), ...(page === null ? [] : page.lines.map(say))];
   const oneLabel = page?.world.holders.find((h) => h.id === page.oneHolderId)?.label ?? "";
   const off = view.line === null ? 0 : 1;
@@ -498,7 +505,7 @@ function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Ses
         <>
           {page.lines.map((l, i) => (
             <p key={l} data-testid="wordbook-line" style={{ margin: "4px 0", ...(readingIndex === i + off ? { outline: "4px solid #1f2933", background: "#fff6d5" } : {}) }}>
-              <RubyText text={l} on={reading.furigana && view.lang === "ja"} />
+              <RubyText text={l} on={reading.furigana && view.lang === "ja"} readings={bookReadings} />
             </p>
           ))}
           <p data-testid="wordbook-one" style={{ fontWeight: 700 }}>

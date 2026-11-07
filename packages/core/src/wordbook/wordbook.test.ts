@@ -16,9 +16,11 @@ import { hasOperationName, numbersIn } from "../gates/index.ts";
 import { worldValues } from "../scenes/values.ts";
 import { eq, fromSchema } from "../rational/index.ts";
 import { TEMPLATE_KEYS } from "../i18n/index.ts";
+import { rubySegments } from "../i18n/furigana.ts";
 import {
   WORDBOOK_PAGE_IDS,
   WORDBOOK_PAGES,
+  WORDBOOK_READINGS,
   pageNumbers,
   relationWordTokens,
   wordbookPage,
@@ -247,5 +249,23 @@ describe("the junior's word-book invitations (safety review, 2026-11-07)", () =>
   it.each([...TEMPLATES["kohai.wordbook"].ja, ...TEMPLATES["kohai.wordbook"].en])("%s", (line) => {
     expect(line).not.toMatch(SELF);
     expect(line).toMatch(/絵本|picture book/);
+  });
+});
+
+describe("the word book's furigana (run-through, 2026-11-08)", () => {
+  // 白, 黒, 左, 右, 金, 銀, 上, 下, 小 and the rest had no reading, so the pages had no furigana with it on.
+  const KANJI = /[一-鿿々]/;
+  it.each(WORDBOOK_PAGES.map((p) => [p.id, p] as const))("%s: every kanji on the page has a reading", (_id, p) => {
+    for (const t of [...p.lines.ja, p.one.ja, p.other.ja, p.words.ja, p.thing.noun, p.thing.counter]) {
+      for (const seg of rubySegments(t, WORDBOOK_READINGS)) if (seg.ruby === null) expect(KANJI.test(seg.text), `${p.id}: ${seg.text} in ${t}`).toBe(false);
+    }
+  });
+
+  it("puts each reading over its kanji only, in hiragana (ビー玉: だま over 玉)", () => {
+    expect(rubySegments("ビー玉", WORDBOOK_READINGS)).toEqual([
+      { text: "ビー", ruby: null },
+      { text: "玉", ruby: "だま" },
+    ]);
+    for (const kana of Object.values(WORDBOOK_READINGS)) expect(kana).toMatch(/^[ぁ-ゖー|]+$/);
   });
 });

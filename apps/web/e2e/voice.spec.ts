@@ -2,6 +2,7 @@
 // (window.__kimiFakeSpeech) and the local worker's /safety and /interpret are answered by the test. The child
 // says who is taken as 1; the junior acknowledges, restates with the words heard, and the child confirms.
 import { expect, test } from "@playwright/test";
+import { E2E_API_BASE } from "./api-base.ts";
 
 const SAID = "弟が1だよ、弟の金魚の3/4だから";
 const CORS = { "access-control-allow-origin": "http://localhost:4173", "access-control-allow-methods": "POST", "access-control-allow-headers": "content-type" };
@@ -37,7 +38,7 @@ test("the child tells the junior by talking, sees the words live, and confirms t
   }, SAID);
   const interpretBodies: unknown[] = [];
   const safetyBodies: unknown[] = [];
-  await page.route("http://localhost:8787/**", async (route) => {
+  await page.route(`${E2E_API_BASE}/**`, async (route) => {
     const req = route.request();
     if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: CORS });
     const path = new URL(req.url()).pathname;

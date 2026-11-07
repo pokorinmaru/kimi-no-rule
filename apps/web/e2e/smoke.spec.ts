@@ -61,6 +61,10 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   await page.getByTestId("btn-confirm-yes").click();
   // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
   await page.getByTestId("btn-book-close").click();
+  // The rebuilt world: the junior says nothing here (Q30), so no "…" that looks like the junior thinking
+  // (run-through, 2026-11-08).
+  await expect(page.getByTestId("btn-next")).toBeVisible();
+  await expect(page.getByTestId("junior-line")).toHaveCount(0);
   await page.getByTestId("btn-next").click();
   // The three buttons stay on screen while the child types a number (原則7).
   await expect(page.getByTestId("btn-hard")).toBeInViewport();
@@ -215,4 +219,19 @@ test("in English: switch on the intro, then the first problem with taps; the cho
   await page.getByTestId("btn-guess-unknown").click();
   await expect(page.getByTestId("reading-card")).toContainText("Junior's reading: ");
   await expect(page.locator("main")).not.toContainText(/your rule|wrong|correct|mistake/i);
+});
+
+// Run-through, 2026-11-08: with the device in dark mode the page was left transparent, so dark text sat on a
+// dark canvas. The page paints its own light background and says it is a light page.
+test("in dark mode the page keeps its light background and readable text", async ({ browser }) => {
+  const ctx = await browser.newContext({ colorScheme: "dark" });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  expect(bg).toBe("rgb(255, 255, 255)");
+  const scheme = await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
+  expect(scheme).toBe("light");
+  await expectNoAxeViolations(page, "intro in dark mode");
+  await ctx.close();
 });
