@@ -5,7 +5,6 @@
 // imply, with the same ε rule as constructiveLikelihoods. Pure functions only.
 import type { ProblemRecord } from "../schema/problem-record.ts";
 import type { WorldScene } from "../schema/world-scene.ts";
-import { apply } from "../apply/index.ts";
 import { cmp, fromSchema, type Rational } from "../rational/index.ts";
 import { predict } from "../rules/predict.ts";
 import type { Hypothesis } from "../rules/run.ts";
@@ -116,15 +115,6 @@ export function guessLikelihoods(hs: readonly Hypothesis[], record: ProblemRecor
   return out;
 }
 
-/** The child's world from the placed 1: the correct world with only the reference moved (core apply), or null. */
-function readingWorld(record: ProblemRecord, quantityId: string): WorldScene | null {
-  try {
-    const res = apply({ correct: record.world, ops: [{ op: "set_relation_reference", target_id: relationIdOf(record), reference: quantityId, evidence: "" }] });
-    return res.discarded.length > 0 ? null : res.judgeWorld;
-  } catch {
-    return null;
-  }
-}
 
 /** The parts the research layer needs from the state, so this file does not import the state's module. */
 interface StateLike {
@@ -135,27 +125,20 @@ interface StateLike {
 }
 
 /**
- * The prediction's update, before the pool's statuses are worked out again (index.ts does that): new weights,
- * (the split count is left as it was, Q52), and, when the 1 was placed, the child's world from it kept as a first reading.
+ * The prediction's update, before the pool's statuses are worked out again (index.ts does that): new weights from
+ * who has more only. The split count and the readings are left as they were (Q52).
  */
 export function predictionUpdate<S extends StateLike>(state: S, o: PredictionObservation): { state: S; changed: boolean } {
-  const { holders, quantityOf } = ends(o.record);
+  const { holders } = ends(o.record);
   for (const h of [o.larger, o.oneOn]) if (h !== null && !holders.includes(h)) throw new Error(`${h} is not an end of the relation`);
   const wordbookOpenedBefore = o.wordbookOpenedBefore === true;
   if ((o.larger === null && o.oneOn === null) || !countsAsObservation({ afterFix: false, wordbookOpenedBefore })) return { state, changed: false };
 
-  const placed = o.oneOn === null ? undefined : quantityOf.get(o.oneOn);
-  const world = placed === undefined ? null : readingWorld(o.record, placed);
-  const readings = world === null ? state.readings : [...state.readings, { record: o.record, childWorld: world, referencePlaced: true, afterFix: false, wordbookOpenedBefore }];
-
-  if (state.pool.length === 0) {
-    if (world === null) return { state, changed: false };
-    return { state: { ...state, readings, unscored: state.unscored + 1 }, changed: true };
-  }
+  // Only who has more moves the weights. The card and the first placement on this same problem are one piece of
+  // evidence: the placement observes it and keeps the reading, so a problem counts once (review, Q52). The split
+  // count stays as it was too.
+  if (o.larger === null || state.pool.length === 0) return { state, changed: false };
   const hs = state.pool.map((e) => e.hypothesis);
-  const answer: FirstGuess = { larger: o.larger, oneOn: o.oneOn };
-  const weights = update(state.weights, guessLikelihoods(hs, o.record, answer));
-  // The split count stays: confirming needs split observations on different problems, and the first placement on
-  // this same problem counts it already (Q52). Only the weights move.
-  return { state: { ...state, weights, readings }, changed: true };
+  const weights = update(state.weights, guessLikelihoods(hs, o.record, { larger: o.larger, oneOn: null }));
+  return { state: { ...state, weights }, changed: true };
 }

@@ -112,7 +112,7 @@ describe("the child's first prediction (before the junior's world)", () => {
     expect(new Set(shown).size).toBe(1);
   });
 
-  it("the research request of the first problem carries the child's world from the card placed in the prediction", () => {
+  it("a card in the prediction adds no second reading: the request carries the first placement, one problem counted once (review, Q52)", () => {
     const actor = run();
     actor.send({ type: "GUESS_ONE", holderId: ANI });
     actor.send({ type: "GUESS", larger: ANI });
@@ -122,12 +122,10 @@ describe("the child's first prediction (before the junior's world)", () => {
     actor.send({ type: "PLACE_ONE", quantityId: rel?.reference as string });
     actor.send({ type: "CONFIRM_YES" });
     const req = actor.getSnapshot().context.researchRequest;
-    expect(req?.readings).toHaveLength(2);
-    const first = req?.readings[0];
-    const ref = first?.childWorld.relations[0]?.reference;
-    expect(first?.childWorld.quantities.find((q) => q.id === ref)?.holder).toBe(ANI);
-    expect(first?.words).toEqual([]);
-    expect(req?.unscored).toBe(2);
+    expect(req?.readings).toHaveLength(1);
+    // The one reading is the confirmed placement's world (the 1 where the child placed it).
+    expect(req?.readings[0]?.childWorld.relations[0]?.reference).toBe(rel?.reference);
+    expect(req?.unscored).toBe(1);
   });
 
   it("without a card, the request carries the first placement only", () => {

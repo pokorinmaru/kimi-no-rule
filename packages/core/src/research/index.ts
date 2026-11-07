@@ -163,8 +163,8 @@ export function observeAgreement(state: ResearchState, o: AgreementObservation):
  * The child's own first prediction, before the junior's world (指示書 第7.1節 手順2, 第6.7節 手順2 (i)): which holder has
  * more, and the "1" card when the child placed it. A constructive observation: the weights move by the likelihood of
  * the answer the pool's worlds imply (prediction.ts). It never adds to the split count toward confirming: the first
- * placement on the same problem counts that problem already (Q52). "Not yet known" with no card observes nothing. A placed 1 also keeps the child's world from it as a first
- * reading (so the research request carries it); the larger holder alone fixes no world and keeps none.
+ * placement on the same problem counts that problem already (Q52). Only who has more moves the weights; the card is observed, and its reading kept, by the first
+ * placement on the same problem, so a problem counts once. "Not yet known" observes nothing.
  */
 export function observePrediction(state: ResearchState, o: PredictionObservation): ResearchState {
   const { state: next, changed } = predictionUpdate(state, o);

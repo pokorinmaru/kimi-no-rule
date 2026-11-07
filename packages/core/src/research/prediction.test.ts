@@ -87,12 +87,15 @@ describe("guessLikelihoods", () => {
 });
 
 describe("observePrediction", () => {
-  it("raises the hypothesis whose world has the larger holder and the 1 the child chose", () => {
-    const out = observePrediction(even(), { record: SIGN(), larger: ANI, oneOn: OTOUTO });
-    expect(out.weights.c_invert as number).toBeGreaterThan(0.25);
-    expect(out.weights.c_correct as number).toBeLessThan(0.25);
-    expect(out.weights.c_swap as number).toBeLessThan(0.25);
-    expect(sum(out.weights)).toBeCloseTo(1, CLOSE);
+  it("moves the weights by who has more only: the card is observed by the first placement on the same problem (review, Q52)", () => {
+    // The card in the guess and the first placement on one problem are not independent observations; counting both
+    // would multiply the same evidence twice.
+    const withCard = observePrediction(even(), { record: SIGN(), larger: ANI, oneOn: OTOUTO });
+    const without = observePrediction(even(), { record: SIGN(), larger: ANI, oneOn: null });
+    expect(withCard.weights).toEqual(without.weights);
+    expect(sum(withCard.weights)).toBeCloseTo(1, CLOSE);
+    // The card alone moves nothing.
+    expect(observePrediction(even(), { record: SIGN(), larger: null, oneOn: OTOUTO }).weights).toEqual(even().weights);
   });
 
   it("with the larger holder only, raises every hypothesis that makes that holder larger alike", () => {
@@ -132,16 +135,10 @@ describe("observePrediction", () => {
     expect(observePrediction(lengthOnly, { record: SIGN(), larger: ANI, oneOn: null }).pool.map((e) => e.splitObservations)).toEqual([0, 0]);
   });
 
-  it("with a placed 1, keeps the child's world from that 1 as a first reading (unscored before any hypothesis)", () => {
-    const out = observePrediction(initialState(), { record: SIGN(), larger: ANI, oneOn: ANI });
-    expect(out.weights).toEqual({ [OTHER]: 1 });
-    expect(out.unscored).toBe(1);
-    expect(out.readings).toHaveLength(1);
-    const r = out.readings[0];
-    expect(r?.referencePlaced).toBe(true);
-    expect(r?.afterFix).toBe(false);
-    const ref = r?.childWorld.relations[0]?.reference;
-    expect(r?.childWorld.quantities.find((q) => q.id === ref)?.holder).toBe(ANI);
+  it("keeps no reading, even with a placed 1: the first placement on the same problem keeps it, so a problem counts once (review, Q52)", () => {
+    expect(observePrediction(initialState(), { record: SIGN(), larger: ANI, oneOn: ANI })).toEqual(initialState());
+    const s = even();
+    expect(observePrediction(s, { record: SIGN(), larger: ANI, oneOn: ANI }).readings).toEqual(s.readings);
   });
 
   it("with the larger holder only, keeps no reading (no world is fixed by it)", () => {

@@ -141,6 +141,15 @@ describe("research history for the grown-up's trend", () => {
     expect(first).toEqual({ id: "c_swap", status: "hypothesis", line: { ja: readingLine(swap as never, "ja"), en: readingLine(swap as never, "en") } });
   });
 
+  it("keeps a row when a reading keeps its id but its words change (a modified hypothesis; review, 2026-11-07)", async () => {
+    const s = fresh();
+    await s.saveResearch(withPool([{ h: swap, status: "hypothesis" }]));
+    await s.saveResearch(withPool([{ h: { ...(known as object), id: "c_swap" } as typeof swap, status: "hypothesis" }]));
+    const rows = await s.listResearchLog();
+    expect(rows).toHaveLength(2);
+    expect(rows[1]?.pool[0]?.line.ja).not.toBe(rows[0]?.pool[0]?.line.ja);
+  });
+
   it("is removed by delete everything", async () => {
     const s = fresh();
     await s.saveResearch(withPool([{ h: swap, status: "hypothesis" }]));

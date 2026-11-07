@@ -79,8 +79,8 @@ describe("simEvent and runSim", () => {
     const rec = FRACTION_BANK.find((r) => r.world.problem_id === first);
     if (rec === undefined) throw new Error("record");
     expect(c.log[0]?.firstPlacement).toBe(placementOf(child, rec));
-    // The card of its own first prediction, and the first placement (both where its rule puts the 1).
-    expect(c.research.readings).toHaveLength(2);
+    // One reading per problem: the first placement (the card of its prediction adds none, Q52).
+    expect(c.research.readings).toHaveLength(1);
     // The second problem is open and untouched.
     expect(c.problem?.record.world.problem_id).not.toBe(first);
     expect(c.problem?.prediction).toBeNull();

@@ -101,3 +101,17 @@ describe("wordingFreeOf", () => {
     expect(wordingFreeOf(rows, "ja", "前の読み方", dayOf)[0]?.line).toBe("前の読み方");
   });
 });
+
+describe("the first row of the log is the starting point (review, 2026-11-07)", () => {
+  // After the device's store was upgraded, the first row records a pool that may already hold a reading settled
+  // earlier; it is not something that happened on that day.
+  it("does not show a reading as settled on the day of the first row", () => {
+    const days = trendOf([], [snap("2026-11-07T10:00", [["c_swap", "confirmed"]])], "ja", dayOf);
+    expect(days.flatMap((d) => d.settled)).toEqual([]);
+  });
+
+  it("shows changes from the first row on", () => {
+    const days = trendOf([], [snap("2026-11-07T10:00", [["c_swap", "confirmed"]]), snap("2026-11-08T10:00", [["c_swap", "hypothesis"]])], "ja", dayOf);
+    expect(days.flatMap((d) => d.backToGuess)).toEqual([line("c_swap").ja]);
+  });
+});

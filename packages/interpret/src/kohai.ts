@@ -98,33 +98,22 @@ function lengthsOf(w: WorldScene): Map<string, Rational> {
  * so: "A ... B より 短い" (or "A ... shorter than B") holds when A is shorter than B there; with one
  * holder, when it is the shortest (or longest) of all.
  */
-const FRACTION = /の\s*(\d+\s*\/\s*\d+|\d+\s*分の\s*\d+)/;
-
 /**
- * When a reading line names a holder as the base of a fraction ("Xの3/4", "3/4 of X"), X must be a base
- * in the junior's own world. Otherwise the junior would say the right direction while its world shows
- * the other one (found by the leak judge, 2026-11-07).
+ * A generated reading or "which" line says no relation figure (the factor of any relation in the junior's or the
+ * correct world, in any notation numbersIn reads: 3/4, ３／４, 4分の3, よんぶんのさん, 0.75) and no "1", outside a
+ * sentence quoted as the problem writes it. Listing the phrasings that name a base could not close the hole
+ * (をもとにすると, に対して, を1とみると, "3/4 the length of"): with no figure the line cannot state a direction,
+ * and the templates say what is needed (leak judge and safety review, 2026-11-07; Q51).
  */
-function basesMatch(text: string, input: KohaiInput): boolean {
-  const w = input.kohaiWorld;
-  const holderOf = (id: string | null): string | undefined => w.quantities.find((q) => q.id === id)?.holder;
-  const bases = new Set(w.relations.map((r) => holderOf(r.reference)).filter((h): h is string => h !== undefined));
-  const labels = w.holders.map((h) => h.label).filter((l) => l !== "");
-  for (const h of w.holders) {
-    if (h.label === "" || bases.has(h.id)) continue;
-    // Japanese: "<label>(の…)の3/4" within the same phrase (not past は, が, 、, 。 or another holder).
-    for (let at = text.indexOf(h.label); at !== -1; at = text.indexOf(h.label, at + 1)) {
-      let tail = text.slice(at + h.label.length, at + h.label.length + 14);
-      const stop = tail.search(/[はが、。,.]/);
-      if (stop !== -1) tail = tail.slice(0, stop);
-      for (const other of labels) if (other !== h.label && !h.label.includes(other) && tail.includes(other)) tail = tail.slice(0, tail.indexOf(other));
-      if (FRACTION.test(tail)) return false;
-    }
-    // English: "3/4 of (the) <label>".
-    const escaped = h.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    if (new RegExp(`\\d+\\s*/\\s*\\d+\\s+of\\s+(the\\s+)?${escaped}`, "i").test(text)) return false;
+function saysNoFigure(text: string, input: KohaiInput, gateCtx: GateContext): boolean {
+  let rest = text;
+  for (const st of input.statements) {
+    for (const quoted of [st.text, st.text.replace(/[。．.]\s*$/, "")]) if (quoted.length > 0) rest = rest.split(quoted).join(" ");
   }
-  return true;
+  const amount = (r: WorldScene["relations"][number]): Rational | null => (r.amount === null ? null : { num: Number(r.amount.num), den: Number(r.amount.den) });
+  const figures = [...input.kohaiWorld.relations, ...gateCtx.correct.relations].map(amount).filter((x): x is Rational => x !== null);
+  figures.push({ num: 1, den: 1 });
+  return !numbersIn(rest).some((n) => figures.some((f) => sameNumber(f, n)));
 }
 
 function lengthsMatch(sentence: string, input: KohaiInput): boolean {
@@ -186,7 +175,7 @@ export function kohaiGates(u: KohaiUtterance, input: KohaiInput, gateCtx: GateCo
   // 2: words that could point to the right reading, unless the problem itself uses them; lengths only as drawn.
   for (const m of text.matchAll(RELATION_WORDS)) if (!allowedHere(m[0], input)) out.add("relation_word");
   for (const s of sentences(text)) if (!lengthsMatch(s, input)) out.add("relation_word");
-  if (u.intent === "read" && !basesMatch(text, input)) out.add("relation_word");
+  if ((u.intent === "read" || u.intent === "which") && !saysNoFigure(text, input, gateCtx)) out.add("relation_word");
   // 4, 5, 10, and the child's reading put in the junior's mouth.
   if (JUDGING.test(text)) out.add("judging");
   if (FEELING.test(text)) out.add("feeling");

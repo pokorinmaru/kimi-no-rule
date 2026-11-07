@@ -247,7 +247,9 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
         status: e.status,
         line: { ja: readingLine(e.hypothesis, "ja"), en: readingLine(e.hypothesis, "en") },
       }));
-      const key = (p: readonly { id: string; status: string }[], unsettled: boolean): string => JSON.stringify([p.map((e) => [e.id, e.status]), unsettled]);
+      // A modified hypothesis keeps its id, so its words are part of the key (review, 2026-11-07).
+      const key = (p: readonly { id: string; status: string; line: { ja: string } }[], unsettled: boolean): string =>
+        JSON.stringify([p.map((e) => [e.id, e.status, e.line.ja]), unsettled]);
       await db.transaction("rw", [db.research, db.researchLog], async () => {
         await db.research.put({ key: "current", value: structuredClone(state) });
         const last = await db.researchLog.orderBy("id").last();

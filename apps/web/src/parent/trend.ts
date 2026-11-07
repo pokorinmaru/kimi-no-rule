@@ -49,9 +49,15 @@ export function trendOf(attempts: readonly AttemptRow[], log: readonly ResearchL
     else d.held++;
     d.fixes += a.fixes;
   }
-  let before = new Map<string, ResearchLogRow["pool"][number]>();
+  // The first row is the starting point: after the store was upgraded it may hold a reading settled before the
+  // log existed, which did not happen on that day (review, 2026-11-07).
+  let before: Map<string, ResearchLogRow["pool"][number]> | null = null;
   for (const row of log) {
     const now = new Map(row.pool.map((e) => [e.id, e]));
+    if (before === null) {
+      before = now;
+      continue;
+    }
     const settled: string[] = [];
     const back: string[] = [];
     const dropped: string[] = [];

@@ -87,18 +87,40 @@ describe("gate 2: relation_word", () => {
     expect(rules(say("read", "The tape of 弟 should be longer.", ["q_otouto"], "en"), inp)).toContain("relation_word");
   });
 
-  // Live eval (leak judge, 2026-11-07): the junior said the problem's own direction although its world
-  // takes the other holder as the base. A "of <holder>" with a fraction must name its own world's base.
-  it("lets the junior name its own world's base", () => {
-    expect(rules(say("read", "弟は兄の3/4、こう読んだよ。", ["q_otouto"]))).not.toContain("relation_word");
+  // Live eval (leak judge, 2026-11-07) and the safety review after it: listing the phrasings that name a base
+  // could not close the hole (をもとにすると, に対して, を1とみると, full-width or kana fractions, English variants).
+  // A generated reading or "which" line now says no relation figure and no "1" outside a sentence quoted as written.
+  const BASE_SAID = [
+    "弟は兄の3/4、こう読んだよ。",
+    "兄の金魚は、弟の金魚の数の3/4です。",
+    "兄は弟の4分の3だと読みました。",
+    "兄は、弟をもとにすると3/4です。",
+    "兄は弟にたいして3/4です。",
+    "兄は弟とくらべて3/4です。",
+    "兄は弟のながさの3/4です。",
+    "兄は弟の、3/4です。",
+    "兄は弟の３／４です。",
+    "兄は弟のよんぶんのさんです。",
+    "兄は弟の0.75です。",
+    "弟を1とみると、兄は短いです。",
+  ];
+  it.each(BASE_SAID)("stops a relation figure or a 1 in a reading line: %s", (t) => {
+    expect(rules(say("read", t, ["q_ani"]))).toContain("relation_word");
   });
 
-  it("stops the other holder as base in Japanese and English", () => {
-    expect(rules(say("read", "兄の金魚は、弟の金魚の数の3/4です。", ["q_ani"]))).toContain("relation_word");
-    expect(rules(say("read", "兄は弟の4分の3だと読みました。", ["q_ani"]))).toContain("relation_word");
+  it.each(["兄は弟の3/4の世界です。どの文が合わない？", "兄を弟の3/4にした世界、どの文が合わない？"])("stops it in a which line too: %s", (t) => {
+    expect(rules(say("which", t, ["q_ani"]))).toContain("relation_word");
+  });
+
+  it.each(["I read 兄 as 3/4 of 弟.", "兄 is 3/4 the length of 弟.", "Compared with 弟, 兄 is 3/4.", "兄 is 0.75 of 弟."])("stops it in English: %s", (t) => {
     const inp = input("read", { lang: "en" });
-    expect(rules(say("read", "I read 兄 as 3/4 of 弟.", ["q_ani"], "en"), inp)).toContain("relation_word");
-    expect(rules(say("read", "I read 弟 as 3/4 of 兄.", ["q_otouto"], "en"), inp)).not.toContain("relation_word");
+    expect(rules(say("read", t, ["q_ani"], "en"), inp)).toContain("relation_word");
+  });
+
+  it("lets a sentence quoted as the problem writes it through (naming the sentence that does not fit)", () => {
+    const st = record().statements.find((x) => x.text.includes("3/4"));
+    if (st === undefined) throw new Error("no 3/4 sentence");
+    expect(rules(say("which", `「${st.text}」は、この世界と合うかな？`, [`s_${String(st.index)}`]))).not.toContain("relation_word");
   });
 
   it("lets words for the shape of the junior world through", () => {

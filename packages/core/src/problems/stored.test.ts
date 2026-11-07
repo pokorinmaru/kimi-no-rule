@@ -7,6 +7,8 @@ import { describe, expect, it } from "vitest";
 import { FRACTION_BANK } from "../../fixtures/problems/fraction-bank.ts";
 import type { ProblemRecord } from "../schema/problem-record.ts";
 import { acceptStored, withStored } from "./stored.ts";
+import { problemConditions } from "../diagnose/conditions.ts";
+import { validateStatements, validateWorld } from "../schema/semantic.ts";
 
 const base = FRACTION_BANK[0] as ProblemRecord;
 const made = (id: string, source: ProblemRecord["source"], checked = false): ProblemRecord => ({
@@ -25,6 +27,29 @@ describe("acceptStored", () => {
       "discriminating_bank",
     );
     expect(got.map((r) => r.world.problem_id)).toEqual(["p_disc_a_1", "p_disc_b_1"]);
+  });
+
+  // Review, 2026-11-07: each later check drops a record the earlier ones pass, so removing one check fails a test.
+  it("drops a record whose sentences core does not accept (the world itself is fine)", () => {
+    const r = made("p_disc_sentences_1", "discriminating_bank");
+    const st = r.statements[0];
+    if (st === undefined) throw new Error("no sentence");
+    st.tokens = ["ぜんぜん", "ちがう"];
+    st.text = "ぜんぜんちがう";
+    expect(validateWorld(r.world).ok).toBe(true);
+    expect(validateStatements(r.world, r.statements, r.syntax_marks).ok).toBe(false);
+    expect(acceptStored([r], "discriminating_bank")).toEqual([]);
+  });
+
+  it("drops a record that fails the problem conditions only (the world and sentences pass)", () => {
+    const r = made("p_disc_conditions_1", "discriminating_bank");
+    const q = r.world.quantities.find((x) => x.value !== null);
+    if (q === undefined) throw new Error("no given value");
+    q.value = null;
+    expect(validateWorld(r.world).ok).toBe(true);
+    expect(validateStatements(r.world, r.statements, r.syntax_marks).ok).toBe(true);
+    expect(problemConditions(r).ok).toBe(false);
+    expect(acceptStored([r], "discriminating_bank")).toEqual([]);
   });
 
   it("reads the transfer problems by their own source", () => {
