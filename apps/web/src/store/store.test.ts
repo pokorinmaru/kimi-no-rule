@@ -2,7 +2,7 @@
 // and the grown-up can delete everything. Written before the implementation.
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it } from "vitest";
-import { COMMON_FRACTION_READINGS, FRACTION_BANK, initialState, observe, runRule, type AnyOp } from "@kimi/core";
+import { COMMON_FRACTION_READINGS, FRACTION_BANK, initialState, observe, readingLine, runRule, type AnyOp } from "@kimi/core";
 import { openStore, type FlowStore } from "./store.ts";
 import type { ProblemLog } from "../flow/machine.ts";
 
@@ -108,6 +108,44 @@ describe("research state", () => {
     });
     await s.saveResearch(state);
     expect(await s.loadResearch()).toEqual(state);
+  });
+});
+
+// 指示書 第7.4節 (the grown-up's trend): which reading became the way of reading for now, went back to a
+// guess or left the pool, kept as ids, statuses and core's adult lines with a date. No child's words.
+describe("research history for the grown-up's trend", () => {
+  const known = COMMON_FRACTION_READINGS.find((h) => h.id === "c_known_whole");
+  if (known === undefined) throw new Error("no c_known_whole");
+  const withPool = (entries: { h: typeof swap; status: "hypothesis" | "confirmed" }[], unexpressible = false) => ({
+    ...initialState(),
+    pool: entries.map((e) => ({ hypothesis: e.h as NonNullable<typeof swap>, status: e.status, splitObservations: 0 })),
+    unexpressible,
+  });
+
+  it("keeps a dated snapshot only when a status, the pool or unexpressible changes", async () => {
+    const s = fresh();
+    expect(await s.listResearchLog()).toEqual([]);
+    await s.saveResearch(initialState());
+    expect(await s.listResearchLog()).toEqual([]);
+    await s.saveResearch(withPool([{ h: swap, status: "hypothesis" }]));
+    await s.saveResearch(withPool([{ h: swap, status: "hypothesis" }]));
+    await s.saveResearch(withPool([{ h: swap, status: "confirmed" }]));
+    await s.saveResearch(withPool([{ h: known, status: "hypothesis" }]));
+    await s.saveResearch(withPool([{ h: known, status: "hypothesis" }], true));
+    const rows = await s.listResearchLog();
+    expect(rows.map((r) => r.pool.map((e) => `${e.id}:${e.status}`).join(","))).toEqual(["c_swap:hypothesis", "c_swap:confirmed", "c_known_whole:hypothesis", "c_known_whole:hypothesis"]);
+    expect(rows.map((r) => r.unsettled)).toEqual([false, false, false, true]);
+    for (const r of rows) expect(Number.isNaN(Date.parse(r.at))).toBe(false);
+    // Each entry carries core's adult line in both languages, nothing else.
+    const first = rows[0]?.pool[0];
+    expect(first).toEqual({ id: "c_swap", status: "hypothesis", line: { ja: readingLine(swap as never, "ja"), en: readingLine(swap as never, "en") } });
+  });
+
+  it("is removed by delete everything", async () => {
+    const s = fresh();
+    await s.saveResearch(withPool([{ h: swap, status: "hypothesis" }]));
+    await s.deleteAll();
+    expect(await s.listResearchLog()).toEqual([]);
   });
 });
 

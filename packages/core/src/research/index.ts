@@ -526,3 +526,67 @@ export function cardFailing(h: Hypothesis, record: ProblemRecord): number[] | nu
 export function cardFits(h: Hypothesis, records: readonly ProblemRecord[]): boolean {
   return records.length > 0 && records.every((r) => cardFailing(h, r)?.length === 0);
 }
+
+// ---------------------------------------------------------------------------------------------
+// The grown-up's research note (指示書 第7.4節, 第6.7節 研究ノート)
+// ---------------------------------------------------------------------------------------------
+
+/** When no clause of a hypothesis has card words: a plain line, never the free note Claude wrote for adults. */
+const NOTE_OTHER: Record<CardLang, string> = {
+  ja: "短い言葉では言いにくい読み方",
+  en: "a way of reading that is hard to put in a short line",
+};
+
+/**
+ * A hypothesis in plain words for the grown-up: the card's words without the junior's prefix (no number but
+ * the 1, no operation, no judging word), "the person the sentence says" for a reading that changes nothing,
+ * and a plain line otherwise. note_for_adult is Claude's free text and is not shown (it could hold a number
+ * of a problem or a judging word).
+ */
+export function readingLine(h: Hypothesis, lang: CardLang = "ja"): string {
+  if (isNoChange(h) && h.clauses.length > 0) return CARD_WORDS[lang].asWritten;
+  for (const c of h.clauses) {
+    const text = cardText(c.then, lang);
+    if (text !== null) return text;
+  }
+  return NOTE_OTHER[lang];
+}
+
+export interface ResearchSummaryEntry {
+  id: string;
+  line: string;
+  status: PoolEntry["status"];
+  /** How many of the counted first readings this hypothesis reproduces (core runRule and sameReading). */
+  backing: number;
+}
+
+export interface ResearchSummary {
+  /** Heaviest first. Weights themselves are not given: the note says guess or "for now", not a score. */
+  entries: ResearchSummaryEntry[];
+  /** How many first readings were counted. */
+  counted: number;
+  /** "Other" weighs most: no hypothesis fits most placements (unexpressible). */
+  unsettled: boolean;
+}
+
+function backingOf(h: Hypothesis, readings: readonly FirstReading[]): number {
+  let n = 0;
+  for (const r of readings) {
+    try {
+      if (sameReading(runRule(h, r.record), r.childWorld, r.referencePlaced)) n++;
+    } catch {
+      // a reading core cannot run backs nothing
+    }
+  }
+  return n;
+}
+
+/** What the research state holds, for the grown-up's screen only (never for a child's screen). */
+export function researchSummary(state: ResearchState, lang: CardLang = "ja"): ResearchSummary {
+  const weight = (id: string): number => state.weights[id] ?? 0;
+  const entries = state.pool
+    .map((e, i) => ({ e, i }))
+    .sort((a, b) => weight(b.e.hypothesis.id) - weight(a.e.hypothesis.id) || a.i - b.i)
+    .map(({ e }) => ({ id: e.hypothesis.id, line: readingLine(e.hypothesis, lang), status: e.status, backing: backingOf(e.hypothesis, state.readings) }));
+  return { entries, counted: state.readings.length, unsettled: state.unexpressible };
+}

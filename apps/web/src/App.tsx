@@ -12,6 +12,7 @@ import { viewOf, type CardScreenView, type FlowSnapshot, type FlowView, type Gue
 import { helplineLine, ui, type UiText } from "./flow/text.ts";
 import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
 import { CheckMode } from "./check/CheckMode.tsx";
+import { ParentNote } from "./parent/ParentNote.tsx";
 import { scoreOf } from "./check/check.ts";
 import { checkText } from "./check/text.ts";
 import { AlwaysNav, Button, HoldButton, NumberPad } from "./ui/controls.tsx";
@@ -575,7 +576,7 @@ function CheckResults({ rows, text }: { rows: readonly CheckRow[]; text: UiText[
   );
 }
 
-/** The grown-up's screen (F9): the language, the AI-free checks and deleting every record on this device. */
+/** The grown-up's screen (F9): the language, the AI-free checks, the research note and its trend, and deleting every record on this device. */
 function ParentScreen({
   store,
   lang,
@@ -610,6 +611,7 @@ function ParentScreen({
         <p key={l}>{l}</p>
       ))}
       <CheckResults rows={checks} text={t} />
+      <ParentNote store={store} lang={lang} reload={done} />
       {!asked && <Button onClick={() => setAsked(true)}>{t.deleteAsk}</Button>}
       {asked && !done && (
         <>

@@ -160,6 +160,24 @@ export interface UiText {
     checksNone: string;
     checkRow: (date: string, right: number, total: number) => string;
     checksNote: string;
+    /**
+     * The research note (指示書 第7.4節, 第6.7節 研究ノート): the app's current ideas in core's adult words, said
+     * to be guesses from a few problems. "For now", never a word that settles or pins anything on the child.
+     */
+    researchTitle: string;
+    researchLines: readonly string[];
+    researchNone: string;
+    researchUnsettled: string;
+    status: { hypothesis: string; confirmed: string };
+    entry: (line: string, status: string, backing: number, counted: number) => string;
+    /** The trend per day, from the device's records only. */
+    trendTitle: string;
+    trendNone: string;
+    trendNote: string;
+    trendRow: (date: string, solved: number, held: number, fixes: number) => string;
+    trendSettled: (line: string) => string;
+    trendBack: (line: string) => string;
+    trendDropped: (line: string) => string;
     deleteAsk: string;
     deleteWarn: string;
     deleteYes: string;
@@ -310,6 +328,23 @@ const JA: UiText = {
     checkRow: (date, right, total) => `${date}：${String(total)}問中${String(right)}問 プログラムの答えと同じ数を入れました`,
     checksNote:
       "後輩も図もなしで、問題の文と数の入力だけで解いた結果です。答えはプログラムが確かめています。「わからない」でとばした問題は、同じ数を入れた問題に数えません。",
+    researchTitle: "研究ノート（アプリの今の考え）",
+    researchLines: [
+      "後輩が問題を読むために、アプリが子どもの「1」の札の置き方から立てている、読み方についての今の考えです。",
+      "数問から立てた仮の考えで、子どもを判定したものではありません。読み方は日によって変わります。",
+      "ここは子どもの画面には出ません。子どもの画面では、どれも後輩が問題を読む時の読み方として出るだけで、子どもから作ったとは伝えていません。問題の答えは、ここには出しません。",
+    ],
+    researchNone: "まだありません。問題を解くと、ここに出ます。",
+    researchUnsettled: "今のところ、読み方は定まっていません。ここにあるどの考えとも合わない置き方が多いためです。",
+    status: { hypothesis: "仮説", confirmed: "今のところの読み方" },
+    entry: (line, status, backing, counted) => `『${line}』（${status}）：数えた${String(counted)}問のうち${String(backing)}問の「1」の置き方と合います`,
+    trendTitle: "日ごとのようす",
+    trendNone: "まだありません。",
+    trendNote: "この端末に残っている記録だけから作っています。どこにも送りません。途中で終えた問題は数えていません。",
+    trendRow: (date, solved, held, fixes) => `${date}：解いた問題 ${String(solved)}問、あとにした問題 ${String(held)}問、後輩の世界を直した回数 ${String(fixes)}回`,
+    trendSettled: (line) => `『${line}』が、今のところの読み方になりました`,
+    trendBack: (line) => `『${line}』は、仮説にもどりました`,
+    trendDropped: (line) => `『${line}』は、考えから外れました`,
     deleteAsk: "記録をすべて消す",
     deleteWarn: "この端末の記録と同意を、すべて消します。元には戻せません。",
     deleteYes: "消す",
@@ -428,6 +463,23 @@ const EN: UiText = {
     checkRow: (date, right, total) => `${date}: ${String(right)} of ${String(total)} entered the same number as the program's answer`,
     checksNote:
       'These are results of solving with only the problem text and number entry, without the junior or pictures. The program checks the answers. A problem skipped with "I don\'t know" is not counted as the same number.',
+    researchTitle: "Research note (what the app thinks for now)",
+    researchLines: [
+      "These are the app's current ideas about how the child reads, made from where the child placed the \"1\" card, so that the junior can read problems.",
+      "They are guesses from a few problems, not an assessment of the child. Ways of reading change from day to day.",
+      "None of this is on the child's screens. There, each one only appears as a way the junior reads a problem, and the child is not told it was made from the child. The answers of the problems are not shown here.",
+    ],
+    researchNone: "None yet. Ideas appear here after the child solves problems.",
+    researchUnsettled: "For now, no way of reading stands out: most placements fit none of these ideas.",
+    status: { hypothesis: "a guess", confirmed: "the way of reading for now" },
+    entry: (line, status, backing, counted) => `"${line}" (${status}): fits where the "1" card was placed on ${String(backing)} of ${String(counted)} problems counted`,
+    trendTitle: "Day by day",
+    trendNone: "None yet.",
+    trendNote: "Made only from the records kept on this device; nothing is sent anywhere. Problems ended partway are not counted.",
+    trendRow: (date, solved, held, fixes) => `${date}: ${String(solved)} problems solved, ${String(held)} kept for later, the junior's world fixed ${String(fixes)} times`,
+    trendSettled: (line) => `"${line}" became the way of reading for now`,
+    trendBack: (line) => `"${line}" went back to being a guess`,
+    trendDropped: (line) => `"${line}" is no longer considered`,
     deleteAsk: "Delete all records",
     deleteWarn: "This deletes every record and the consent on this device. It cannot be undone. The language choice stays.",
     deleteYes: "Delete",

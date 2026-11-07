@@ -2,7 +2,7 @@
 // The child's words never reach a table: every op is passed through core's redact before it is stored,
 // and the junior's rejected lines and the safety events keep only their kinds and dates.
 import { Dexie, type Table } from "dexie";
-import { hasChildText, initialState, redactInterpretation, type Interpretation, type Lang, type ResearchState } from "@kimi/core";
+import { hasChildText, initialState, readingLine, redactInterpretation, type Interpretation, type Lang, type ResearchState } from "@kimi/core";
 import type { CardLog, ProblemLog } from "../flow/machine.ts";
 
 export interface Settings {
@@ -70,6 +70,17 @@ export interface CardRow extends CardLog {
   at: string;
 }
 
+/**
+ * One change of the research pool, for the grown-up's trend (指示書 第7.4節): each hypothesis's id, status and
+ * core's adult line in both languages, and whether no hypothesis fits most placements. No child's words.
+ */
+export interface ResearchLogRow {
+  id?: number;
+  at: string;
+  pool: { id: string; status: "hypothesis" | "confirmed"; line: { ja: string; en: string } }[];
+  unsettled: boolean;
+}
+
 interface KeyValue {
   key: string;
   value: unknown;
@@ -83,6 +94,7 @@ class KimiDB extends Dexie {
   safetyEvents!: Table<SafetyRow, number>;
   checks!: Table<CheckRow, number>;
   cards!: Table<CardRow, number>;
+  researchLog!: Table<ResearchLogRow, number>;
 
   constructor(name: string) {
     super(name);
@@ -95,6 +107,7 @@ class KimiDB extends Dexie {
     });
     this.version(2).stores({ checks: "++id, at" });
     this.version(3).stores({ cards: "++id, at" });
+    this.version(4).stores({ researchLog: "++id, at" });
   }
 }
 
@@ -110,6 +123,8 @@ export interface FlowStore {
   listAttempts(): Promise<AttemptRow[]>;
   saveResearch(state: ResearchState): Promise<void>;
   loadResearch(): Promise<ResearchState>;
+  /** The research pool's changes (a row only when a status, the pool or unexpressible changed), oldest first. */
+  listResearchLog(): Promise<ResearchLogRow[]>;
   logGate(kinds: readonly string[]): Promise<void>;
   listGateLog(): Promise<GateRow[]>;
   logSafety(kind: SafetyKind): Promise<void>;
@@ -222,7 +237,21 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
       return db.attempts.orderBy("id").toArray();
     },
     async saveResearch(state) {
-      await db.research.put({ key: "current", value: structuredClone(state) });
+      const pool = state.pool.map((e) => ({
+        id: e.hypothesis.id,
+        status: e.status,
+        line: { ja: readingLine(e.hypothesis, "ja"), en: readingLine(e.hypothesis, "en") },
+      }));
+      const key = (p: readonly { id: string; status: string }[], unsettled: boolean): string => JSON.stringify([p.map((e) => [e.id, e.status]), unsettled]);
+      await db.transaction("rw", [db.research, db.researchLog], async () => {
+        await db.research.put({ key: "current", value: structuredClone(state) });
+        const last = await db.researchLog.orderBy("id").last();
+        const before = last === undefined ? key([], false) : key(last.pool, last.unsettled);
+        if (key(pool, state.unexpressible) !== before) await db.researchLog.add({ at: now(), pool, unsettled: state.unexpressible });
+      });
+    },
+    async listResearchLog() {
+      return db.researchLog.orderBy("id").toArray();
     },
     async loadResearch() {
       const row = await db.research.get("current");
@@ -264,7 +293,7 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
       return db.cards.orderBy("id").toArray();
     },
     async deleteAll() {
-      const tables = [db.settings, db.attempts, db.research, db.gateLog, db.safetyEvents, db.checks, db.cards];
+      const tables = [db.settings, db.attempts, db.research, db.gateLog, db.safetyEvents, db.checks, db.cards, db.researchLog];
       await db.transaction("rw", tables, async () => {
         const lang = await db.settings.get("lang");
         const furigana = await db.settings.get("furigana");
