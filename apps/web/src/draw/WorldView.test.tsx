@@ -237,6 +237,28 @@ describe("motion (指示書 第8.6節)", () => {
 });
 
 describe("glow (指示書 第8.5節 文と世界の結び)", () => {
+  it("says 「合わない」 for a glowing sentence and an impossible world, never a judging word", () => {
+    const { container } = render(
+      <WorldView world={signboard.procedural} glowIds={["q_otouto"]} failingSentences={["これは、弟の金魚の数の3/4です。"]} reducedMotion />,
+    );
+    const text = container.textContent ?? "";
+    expect(text).toContain("合わない");
+    expect(text).not.toMatch(/なりたち|成り立|おこりえ|まちがい|間違|正しい|せいかい|正解/);
+  });
+
+  it("draws the child's own size of one segment on the 「1」 tape's segments, and nothing before", () => {
+    const before = render(<WorldView world={signboard.correct} reducedMotion />);
+    expect(q(before.container, '[data-role="segment-value"]')).toHaveLength(0);
+    before.unmount();
+    const { container } = render(<WorldView world={signboard.correct} unitValue={{ num: 2, den: 1 }} childNumbers={[{ num: 2, den: 1 }]} reducedMotion />);
+    const labels = q(container, '[data-role="segment-value"]');
+    expect(labels).toHaveLength(4);
+    for (const l of labels) {
+      expect(l.getAttribute("data-holder")).toBe("h_otouto");
+      expect(l.textContent).toBe("2");
+    }
+  });
+
   it("glows the tapes of the given element ids only", () => {
     const { container } = render(<WorldView world={signboard.correct} glowIds={["q_ani"]} reducedMotion />);
     expect(container.querySelector('[data-role="tape"][data-holder="h_ani"]')?.getAttribute("data-glow")).toBe("true");

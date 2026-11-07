@@ -9,8 +9,8 @@ import type { FlowStore } from "../store/store.ts";
 export type { FlowApi } from "./api.ts";
 
 export const KOHAI_TIMEOUT_MS = 4000;
-/** The research agent may take several turns; the child is past problem 1 long before this runs out. 【仮】 */
-export const RESEARCH_TIMEOUT_MS = 20000;
+/** The research wait: past this the fallback pool is used, so the child never waits long between problems. 【仮】 */
+export const RESEARCH_TIMEOUT_MS = 8000;
 export const SAFETY_TIMEOUT_MS = 3000;
 
 export interface SessionOptions {

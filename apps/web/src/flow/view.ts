@@ -1,8 +1,9 @@
 // What each screen shows, from a snapshot of the session machine. The screens draw only this, so the
 // tests can read every word a child may see (childTexts) on every path.
 import type { SnapshotFrom } from "xstate";
-import type { Rational, WorldScene } from "@kimi/core";
+import type { GateContext, Rational, WorldScene } from "@kimi/core";
 import type { flowMachine } from "./machine.ts";
+import { gateContext } from "./problem.ts";
 import { AI_MARK, BUTTONS, CONSENT_LINES, FINISHED_LINES, HELPLINE, INTRO_LINES, RESEARCH_WAIT_LINE, STUCK, hardLines, restLines } from "./text.ts";
 
 export type FlowSnapshot = SnapshotFrom<typeof flowMachine>;
@@ -40,6 +41,10 @@ export interface ProblemView extends Common {
   totalValue: Rational | null;
   /** The child may move the card on these steps; the confirm buttons show on "placed". */
   canPlace: boolean;
+  /** The ids of the world's parts named by the lit sentences: they glow with them (empty while none is lit). */
+  glowIds: string[];
+  /** core's gate context of this problem (from its correct world), for the screen's own gate calls. Never drawn. */
+  gate: GateContext;
 }
 
 export type FlowView =
@@ -94,6 +99,8 @@ export function viewOf(s: FlowSnapshot): FlowView {
     unitValue: p.unitValue,
     totalValue: p.totalValue,
     canPlace: step === "looking" || step === "placed",
+    glowIds: [...new Set(p.record.statements.filter((st) => lit.has(st.index)).flatMap((st) => st.element_ids))],
+    gate: gateContext(p.record, c.lang, [p.unitValue, p.totalValue].filter((x): x is Rational => x !== null)),
   };
 }
 

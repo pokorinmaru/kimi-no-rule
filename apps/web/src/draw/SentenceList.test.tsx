@@ -46,6 +46,13 @@ describe("SentenceList", () => {
     expect(container.textContent).not.toMatch(/まちがい|間違い|ずれ|正しい|ただしい/);
   });
 
+  it("tells a screen reader that a glowing sentence does not fit the world, without judging words", () => {
+    const { container } = render(<SentenceList statements={statements} checks={checks} reducedMotion />);
+    const lit = container.querySelector('[data-glow="true"]');
+    expect(lit?.textContent).toContain("合わない");
+    expect(container.textContent).not.toMatch(/なりたち|成り立|おこりえ|まちがい|間違|正しい|せいかい|正解/);
+  });
+
   it("emits the sentence and token index of a tapped word", async () => {
     const user = userEvent.setup();
     const onTapWord = vi.fn();

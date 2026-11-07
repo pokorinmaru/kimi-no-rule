@@ -21,6 +21,8 @@ export interface WorldViewProps {
   answered?: Readonly<Record<string, Rational>>;
   /** Other numbers the child said (may be shown, e.g. on a difference). */
   childNumbers?: readonly Rational[];
+  /** The size of one segment the child said: drawn on each segment of the 「1」 tape (Q29); null before. */
+  unitValue?: Rational | null;
   /** Makes the card movable. Called with the holder whose whole tape the card was put on. */
   onPlaceCard?: (holderId: string) => void;
   /** Element ids (quantity, holder or relation ids) whose part of the world glows with a failing sentence. */
@@ -106,6 +108,23 @@ function Tape({ t, glow, reduced }: { t: TapeLayout; glow: boolean; reduced: boo
             strokeWidth={2}
           />
         ))}
+        {t.segments.map((s, i) =>
+          s.value?.kind === "number" ? (
+            <text
+              key={`v${String(i)}`}
+              data-role="segment-value"
+              data-holder={t.holderId}
+              x={s.x + s.width / 2}
+              y={mid}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill={COLORS.ink}
+              style={{ font: `700 18px ${FONT}` }}
+            >
+              {s.value.text}
+            </text>
+          ) : null,
+        )}
       </g>
       {t.impossible && (
         // The end that cannot be reached: a broken edge, not a cross and not a number (第8.5節).
@@ -148,15 +167,16 @@ export function WorldView(props: WorldViewProps) {
   const reduced = useReducedMotion(props.reducedMotion);
   const descId = useId();
 
-  const { cardHolder, correct, answered, childNumbers } = props;
+  const { cardHolder, correct, answered, childNumbers, unitValue } = props;
   const l = useMemo(() => {
     const opts: LayoutOptions = {};
     if (cardHolder !== undefined) opts.cardHolder = cardHolder;
     if (correct !== undefined) opts.correct = correct;
     if (answered !== undefined) opts.answered = answered;
     if (childNumbers !== undefined) opts.childNumbers = childNumbers;
+    if (unitValue !== undefined) opts.unitValue = unitValue;
     return layoutWorld(world, opts);
-  }, [world, cardHolder, correct, answered, childNumbers]);
+  }, [world, cardHolder, correct, answered, childNumbers, unitValue]);
 
   // A relation glows through the tapes it ties together.
   const glowing = useMemo(() => {

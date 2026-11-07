@@ -4,7 +4,8 @@
 // numbersIn). This file only turns core's rationals into pixel lengths and decides what may be shown.
 // What may be shown (第1節 原則1): a number of the problem text, a number the child said, or the value
 // the child gave for a quantity. Everything else, the asked quantity first, is drawn as 「？」.
-// Segments never carry a value, and a tape with segments carries no number card.
+// A segment carries a value only when the child has said the size of one segment (Q29), and then only on
+// the segments of the 「1」 tape; a tape with segments carries no number card.
 import {
   cmp,
   div,
@@ -36,6 +37,8 @@ export type ValueLabel =
 export interface SegmentLayout {
   x: number;
   width: number;
+  /** The size of one segment the child said, on the 「1」 tape only; absent before the child said it. */
+  value?: ValueLabel;
 }
 
 export interface TapeLayout {
@@ -52,7 +55,7 @@ export interface TapeLayout {
   isUnit: boolean;
   asked: boolean;
   value: ValueLabel;
-  /** Same-size units of the multiple (第8.5節); empty when none are drawn. No value belongs to a segment. */
+  /** Same-size units of the multiple (第8.5節); empty when none are drawn. Only the child's own unit value is drawn on one. */
   segments: SegmentLayout[];
   impossible: boolean;
 }
@@ -110,6 +113,8 @@ export interface LayoutOptions {
   answered?: Readonly<Record<string, Rational>>;
   /** Other numbers the child said (a multiple, a difference); they may be shown. */
   childNumbers?: readonly Rational[];
+  /** The size of one segment the child said: drawn on each segment of the 「1」 tape (Q29). */
+  unitValue?: Rational | null;
   /** Width of the drawing in SVG units. */
   width?: number;
 }
@@ -267,9 +272,11 @@ export function layoutWorld(world: WorldScene, opts: LayoutOptions = {}): WorldL
     const rowY = SIZES.trayHeight + i * rowHeight;
     const tapeWidth = trackWidth * (shares[i] ?? 1);
     const n = segmentCount(q.id);
+    const said = q.id === unitQ && opts.unitValue != null ? numberLabel(opts.unitValue, counterOf(q)) : null;
     const segments: SegmentLayout[] = Array.from({ length: n }, (_, k) => ({
       x: trackX + (tapeWidth * k) / n,
       width: tapeWidth / n,
+      ...(said === null ? {} : { value: said }),
     }));
     const answered = opts.answered?.[q.id];
     let value: ValueLabel;
@@ -349,11 +356,13 @@ export function layoutWorld(world: WorldScene, opts: LayoutOptions = {}): WorldL
 export function describeLayout(l: WorldLayout, failingSentences: readonly string[] = []): string {
   const parts = l.tapes.map((t) => {
     const cut = t.segments.length > 0 ? `${String(t.segments.length)}つに くぎられています` : "";
+    const one = t.segments[0]?.value;
+    const each = one?.kind === "number" ? `ひと区切りは ${one.text}${one.counter}` : "";
     const v = t.value.kind === "number" ? `${t.value.text}${t.value.counter}` : t.value.kind === "unknown" ? "「？」" : "";
     const unit = l.card.placedOn === t.holderId ? "「1」の ふだが あります" : "";
-    return `${t.label}の テープ${[v, cut, unit].filter((s) => s !== "").map((s) => `、${s}`).join("")}`;
+    return `${t.label}の テープ${[v, cut, each, unit].filter((s) => s !== "").map((s) => `、${s}`).join("")}`;
   });
-  const fails = failingSentences.map((s) => `「${s}」は、この世界では なりたちません`);
-  const odd = l.impossible ? ["この世界では、おこりえない ところが あります"] : [];
+  const fails = failingSentences.map((s) => `「${s}」は、この世界と 合わない 文です`);
+  const odd = l.impossible ? ["この世界には、問題の 文と 合わない ところが あります"] : [];
   return [...parts, ...odd, ...fails].join("。") + "。";
 }

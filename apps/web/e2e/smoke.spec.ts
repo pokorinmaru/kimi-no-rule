@@ -1,6 +1,21 @@
 // The whole first problem in a real browser, with the local server down: templates and the fallback pool
 // only (指示書 第11節 M7: the flow never stops when the server does). Every step is a tap.
-import { expect, test } from "@playwright/test";
+import { createRequire } from "node:module";
+import { expect, test, type Page } from "@playwright/test";
+
+const axePath = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
+
+/** axe-core on the whole page as it is now (指示書 第8.4b節): no violation. */
+async function expectNoAxeViolations(page: Page, screen: string): Promise<void> {
+  await page.addScriptTag({ path: axePath });
+  const found = await page.evaluate(async () => {
+    const axe = (window as unknown as { axe: { run: (c: Document, o: unknown) => Promise<{ violations: { id: string; nodes: { html: string }[] }[]; passes: unknown[] }> } }).axe;
+    const res = await axe.run(document, { resultTypes: ["violations"] });
+    return { passes: res.passes.length, violations: res.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.html).join(" | ")}`) };
+  });
+  expect(found.passes, screen).toBeGreaterThan(0);
+  expect(found.violations, screen).toEqual([]);
+}
 
 test("app shell renders with the AI mark and the three buttons", async ({ page }) => {
   await page.goto("/");
@@ -52,4 +67,43 @@ test("the three buttons stay on the parent screen too", async ({ page }) => {
   await page.getByTestId("btn-parent").click();
   await expect(page.getByTestId("btn-stop")).toBeVisible();
   await expect(page.getByTestId("btn-hard")).toBeVisible();
+});
+
+test("axe-core finds no violation on the intro, consent and number-pad screens", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/");
+  await expect(page.getByTestId("btn-next")).toBeVisible();
+  await expectNoAxeViolations(page, "intro");
+  await page.getByTestId("btn-next").click();
+  await expect(page.getByTestId("btn-consent-yes")).toBeVisible();
+  await expectNoAxeViolations(page, "consent");
+  await page.getByTestId("btn-consent-yes").click();
+  await page.getByTestId("btn-next").click();
+  await page.locator('[data-role="reference_mark"]').click();
+  await page.locator('[data-drop-target="h_otouto"]').first().click();
+  await page.getByTestId("btn-confirm-yes").click();
+  await page.getByTestId("btn-next").click();
+  await expect(page.getByTestId("pad-ok")).toBeVisible();
+  await expectNoAxeViolations(page, "number pad");
+});
+
+test("a wrong unit gets the junior's words, never the right number; a second wrong one holds the problem", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/");
+  await page.getByTestId("btn-next").click();
+  await page.getByTestId("btn-consent-yes").click();
+  await page.getByTestId("btn-next").click();
+  await page.locator('[data-role="reference_mark"]').click();
+  await page.locator('[data-drop-target="h_otouto"]').first().click();
+  await page.getByTestId("btn-confirm-yes").click();
+  await page.getByTestId("btn-next").click();
+  const before = await page.getByTestId("junior-line").textContent();
+  await page.getByTestId("pad-5").click();
+  await page.getByTestId("pad-ok").click();
+  await expect(page.getByTestId("junior-line")).not.toHaveText(before ?? "");
+  await expect(page.getByTestId("junior-line")).toContainText("6");
+  await expect(page.locator("main")).not.toContainText("8匹");
+  await page.getByTestId("pad-5").click();
+  await page.getByTestId("pad-ok").click();
+  await expect(page.getByTestId("btn-next")).toHaveText("つぎの問題へ");
 });

@@ -3,11 +3,12 @@
 // Written before the implementation.
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { COMMON_FRACTION_READINGS, type Rational } from "@kimi/core";
-import { KOHAI_TIMEOUT_MS, startSession, type FlowApi } from "./session.ts";
+import { COMMON_FRACTION_READINGS, FRACTION_BANK, initialState, observe, type Rational } from "@kimi/core";
+import { KOHAI_TIMEOUT_MS, RESEARCH_TIMEOUT_MS, startSession, type FlowApi } from "./session.ts";
 import { createHttpApi } from "./api.ts";
 import { openStore, type FlowStore } from "../store/store.ts";
-import { judgeTotal, judgeUnit } from "./problem.ts";
+import { firstReading, judgeTotal, judgeUnit } from "./problem.ts";
+import { createApp } from "../../../worker/src/app.ts";
 
 let n = 0;
 const stores: FlowStore[] = [];
@@ -130,6 +131,43 @@ describe("startSession", () => {
     expect(s.actor.getSnapshot().matches({ active: "researching" })).toBe(true);
     await new Promise((r) => setTimeout(r, 60));
     expect(s.actor.getSnapshot().matches({ active: { problem: "reading" } })).toBe(true);
+    s.stop();
+  });
+
+  it("waits at most 8 s for the research agent", () => {
+    expect(RESEARCH_TIMEOUT_MS).toBe(8000);
+  });
+
+  it("with a long history on the device, the research call still gets a 200 from the worker (12 readings at most)", async () => {
+    const st = store();
+    await st.setConsent(true);
+    await st.setIntroSeen(true);
+    let research = initialState();
+    const others = FRACTION_BANK.filter((x) => x.world.problem_id !== "p_signboard");
+    for (let i = 0; i < 20; i++) {
+      const rec = others[i % others.length] as (typeof FRACTION_BANK)[number];
+      const rel = rec.world.relations[0];
+      const reading = firstReading(rec, rel?.id as string, rel?.subject as string);
+      if (reading !== null) research = observe(research, reading);
+    }
+    await st.saveResearch(research);
+    const worker = createApp({ client: () => null, agent: () => ({ step: async () => ({ stopReason: "end_turn", text: "", toolCalls: [] }) }) });
+    const statuses: number[] = [];
+    const sent: number[] = [];
+    const fetchImpl = (async (url: string, init?: RequestInit) => {
+      const res = await worker.request(url, init);
+      if (url.endsWith("/research")) {
+        statuses.push(res.status);
+        sent.push((JSON.parse(String(init?.body)) as { readings: unknown[] }).readings.length);
+      }
+      return res;
+    }) as typeof fetch;
+    const s = await startSession({ store: st, api: createHttpApi("http://localhost:8787", fetchImpl), input: { maxProblems: 2 } });
+    await solveCurrent(s);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(statuses).toEqual([200]);
+    expect(sent[0]).toBeLessThanOrEqual(12);
+    expect(s.actor.getSnapshot().context.research.readings.length).toBeGreaterThan(12);
     s.stop();
   });
 

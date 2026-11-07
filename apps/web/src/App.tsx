@@ -1,7 +1,7 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import type { Rational, StatementCheck } from "@kimi/core";
+import { gate, type Rational, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { SentenceList } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
@@ -101,7 +101,8 @@ function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"
   const holderOf = (q: string) => view.world.quantities.find((x) => x.id === q)?.holder;
   const placeOn = (holderId: string) => {
     const q = ends.find((e) => holderOf(e) === holderId);
-    if (q !== undefined) send({ type: "PLACE_ONE", quantityId: q });
+    // The card covers a whole tape only; core's gate decides (指示書 第5.5節).
+    if (q !== undefined && gate({ kind: "place_card", covers: "whole_tape" }, view.gate).ok) send({ type: "PLACE_ONE", quantityId: q });
   };
   const cardHolder = view.placement !== null ? holderOf(view.placement) ?? null : view.one !== null ? holderOf(view.one) ?? null : null;
   const answered: Record<string, Rational> = {};
@@ -132,7 +133,9 @@ function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"
         world={view.world}
         cardHolder={cardHolder}
         childNumbers={childNumbers}
+        unitValue={view.unitValue}
         answered={answered}
+        glowIds={view.glowIds}
         failingSentences={view.step === "reading" ? [] : failing}
         label="後輩が作った世界"
         {...(view.canPlace ? { onPlaceCard: placeOn } : {})}

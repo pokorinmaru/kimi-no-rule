@@ -164,6 +164,28 @@ describe("segments (指示書 第8.5節)", () => {
   });
 });
 
+describe("the size of one segment the child said (Q29)", () => {
+  it("draws nothing on any segment before the child has said it", () => {
+    const l = layoutWorld(signboard.correct);
+    for (const t of l.tapes) for (const s of t.segments) expect(s.value).toBeUndefined();
+  });
+
+  it("draws the child's number on every segment of the 「1」 tape only, once said", () => {
+    const l = layoutWorld(signboard.correct, { unitValue: n(2), childNumbers: [n(2)] });
+    const unit = tapeOf(l, "h_otouto");
+    expect(unit.segments.length).toBeGreaterThan(0);
+    for (const s of unit.segments) expect(s.value).toEqual({ kind: "number", value: n(2), text: "2", counter: "匹" });
+    for (const s of tapeOf(l, "h_ani").segments) expect(s.value).toBeUndefined();
+    // The asked quantity stays 「？」.
+    expect(unit.value).toEqual({ kind: "unknown" });
+  });
+
+  it("draws nothing on segments when only the length order is shown", () => {
+    const l = layoutWorld(signboard.correct, { cardHolder: null, unitValue: n(2) });
+    expect(l.tapes.every((t) => t.segments.length === 0)).toBe(true);
+  });
+});
+
 describe("the 「1」 card (指示書 第1節 原則1, 第8.5節)", () => {
   it("covers the whole unit tape by default", () => {
     const l = layoutWorld(signboard.correct);

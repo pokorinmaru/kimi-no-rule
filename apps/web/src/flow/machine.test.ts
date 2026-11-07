@@ -3,10 +3,10 @@
 import { describe, expect, it } from "vitest";
 import { getShortestPaths, getSimplePaths, getStateNodes } from "@xstate/graph";
 import { createActor, transition, type SnapshotFrom } from "xstate";
-import { FRACTION_BANK, sameReading, runRule, type Rational } from "@kimi/core";
+import { FRACTION_BANK, initialState, observe, sameReading, runRule, type Rational } from "@kimi/core";
 import { flowMachine, type FlowEvent, type FlowInput } from "./machine.ts";
 import { childTexts, viewOf } from "./view.ts";
-import { judgeTotal, judgeUnit } from "./problem.ts";
+import { firstReading, judgeTotal, judgeUnit } from "./problem.ts";
 import { FORBIDDEN_CHILD_PHRASES } from "./text.ts";
 
 type Snap = SnapshotFrom<typeof flowMachine>;
@@ -255,8 +255,10 @@ describe("the flow of one problem (F1)", () => {
     // The junior hands back the holder and only the child's tapped word.
     expect(v.screen === "problem" && v.line).toContain("弟");
     expect(v.screen === "problem" && v.line).toContain("「の」");
-    expect(actor.getSnapshot().context.problem?.firstPlacement).not.toBeNull();
+    // A placement is the child's reading only once the child confirms it.
+    expect(actor.getSnapshot().context.problem?.firstPlacement).toBeNull();
     actor.send({ type: "CONFIRM_YES" });
+    expect(actor.getSnapshot().context.problem?.firstPlacement).not.toBeNull();
     v = viewOf(actor.getSnapshot());
     expect(v.screen === "problem" && v.step).toBe("rebuilt");
     expect(v.screen === "problem" && v.statements.some((x) => x.lit)).toBe(false);
@@ -286,6 +288,10 @@ describe("the flow of one problem (F1)", () => {
     expect(s.matches({ active: { problem: "looking" } })).toBe(true);
     expect(s.context.problem?.shown.world).toEqual(before);
     expect(s.context.problem?.placement).toBeNull();
+    // A placement the child rejected is not an observation and nothing is sent.
+    expect(s.context.problem?.firstPlacement).toBeNull();
+    expect(s.context.research.readings).toHaveLength(0);
+    expect(s.context.researchRequest).toBeNull();
   });
 
   it("core judges the unit and the total; a wrong unit gets the mismatch words and the child tries again", () => {
@@ -304,6 +310,87 @@ describe("the flow of one problem (F1)", () => {
     expect(actor.getSnapshot().matches({ active: { problem: "total" } })).toBe(true);
     actor.send({ type: "ANSWER_TOTAL", value: v?.totalOk as Rational });
     expect(actor.getSnapshot().matches({ active: { problem: "solved" } })).toBe(true);
+  });
+
+  /** On the signboard: the unit step, with the right values known to the test only. */
+  function atUnit() {
+    const actor = run();
+    actor.send({ type: "NEXT" });
+    place(actor, true);
+    actor.send({ type: "CONFIRM_YES" });
+    actor.send({ type: "NEXT" });
+    return { actor, v: values(actor.getSnapshot()) as Values };
+  }
+
+  /** The child-visible line, which never holds the right number nor judging words (指示書 第5.7節). */
+  function expectMismatchLine(actor: ReturnType<typeof run>, v: Values): void {
+    const view = viewOf(actor.getSnapshot());
+    const line = view.screen === "problem" ? (view.line ?? "") : "";
+    expect(line.length).toBeGreaterThan(0);
+    expect(actor.getSnapshot().context.line?.key).toBe("unit.mismatch");
+    expect(line).not.toContain(String(v.unitOk.num));
+    expect(line).not.toContain(String(v.totalOk.num));
+    for (const bad of FORBIDDEN_CHILD_PHRASES) expect(line).not.toContain(bad);
+    expect(line).not.toMatch(/正しい|ちがう|ざんねん/);
+  }
+
+  it("a wrong unit shows the junior's mismatch line, and a second wrong unit holds the problem (1問2回)", () => {
+    const { actor, v } = atUnit();
+    actor.send({ type: "ANSWER_UNIT", value: v.unitNg });
+    expectMismatchLine(actor, v);
+    expect(actor.getSnapshot().matches({ active: { problem: "unit" } })).toBe(true);
+    actor.send({ type: "ANSWER_UNIT", value: v.unitNg });
+    const s = actor.getSnapshot();
+    expect(s.matches({ active: { problem: "held" } })).toBe(true);
+    expect(s.context.line?.key).toBe("hold.offer");
+    expect(s.context.log.at(-1)?.outcome).toBe("held");
+    expect(s.context.log.at(-1)?.unitTries).toBe(2);
+    const text = childTexts(viewOf(s)).join("");
+    expect(text).not.toContain(`${String(v.unitOk.num)}匹`);
+    expect(text).not.toContain(`${String(v.totalOk.num)}匹`);
+  });
+
+  it("a wrong total shows the junior's mismatch line, and a second wrong total holds the problem (1問2回)", () => {
+    const { actor, v } = atUnit();
+    actor.send({ type: "ANSWER_UNIT", value: v.unitOk });
+    actor.send({ type: "ANSWER_TOTAL", value: v.totalNg });
+    expectMismatchLine(actor, v);
+    expect(actor.getSnapshot().matches({ active: { problem: "total" } })).toBe(true);
+    actor.send({ type: "ANSWER_TOTAL", value: v.totalNg });
+    const s = actor.getSnapshot();
+    expect(s.matches({ active: { problem: "held" } })).toBe(true);
+    expect(s.context.log.at(-1)?.totalTries).toBe(2);
+    // The flow moves on from the held problem.
+    actor.send({ type: "NEXT" });
+    const after = actor.getSnapshot();
+    expect(after.matches({ active: "researching" }) || after.matches({ active: { problem: "reading" } })).toBe(true);
+  });
+
+  it("the junior's line number never goes back within a session", () => {
+    const actor = run({ introSeen: true, consented: true, maxProblems: 2 });
+    const seqs: number[] = [actor.getSnapshot().context.line?.seq as number];
+    actor.subscribe((s) => {
+      if (s.context.line !== null && s.context.line.seq !== seqs.at(-1)) seqs.push(s.context.line.seq);
+    });
+    solveProblem(actor);
+    actor.send({ type: "RESEARCH_RESULT", pool: null });
+    actor.send({ type: "NEXT" });
+    expect(seqs.length).toBeGreaterThan(3);
+    for (let i = 1; i < seqs.length; i++) expect(seqs[i] as number).toBeGreaterThan(seqs[i - 1] as number);
+  });
+
+  it("the failing sentences' elements glow with them, and nothing glows before the junior's world is shown", () => {
+    const actor = run();
+    let v = viewOf(actor.getSnapshot());
+    expect(v.screen === "problem" && v.glowIds).toEqual([]);
+    actor.send({ type: "NEXT" });
+    v = viewOf(actor.getSnapshot());
+    if (v.screen !== "problem") throw new Error("problem expected");
+    const p = actor.getSnapshot().context.problem;
+    if (p === null) throw new Error("problem expected");
+    const expected = [...new Set(p.shown.failing.flatMap((i) => p.record.statements[i]?.element_ids ?? []))];
+    expect(expected.length).toBeGreaterThan(0);
+    expect([...v.glowIds].sort()).toEqual(expected.sort());
   });
 
   it("the junior's answer-free line from the server replaces the template only while it is current", () => {
@@ -331,16 +418,63 @@ describe("the flow of one problem (F1)", () => {
 });
 
 describe("the research layer in the flow (F3)", () => {
-  it("records the child's first placement before any fix as the research observation, once per problem", () => {
+  it("records the child's first confirmed placement as the research observation, once per problem", () => {
     const actor = run();
     actor.send({ type: "NEXT" });
     place(actor, false);
+    // Not yet: the child has not said "yes" to it.
+    expect(actor.getSnapshot().context.research.readings).toHaveLength(0);
+    expect(actor.getSnapshot().context.researchRequest).toBeNull();
+    actor.send({ type: "CONFIRM_YES" });
     const s1 = actor.getSnapshot();
     expect(s1.context.research.readings).toHaveLength(1);
     expect(s1.context.researchRequest).not.toBeNull();
-    actor.send({ type: "CONFIRM_YES" });
     place(actor, true);
+    actor.send({ type: "CONFIRM_YES" });
     expect(actor.getSnapshot().context.research.readings).toHaveLength(1);
+  });
+
+  it("a rejected placement is not observed; the confirmed one is, with the words tapped before the confirm", () => {
+    const actor = run();
+    actor.send({ type: "NEXT" });
+    const p = actor.getSnapshot().context.problem;
+    const rel = p?.record.world.relations.find((x) => x.id === p.relationId);
+    place(actor, true);
+    actor.send({ type: "CONFIRM_NO" });
+    place(actor, false);
+    actor.send({ type: "TAP_WORD", statementIndex: 1, token: 4 });
+    actor.send({ type: "CONFIRM_YES" });
+    const s = actor.getSnapshot();
+    expect(s.context.problem?.firstPlacement).toBe(rel?.subject);
+    const req = s.context.researchRequest;
+    expect(req?.readings).toHaveLength(1);
+    expect(req?.readings[0]?.words).toEqual(["の"]);
+    // The observed world puts the "1" where the child confirmed it.
+    expect(req?.readings[0]?.childWorld.relations[0]?.reference).toBe(rel?.subject);
+  });
+
+  it("sends at most the 12 most recent readings; the device keeps them all", () => {
+    let research = initialState();
+    const others = FRACTION_BANK.filter((x) => x.world.problem_id !== "p_signboard");
+    for (let i = 0; i < 15; i++) {
+      const rec = others[i % others.length] as (typeof FRACTION_BANK)[number];
+      const rel = rec.world.relations[0];
+      const reading = firstReading(rec, rel?.id as string, rel?.subject as string);
+      if (reading !== null) research = observe(research, reading);
+    }
+    expect(research.readings.length).toBe(15);
+    const actor = run({ introSeen: true, consented: true, research });
+    actor.send({ type: "NEXT" });
+    actor.send({ type: "TAP_WORD", statementIndex: 1, token: 4 });
+    place(actor, false);
+    actor.send({ type: "CONFIRM_YES" });
+    const s = actor.getSnapshot();
+    expect(s.context.research.readings).toHaveLength(16);
+    const req = s.context.researchRequest;
+    expect(req?.readings).toHaveLength(12);
+    expect(req?.readings.at(-1)?.problem_id).toBe("p_signboard");
+    expect(req?.readings.at(-1)?.words).toEqual(["の"]);
+    expect(req?.readings.slice(0, -1).every((x) => x.words.length === 0)).toBe(true);
   });
 
   it("with the server down, falls back to the common readings that reproduce the first reading and goes on", () => {

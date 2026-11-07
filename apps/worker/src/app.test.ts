@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { COMMON_FRACTION_READINGS, FRACTION_BANK, apply, initialState, runRule } from "@kimi/core";
 import type { AgentClient, AgentStep, ClaudeClient, ClaudeRequest } from "@kimi/interpret";
-import { createApp, type WorkerDeps } from "./app.ts";
+import { RATE_LIMITS, createApp, type WorkerDeps } from "./app.ts";
 import { app as envApp } from "./index.ts";
 
 const signboard = FRACTION_BANK.find((r) => r.world.problem_id === "p_signboard");
@@ -100,6 +100,13 @@ describe("POST /kohai", () => {
     expect((await post(a, "/kohai", { ...kohaiBody(), intent: "teach" })).status).toBe(400);
     expect((await post(a, "/kohai", null, "{not json")).status).toBe(400);
   });
+
+  it("refuses the bank's correct world as the junior's world, so the generator never gets it", async () => {
+    const fake = new Fake({ text: "{}" });
+    const a = createApp(deps({ client: () => fake }));
+    expect((await post(a, "/kohai", { ...kohaiBody(), kohaiWorld: structuredClone(signboard.world) })).status).toBe(400);
+    expect(fake.requests).toHaveLength(0);
+  });
 });
 
 describe("POST /research", () => {
@@ -167,6 +174,31 @@ describe("bodies are capped and never logged", () => {
   it("answers 404 for other routes", async () => {
     const a = createApp(deps());
     expect((await a.request("/interpret", { method: "POST" })).status).toBe(404);
+  });
+});
+
+describe("a runaway page cannot spend the key (per-process cap)", () => {
+  const empty = { pool: [], weights: { other: 1 }, unscored: 0, unexpressible: false, readings: [] };
+
+  it("answers 429 after 30 /research calls in an hour, and again after the hour", async () => {
+    let now = 0;
+    const a = createApp(deps({ now: () => now }));
+    for (let i = 0; i < RATE_LIMITS.research.max; i++) expect((await post(a, "/research", empty)).status).toBe(200);
+    expect(RATE_LIMITS.research.max).toBe(30);
+    expect((await post(a, "/research", empty)).status).toBe(429);
+    now += RATE_LIMITS.windowMs + 1;
+    expect((await post(a, "/research", empty)).status).toBe(200);
+  });
+
+  it("answers 429 after 300 /kohai calls in an hour; the cap is per route", async () => {
+    const a = createApp(deps());
+    expect(RATE_LIMITS.kohai.max).toBe(300);
+    for (let i = 0; i < RATE_LIMITS.kohai.max; i++) {
+      const res = await post(a, "/kohai", kohaiBody());
+      if (res.status !== 200) throw new Error(`call ${String(i)}: ${String(res.status)}`);
+    }
+    expect((await post(a, "/kohai", kohaiBody())).status).toBe(429);
+    expect((await post(a, "/research", empty)).status).toBe(200);
   });
 });
 

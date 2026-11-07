@@ -118,7 +118,7 @@ function Sentence({
               </button>
             ))}
       </span>
-      {glow && <span style={srOnly}>（この世界では なりたちません）</span>}
+      {glow && <span style={srOnly}>（この世界と 合わない 文です）</span>}
     </li>
   );
 }

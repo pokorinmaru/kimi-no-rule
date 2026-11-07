@@ -5,7 +5,7 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
-import { FRACTION_BANK, schemas, validateWorld, type GateContext, type ProblemRecord, type ResearchState, type WorldScene } from "@kimi/core";
+import { FRACTION_BANK, sameWorld, schemas, validateWorld, type GateContext, type ProblemRecord, type ResearchState, type WorldScene } from "@kimi/core";
 import { checkSafety, kohai, writeHypotheses, type AgentClient, type ClaudeClient, type ResearchReading } from "@kimi/interpret";
 
 export interface WorkerDeps {
@@ -14,6 +14,23 @@ export interface WorkerDeps {
   /** The agent client for the research agent, or null when there is no key. */
   agent(): AgentClient | null;
   bank?: readonly ProblemRecord[];
+  /** The clock for the per-process cap (tests only). */
+  now?: () => number;
+}
+
+/** At most this many calls per route in one window, per process: a runaway page cannot spend the key. */
+export const RATE_LIMITS = { windowMs: 60 * 60 * 1000, research: { max: 30 }, kohai: { max: 300 } } as const;
+
+/** A sliding window of call times; true while there is room, and the call is counted. */
+function limiter(max: number, windowMs: number, now: () => number): () => boolean {
+  const times: number[] = [];
+  return () => {
+    const t = now();
+    while (times.length > 0 && (times[0] as number) <= t - windowMs) times.shift();
+    if (times.length >= max) return false;
+    times.push(t);
+    return true;
+  };
 }
 
 export const BODY_LIMITS = { kohai: 64 * 1024, research: 256 * 1024, safety: 4 * 1024 } as const;
@@ -116,6 +133,11 @@ export function createApp(deps: WorkerDeps): Hono {
   const recordOf = (id: string): ProblemRecord | undefined => bank.find((r) => r.world.problem_id === id);
   const app = new Hono();
   const tooLarge = (c: { json: (b: unknown, s: 413) => Response }) => c.json({ error: "too_large" }, 413);
+  const now = deps.now ?? (() => Date.now());
+  const roomFor = {
+    kohai: limiter(RATE_LIMITS.kohai.max, RATE_LIMITS.windowMs, now),
+    research: limiter(RATE_LIMITS.research.max, RATE_LIMITS.windowMs, now),
+  };
 
   app.use("*", cors({ origin: (o) => (LOCAL_ORIGIN.test(o) ? o : null), allowMethods: ["POST"], allowHeaders: ["content-type"] }));
   // Only this device's pages may spend the key: a page from elsewhere (Origin), a name that resolves here
@@ -140,6 +162,9 @@ export function createApp(deps: WorkerDeps): Hono {
     if (b === null) return c.json({ error: "bad_request" }, 400);
     const record = recordOf(b.problem_id);
     if (record === undefined || b.kohaiWorld.problem_id !== b.problem_id || !validateWorld(b.kohaiWorld).ok) return c.json({ error: "bad_request" }, 400);
+    // The junior's world is never the correct one: the generator must not be handed it.
+    if (sameWorld(b.kohaiWorld, record.world)) return c.json({ error: "bad_request" }, 400);
+    if (!roomFor.kohai()) return c.json({ error: "too_many" }, 429);
     // The gates know the correct world (from the bank, never from the client); the generator does not.
     const gateCtx: GateContext = {
       correct: record.world,
@@ -175,6 +200,7 @@ export function createApp(deps: WorkerDeps): Hono {
       if (record === undefined || !validateWorld(r.childWorld).ok) return c.json({ error: "bad_request" }, 400);
       readings.push({ record, childWorld: r.childWorld, referencePlaced: r.referencePlaced, afterFix: r.afterFix, wordbookOpenedBefore: r.wordbookOpenedBefore, words: r.words });
     }
+    if (!roomFor.research()) return c.json({ error: "too_many" }, 429);
     const state: ResearchState = {
       pool: b.pool,
       weights: b.weights,
@@ -182,6 +208,8 @@ export function createApp(deps: WorkerDeps): Hono {
       unscored: b.unscored,
       unexpressible: b.unexpressible,
     };
+    // The agent's turns cannot be cancelled: AgentClient.step and writeHypotheses take no AbortSignal, so a
+    // device that gave up (8 s) does not stop the run here; the cap above bounds what that can spend.
     const out = await writeHypotheses(agent, { state, readings, bank: [...bank] });
     if (out.kind !== "submitted") return c.json({ kind: "failed" });
     // Only the hypotheses go back; the device checks them again with core before it uses any.

@@ -49,6 +49,10 @@ export const FIRST_PROBLEM_ID = "p_signboard";
 export const DEFAULT_MAX_PROBLEMS = 3;
 /** The junior's generated sentence is at most this long (指示書 第6.8節 関門8). */
 const MAX_LINE_CHARS = 40;
+/** Tries at the unit and at the total on one problem before it is held (指示書 第5.7節). */
+export const MAX_ANSWER_TRIES = 2;
+/** The worker takes at most this many readings in one /research call; the device keeps them all. */
+export const MAX_RESEARCH_READINGS = 12;
 
 export type KohaiIntent = "read" | "which" | "restate";
 
@@ -104,7 +108,7 @@ export interface ProblemState {
   placement: string | null;
   /** The problem words the child tapped as the reason (statement, token). */
   words: { statementIndex: number; token: number }[];
-  /** The child's first placement on this problem, before any fix (the research observation). */
+  /** The child's first confirmed placement on this problem, before any fix (the research observation). */
   firstPlacement: string | null;
   /** The ops of the last confirmed teaching (evidence always empty). */
   taughtOps: AnyOp[];
@@ -153,7 +157,7 @@ export interface FlowContext {
   introSeen: boolean;
   consented: boolean;
   research: ResearchState;
-  /** Set once, at the child's first placement on the first problem; the controller posts it. */
+  /** Set once, when the child confirms the first placement on the first problem; the controller posts it. */
   researchRequest: ResearchRequest | null;
   /** The agent's pool (null: failed or timed out); undefined until the controller answers. */
   researchResult: Hypothesis[] | null | undefined;
@@ -163,6 +167,8 @@ export interface FlowContext {
   done: string[];
   problem: ProblemState | null;
   line: Line | null;
+  /** The last line number used: lines never go back to an earlier number within a session. */
+  lastSeq: number;
   uncheckedStreak: number;
   highlight: boolean;
   log: ProblemLog[];
@@ -200,7 +206,7 @@ function said(p: ProblemState | null): Rational[] {
 
 /** A core template as the junior's or the guide's line; a template the gate refuses is not shown. */
 function lineOf(ctx: FlowContext, key: TemplateKey, slots: SlotValues, intent: KohaiIntent | null, request: KohaiRequest | null): Line {
-  const seq = (ctx.line?.seq ?? 0) + 1;
+  const seq = Math.max(ctx.lastSeq, ctx.line?.seq ?? 0) + 1;
   let text: string;
   try {
     const action = render(key, ctx.lang, seq, slots);
@@ -210,6 +216,11 @@ function lineOf(ctx: FlowContext, key: TemplateKey, slots: SlotValues, intent: K
     text = "";
   }
   return { seq, key, text, source: "template", intent, request };
+}
+
+/** Clears the junior's line and keeps its number, so the next line has a later one. */
+function noLine(ctx: FlowContext): { line: null; lastSeq: number } {
+  return { line: null, lastSeq: Math.max(ctx.lastSeq, ctx.line?.seq ?? 0) };
 }
 
 const holderOf = (record: ProblemRecord, quantityId: string): string | undefined => record.world.quantities.find((q) => q.id === quantityId)?.holder;
@@ -258,7 +269,7 @@ function restateLine(ctx: FlowContext): Line | null {
 
 /** Builds the state of a new problem from core's choice of problem and the junior's reading. */
 function loadProblem(ctx: FlowContext): Partial<FlowContext> {
-  if (ctx.done.length >= ctx.maxProblems) return { problem: null, line: null };
+  if (ctx.done.length >= ctx.maxProblems) return { problem: null, ...noLine(ctx) };
   let pick: ReturnType<typeof selectNext> = null;
   if (ctx.done.length === 0) {
     const first = ctx.bank.find((r) => r.world.problem_id === ctx.firstProblemId);
@@ -266,10 +277,10 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     if (first !== undefined && junior !== null) pick = { record: first, junior };
   }
   pick ??= selectNext(ctx.bank, ctx.done, ctx.research, ctx.session, ctx.lang);
-  if (pick === null) return { problem: null, line: null };
+  if (pick === null) return { problem: null, ...noLine(ctx) };
   const { record, junior } = pick;
   const rel = relationOf(record);
-  if (rel === undefined) return { problem: null, line: null };
+  if (rel === undefined) return { problem: null, ...noLine(ctx) };
   const session: SessionMisread =
     ctx.session ?? {
       id: junior.reading.sessionMisreadId ?? junior.reading.hypothesis.id,
@@ -315,15 +326,25 @@ function isEnd(ctx: FlowContext, quantityId: string): boolean {
 function place(ctx: FlowContext, quantityId: string): Partial<FlowContext> {
   const p = ctx.problem;
   if (p === null) return {};
-  if (p.firstPlacement !== null) {
-    const problem = { ...p, placement: quantityId };
-    return { problem, line: restateLine({ ...ctx, problem }) };
-  }
-  // The child's own first placement on this problem, before any fix: the research observation (第6.7節).
-  const reading = firstReading(p.record, p.relationId, quantityId);
+  const problem = { ...p, placement: quantityId };
+  return { problem, line: restateLine({ ...ctx, problem }) };
+}
+
+/**
+ * The child said "yes" to the junior's restatement. The first placement confirmed on this problem, before
+ * any fix, is the research observation (第6.7節); on the first problem of the session the research request
+ * is built here, with the words the child tapped before confirming. A placement the child rejected is
+ * neither observed nor sent.
+ */
+function confirmFirst(ctx: FlowContext): Partial<FlowContext> {
+  const p = ctx.problem;
+  if (p === null || p.placement === null || p.firstPlacement !== null) return {};
+  const reading = firstReading(p.record, p.relationId, p.placement);
   const research = reading === null ? ctx.research : observe(ctx.research, reading);
-  const problem = { ...p, placement: quantityId, firstPlacement: quantityId };
+  const problem = { ...p, firstPlacement: p.placement };
   const firstOfSession = ctx.done.length === 1 && ctx.researchRequest === null && !ctx.researchApplied;
+  // The worker takes the most recent readings only; the device keeps every one (第7.5節).
+  const recent = research.readings.slice(-MAX_RESEARCH_READINGS);
   const researchRequest: ResearchRequest | null =
     firstOfSession && reading !== null
       ? {
@@ -331,18 +352,18 @@ function place(ctx: FlowContext, quantityId: string): Partial<FlowContext> {
           weights: research.weights,
           unscored: research.unscored,
           unexpressible: research.unexpressible,
-          readings: research.readings.map((r, i) => ({
+          readings: recent.map((r, i) => ({
             problem_id: r.record.world.problem_id,
             childWorld: r.childWorld,
             referencePlaced: r.referencePlaced,
             afterFix: r.afterFix,
             wordbookOpenedBefore: r.wordbookOpenedBefore,
             // Only this problem's tapped words, and only in memory (第9節).
-            words: i === research.readings.length - 1 ? wordsOf(problem) : [],
+            words: i === recent.length - 1 ? wordsOf(problem) : [],
           })),
         }
       : ctx.researchRequest;
-  return { problem, research, researchRequest, line: restateLine({ ...ctx, problem }) };
+  return { problem, research, researchRequest };
 }
 
 function tapWord(ctx: FlowContext, statementIndex: number, token: number): Partial<FlowContext> {
@@ -411,10 +432,15 @@ function acceptGenerated(ctx: FlowContext, seq: number, text: string): boolean {
   }
 }
 
-function unitMiss(ctx: FlowContext, value: Rational): Partial<FlowContext> {
+/**
+ * A unit or a total that core did not accept: the child's number stays as the child's own, and the junior
+ * says its fixed mismatch line (never the right number, never a judging word). After MAX_ANSWER_TRIES the
+ * problem is held by the machine (指示書 第5.7節).
+ */
+function answerMiss(ctx: FlowContext, kind: "unit" | "total", value: Rational): Partial<FlowContext> {
   const p = ctx.problem;
   if (p === null) return {};
-  const problem = { ...p, unitTries: p.unitTries + 1, unitValue: value };
+  const problem = kind === "unit" ? { ...p, unitTries: p.unitTries + 1, unitValue: value } : { ...p, totalTries: p.totalTries + 1, totalValue: value };
   const known = knownEnd(p.record);
   let line: Line | null = null;
   try {
@@ -430,7 +456,7 @@ function unitMiss(ctx: FlowContext, value: Rational): Partial<FlowContext> {
   } catch {
     line = null;
   }
-  return { problem, line };
+  return line === null ? { problem } : { problem, line };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -453,6 +479,8 @@ export const flowMachine = setup({
     tappable: ({ context, event }) => event.type === "TAP_WORD" && validToken(context, event.statementIndex, event.token),
     allHold: ({ context }) => context.problem !== null && context.problem.shown.failing.length === 0 && context.problem.taughtOps.length > 0,
     tooManyFixes: ({ context }) => (context.problem?.fixes ?? 0) >= MAX_FIXES,
+    lastUnitTry: ({ context }) => (context.problem?.unitTries ?? 0) + 1 >= MAX_ANSWER_TRIES,
+    lastTotalTry: ({ context }) => (context.problem?.totalTries ?? 0) + 1 >= MAX_ANSWER_TRIES,
     unitOk: ({ context, event }) => event.type === "ANSWER_UNIT" && context.problem !== null && judgeUnit(context.problem.record, event.value),
     totalOk: ({ context, event }) => event.type === "ANSWER_TOTAL" && context.problem !== null && judgeTotal(context.problem.record, event.value),
     waitResearch: ({ context }) =>
@@ -484,6 +512,7 @@ export const flowMachine = setup({
     done: [],
     problem: null,
     line: null,
+    lastSeq: 0,
     uncheckedStreak: 0,
     highlight: false,
     log: [],
@@ -495,18 +524,18 @@ export const flowMachine = setup({
     STOP: { target: ".ended", actions: assign(({ context }) => ({ ...close(context, "stopped"), endedBy: "stop" as const })) },
     HARD: {
       target: ".hard",
-      actions: assign(({ context }) => ({ ...close(context, "hard"), line: null, safetyLog: [...context.safetyLog, "hard_button" as const] })),
+      actions: assign(({ context }) => ({ ...close(context, "hard"), ...noLine(context), safetyLog: [...context.safetyLog, "hard_button" as const] })),
     },
     SAFETY_RESULT: [
       {
         guard: "distress",
         target: ".hard",
-        actions: assign(({ context }) => ({ ...close(context, "hard"), line: null, safetyLog: [...context.safetyLog, "distress" as const] })),
+        actions: assign(({ context }) => ({ ...close(context, "hard"), ...noLine(context), safetyLog: [...context.safetyLog, "distress" as const] })),
       },
       {
         guard: and(["secondUnchecked", inSession]),
         target: ".rest",
-        actions: assign(({ context }) => ({ ...close(context, "rest"), line: null, uncheckedStreak: 2, safetyLog: [...context.safetyLog, "rest" as const] })),
+        actions: assign(({ context }) => ({ ...close(context, "rest"), ...noLine(context), uncheckedStreak: 2, safetyLog: [...context.safetyLog, "rest" as const] })),
       },
       { guard: and(["unchecked", inSession]), actions: assign(({ context }) => ({ uncheckedStreak: context.uncheckedStreak + 1, highlight: true })) },
       { guard: "checkedNone", actions: assign({ uncheckedStreak: 0, highlight: false }) },
@@ -573,7 +602,13 @@ export const flowMachine = setup({
                     return { problem: next.problem, line: restateLine(next) };
                   }),
                 },
-                CONFIRM_YES: { target: "checking", actions: assign(({ context }) => teach(context)) },
+                CONFIRM_YES: {
+                  target: "checking",
+                  actions: assign(({ context }) => {
+                    const next = { ...context, ...confirmFirst(context) };
+                    return { ...next, ...teach(next) };
+                  }),
+                },
                 CONFIRM_NO: {
                   target: "looking",
                   actions: assign(({ context }) => (context.problem === null ? {} : { problem: { ...context.problem, placement: null } })),
@@ -584,7 +619,7 @@ export const flowMachine = setup({
               always: [{ guard: "allHold", target: "rebuilt" }, { guard: "tooManyFixes", target: "held" }, { target: "looking" }],
             },
             rebuilt: {
-              entry: assign({ line: null }),
+              entry: assign(({ context }) => noLine(context)),
               on: { NEXT: "unit" },
             },
             unit: {
@@ -600,12 +635,19 @@ export const flowMachine = setup({
                         : { problem: { ...context.problem, unitTries: context.problem.unitTries + 1, unitValue: event.value } },
                     ),
                   },
-                  { actions: assign(({ context, event }) => (event.type === "ANSWER_UNIT" ? unitMiss(context, event.value) : {})) },
+                  {
+                    guard: "lastUnitTry",
+                    target: "held",
+                    actions: assign(({ context, event }) =>
+                      context.problem === null || event.type !== "ANSWER_UNIT" ? {} : { problem: { ...context.problem, unitTries: context.problem.unitTries + 1, unitValue: event.value } },
+                    ),
+                  },
+                  { actions: assign(({ context, event }) => (event.type === "ANSWER_UNIT" ? answerMiss(context, "unit", event.value) : {})) },
                 ],
               },
             },
             total: {
-              entry: assign({ line: null }),
+              entry: assign(({ context }) => noLine(context)),
               on: {
                 ANSWER_TOTAL: [
                   {
@@ -618,15 +660,20 @@ export const flowMachine = setup({
                     ),
                   },
                   {
-                    actions: assign(({ context }) =>
-                      context.problem === null ? {} : { problem: { ...context.problem, totalTries: context.problem.totalTries + 1 } },
+                    guard: "lastTotalTry",
+                    target: "held",
+                    actions: assign(({ context, event }) =>
+                      context.problem === null || event.type !== "ANSWER_TOTAL"
+                        ? {}
+                        : { problem: { ...context.problem, totalTries: context.problem.totalTries + 1, totalValue: event.value } },
                     ),
                   },
+                  { actions: assign(({ context, event }) => (event.type === "ANSWER_TOTAL" ? answerMiss(context, "total", event.value) : {})) },
                 ],
               },
             },
             solved: {
-              entry: assign(({ context }) => ({ ...close(context, "solved"), line: null })),
+              entry: assign(({ context }) => ({ ...close(context, "solved"), ...noLine(context) })),
               on: { NEXT: "#flow.active.next" },
             },
             held: {
@@ -639,11 +686,11 @@ export const flowMachine = setup({
           always: [{ guard: "waitResearch", target: "researching" }, { target: "loading", actions: assign(({ context }) => applyResearch(context)) }],
         },
         researching: {
-          entry: assign({ line: null }),
+          entry: assign(({ context }) => noLine(context)),
           always: [{ guard: "researchArrived", target: "next" }],
         },
         finished: {
-          entry: assign({ line: null }),
+          entry: assign(({ context }) => noLine(context)),
           on: { NEXT: { target: "#flow.ended", actions: assign({ endedBy: "finished" as const }) } },
         },
       },
