@@ -6,6 +6,8 @@ test("#/try: the simulated child plays two problems and the research note follow
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/#/try");
   await expect(page.getByTestId("try-banner")).toContainText("大人");
+  // The unchecked problems AI wrote stay out unless the adult turns them on (Q33).
+  await expect(page.getByLabel("AIが作った未確認の問題も使う")).not.toBeChecked();
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   const note = page.getByTestId("research-note");
@@ -34,4 +36,5 @@ test("the child's route has no research note", async ({ page }) => {
   await expect(page.getByTestId("predict")).toBeVisible();
   await expect(page.getByTestId("research-note")).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText("研究ノート");
+  await expect(page.getByTestId("toggle-unchecked")).toHaveCount(0);
 });

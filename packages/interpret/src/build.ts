@@ -248,8 +248,8 @@ async function buildOnce(
   return { reason };
 }
 
-/** One structured call to the judge, checked with zod and `check`; one retry. */
-async function judgeCall<T>(
+/** One structured call to the judge, checked with zod and `check`; one retry. Also the writer of discriminate.ts. */
+export async function judgeCall<T>(
   deps: BuildDeps,
   system: string,
   context: string,
@@ -257,11 +257,12 @@ async function judgeCall<T>(
   schema: z.ZodType<T>,
   check: (v: T) => boolean = () => true,
   askWith: z.ZodType = schema,
+  timeoutMs: number = JUDGE_TIMEOUT_MS,
 ): Promise<T | null> {
   const jsonSchema = z.toJSONSchema(askWith, { target: "draft-2020-12" }) as Record<string, unknown>;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await withDeadline(JUDGE_TIMEOUT_MS, (signal) =>
+      const res = await withDeadline(timeoutMs, (signal) =>
         deps.judge.complete({ model: MODELS.build, system, cachedContext: context, userText, schema: jsonSchema, effort: "high", maxTokens: 16000, signal }),
       );
       if (res === "timeout" || res.stopReason !== "end_turn") continue;

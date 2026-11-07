@@ -19,5 +19,15 @@ export {
   type BuildOutcome,
   type RejectReason,
 } from "./build.ts";
+export {
+  DISCRIMINATE_SYSTEM,
+  splitsPair,
+  writeDiscriminating,
+  type DiscriminateInput,
+  type DiscriminateItem,
+  type DiscriminateOptions,
+  type DiscriminateRefusal,
+  type DiscriminateResult,
+} from "./discriminate.ts";
 export * from "./research.ts";
 export { SCENES_SYSTEM, SCENES_TIMEOUT_MS, WORD_KINDS, proposeScenes, type ScenesInput, type ScenesResult, type WordKind } from "./scenes.ts";

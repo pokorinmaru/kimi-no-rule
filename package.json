@@ -16,7 +16,9 @@
     "eval:live": "pnpm --filter @kimi/evals eval:live",
     "eval:import-third-party": "pnpm --filter @kimi/evals eval:import-third-party",
     "check:protocol": "node tools/evals/src/check-protocol.ts",
-    "build:problems": "pnpm --filter @kimi/world-builder build:problems"
+    "build:problems": "pnpm --filter @kimi/world-builder build:problems",
+    "make:discriminating": "pnpm --filter @kimi/world-builder make:discriminating",
+    "check:discriminating": "pnpm --filter @kimi/world-builder check:discriminating"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -3,7 +3,9 @@
 // simulated child that plays a problem by a chosen reading. The device store has a name of its own, so no child
 // record mixes in, and it is emptied every time the route opens: a try keeps nothing for the next visit.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import type { ProblemRecord } from "@kimi/core";
 import { App, type SessionHandle } from "../App.tsx";
+import { STORED_DISCRIMINATING, bankFor } from "../flow/bank.ts";
 import type { FlowApi } from "../flow/session.ts";
 import type { FlowSnapshot } from "../flow/view.ts";
 import { openStore } from "../store/store.ts";
@@ -13,6 +15,9 @@ import { runSim } from "./sim.ts";
 import { TryPanel } from "./TryPanel.tsx";
 
 export const TRY_DB_NAME = "kimi-no-rule-try";
+/** The toggle that adds the discriminating problems AI wrote and no person has checked yet (Q33). Off by default. */
+export const UNCHECKED_TOGGLE_LABEL = "AIが作った未確認の問題も使う";
+
 /** The pause between the simulated child's taps, so the adult can watch the flow and the note move. */
 export const SIM_DELAY_MS = 500;
 
@@ -29,13 +34,25 @@ const banner: CSSProperties = {
   color: "#1f2933",
 };
 
-export function TryApp({ api, simDelayMs = SIM_DELAY_MS }: { api?: FlowApi | null; simDelayMs?: number }) {
+export function TryApp({
+  api,
+  simDelayMs = SIM_DELAY_MS,
+  stored = STORED_DISCRIMINATING,
+}: {
+  api?: FlowApi | null;
+  simDelayMs?: number;
+  /** The stored discriminating problems (content/problems/discriminating); tests pass their own. */
+  stored?: readonly ProblemRecord[];
+}) {
   const [ready, setReady] = useState(false);
   const [handle, setHandle] = useState<SessionHandle | null>(null);
   const [snap, setSnap] = useState<FlowSnapshot | null>(null);
   const [gateKinds, setGateKinds] = useState<string[]>([]);
   const [childId, setChildId] = useState<string>(TRY_CHILDREN[0]?.id ?? "");
   const [running, setRunning] = useState(false);
+  const [useUnchecked, setUseUnchecked] = useState(false);
+  const bank = useMemo(() => bankFor({ includeUnchecked: useUnchecked, stored }), [useUnchecked, stored]);
+  const uncheckedIds = useMemo(() => new Set(stored.filter((r) => !r.checks.human_checked).map((r) => r.world.problem_id)), [stored]);
   const abort = useRef<AbortController | null>(null);
 
   // Whatever an earlier try left on this device is removed before the flow starts.
@@ -123,12 +140,35 @@ export function TryApp({ api, simDelayMs = SIM_DELAY_MS }: { api?: FlowApi | nul
             {running ? "模擬の子どもが解いています…" : "模擬の子どもがこの問題を解く"}
           </button>
         </div>
+        <div
+          data-testid="try-bank"
+          data-ids={bank.map((r) => r.world.problem_id).join(" ")}
+          style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}
+        >
+          <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              data-testid="toggle-unchecked"
+              checked={useUnchecked}
+              disabled={running}
+              onChange={(e) => {
+                abort.current?.abort();
+                setUseUnchecked(e.target.checked);
+              }}
+              style={{ width: 20, height: 20 }}
+            />
+            {UNCHECKED_TOGGLE_LABEL}
+          </label>
+          <span style={{ fontSize: 13, color: "#52606d" }}>
+            問題 {String(bank.length)} 問（うち未確認 {String(bank.filter((r) => uncheckedIds.has(r.world.problem_id)).length)} 問／保存されている未確認 {String(uncheckedIds.size)} 問）。切り替えると流れを最初から始めます。子どもの画面では、人が確認した問題だけを使います。
+          </span>
+        </div>
         <p style={{ margin: "4px 0 0", fontSize: 13, color: "#52606d" }}>
           模擬の子どもは、その読み方どおりに予測し「1」の札を置きます（毎回同じ）。札で世界が合った時は、数は大人が入れます。同意の画面は大人が進めてください。
         </p>
       </section>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start", justifyContent: "center", maxWidth: 1240, margin: "0 auto" }}>
-        <div style={{ flex: "1 1 520px", minWidth: 0, background: "#fff", borderRadius: 10 }}>{ready && <App storeName={TRY_DB_NAME} onSession={setHandle} {...apiProp} />}</div>
+        <div style={{ flex: "1 1 520px", minWidth: 0, background: "#fff", borderRadius: 10 }}>{ready && <App key={useUnchecked ? "with-unchecked" : "checked-only"} storeName={TRY_DB_NAME} onSession={setHandle} bank={bank} {...apiProp} />}</div>
         <div style={{ flex: "1 1 360px", minWidth: 0, maxWidth: 520 }}>
           <TryPanel note={note} />
         </div>

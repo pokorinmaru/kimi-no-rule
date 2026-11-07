@@ -1,12 +1,13 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { gate, type Lang, type Rational, type StatementCheck } from "@kimi/core";
+import { gate, type Lang, type ProblemRecord, type Rational, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { SceneView } from "./draw/SceneView.tsx";
 import { SentenceList } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
 import { startSession, type Session } from "./flow/session.ts";
+import { bankFor } from "./flow/bank.ts";
 import { viewOf, type CardScreenView, type FlowSnapshot, type FlowView, type ProblemView } from "./flow/view.ts";
 import { helplineLine, ui, type UiText } from "./flow/text.ts";
 import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
@@ -441,6 +442,9 @@ function Screen({ view, send, onLang }: { view: FlowView; send: Session["send"];
 /** How long the grown-up holds 「おうちの人へ」 to open the parent screen (Q31). */
 export const PARENT_HOLD_MS = 2000;
 
+/** The child's bank: the prepared problems and the discriminating problems a person has checked (Q33). */
+const CHILD_BANK = bankFor({ includeUnchecked: false });
+
 /** The running session and its store, handed to the adults' try route (never drawn on the child's screens). */
 export interface SessionHandle {
   session: Session;
@@ -452,12 +456,15 @@ export function App({
   api,
   parentHoldMs = PARENT_HOLD_MS,
   onSession,
+  bank = CHILD_BANK,
 }: {
   storeName?: string;
   api?: Parameters<typeof startSession>[0]["api"];
   parentHoldMs?: number;
   /** The try route watches the same session for 「中身を見る」 and the simulated child; null when it stops. */
   onSession?: (h: SessionHandle | null) => void;
+  /** The problems the flow chooses from; only the adults' try route passes one (with unchecked problems behind its toggle). */
+  bank?: readonly ProblemRecord[];
 }) {
   const onSessionRef = useRef(onSession);
   onSessionRef.current = onSession;
@@ -475,7 +482,7 @@ export function App({
     void (async () => {
       const st = await openStore(storeName);
       const settings = await st.getSettings();
-      const started = await startSession({ store: st, ...(api === undefined ? {} : { api }) });
+      const started = await startSession({ store: st, input: { bank }, ...(api === undefined ? {} : { api }) });
       if (!live) {
         started.stop();
         return;
@@ -493,7 +500,7 @@ export function App({
       if (s !== null) onSessionRef.current?.(null);
       s?.stop();
     };
-  }, [storeName, api, restart]);
+  }, [storeName, api, restart, bank]);
 
   const send = useMemo<Session["send"]>(() => (e) => session?.send(e), [session]);
   // The screen's words follow the device's choice; the session takes it while no problem is open.
@@ -531,6 +538,7 @@ export function App({
         <CheckMode
           store={store}
           lang={lang}
+          bank={bank}
           onExit={() => setCheck(false)}
           // The session's hard screen is reachable while it is still running (not on the ended screen).
           {...(view.screen !== "ended"

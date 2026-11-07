@@ -9,7 +9,9 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "build:problems": "node src/cli.ts"
+    "build:problems": "node src/cli.ts",
+    "make:discriminating": "node src/make-cli.ts",
+    "check:discriminating": "node src/check-cli.ts"
   },
   "dependencies": {
     "@kimi/core": "workspace:*",
