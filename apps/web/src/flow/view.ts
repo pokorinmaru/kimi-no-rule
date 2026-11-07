@@ -3,7 +3,7 @@
 import type { SnapshotFrom } from "xstate";
 import { CARD_RULES, cardSlot, checkScene, gate, sceneAvoidValues, readingCard, render, viewScene, type GateContext, type Hypothesis, type Lang, type ProblemRecord, type Rational, type Scene, type WorldScene } from "@kimi/core";
 import type { CardScenes } from "./machine.ts";
-import type { PredictionAnswer, flowMachine } from "./machine.ts";
+import { MAX_VOICE_TURNS, type PredictionAnswer, type flowMachine } from "./machine.ts";
 import { gateContext } from "./problem.ts";
 import { AI_MARK, hardLines, helplineLine, restLines, ui, type HelplineText, type UiText } from "./text.ts";
 
@@ -59,6 +59,12 @@ export interface ProblemView extends Common {
   glowIds: string[];
   /** core's gate context of this problem (from its correct world), for the screen's own gate calls. Never drawn. */
   gate: GateContext;
+  /**
+   * The child's voice (指示書 第7.1節 手順5): whether the mic may be offered now (looking or placed, turns left, not
+   * waiting), whether the junior is waiting for the words heard, and whether the voice is off for this session.
+   * The screen also needs the browser's speech recognition; without it the card stays the only way.
+   */
+  voice: { canTalk: boolean; listening: boolean; off: boolean };
 }
 
 /** One solved problem on the rule card: its sentences (lit where core says they do not fit) and the rule's world. */
@@ -205,6 +211,11 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
     canPlace: step === "looking" || step === "placed",
     glowIds: [...new Set(p.record.statements.filter((st) => lit.has(st.index)).flatMap((st) => st.element_ids))],
     gate: gateContext(p.record, c.lang, [p.unitValue, p.totalValue].filter((x): x is Rational => x !== null)),
+    voice: {
+      canTalk: (step === "looking" || step === "placed") && !c.voiceOff && !p.listening && p.voiceTurns < MAX_VOICE_TURNS,
+      listening: p.listening,
+      off: c.voiceOff,
+    },
   };
 }
 
@@ -252,6 +263,7 @@ export function childTexts(v: FlowView): string[] {
       if (v.predict !== null) out.push(v.predict.label, v.predict.question, ...v.predict.choices.map((c) => c.label));
       if (v.note !== null) out.push(v.note);
       out.push(p.label, p.sentences, p.world, p.next, p.looking, p.yes, p.no, p.nextProblem, p.unitPad, p.totalPad, t.pad.clear, t.pad.ok);
+      out.push(p.voice.talk, p.voice.stop, p.voice.listening, p.voice.unsupported, p.voice.denied, p.voice.off);
       out.push(t.draw.sentences, t.draw.glow, t.draw.world, t.draw.cardAria, t.draw.cardHere, t.draw.odd);
       break;
     }

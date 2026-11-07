@@ -141,3 +141,28 @@ describe("slots take only checked values", () => {
     expect(render("kohai.wait", "ja", n, {}).text).toBe(render("kohai.wait", "ja", 0, {}).text);
   });
 });
+
+// Voice input (指示書 第7.1節 手順5, 第11節 M6): the junior acknowledges at once, hands back what it heard as the
+// child's own words, and asks for the card when it could not make out the words. Written before the implementation.
+describe("the junior's lines for the child's voice", () => {
+  it("has a fixed acknowledgement and a fixed ask for the card, with no slot for the child's words", () => {
+    for (const key of ["kohai.listening", "kohai.show_card"] as const) {
+      expect(TEMPLATE_KEYS).toContain(key);
+      expect(TEMPLATES[key].slots).toEqual([]);
+    }
+    for (const v of TEMPLATES["kohai.show_card"].ja) expect(v).toMatch(/札|カード/);
+    for (const v of TEMPLATES["kohai.show_card"].en) expect(v).toMatch(/card/i);
+  });
+
+  it("hands back what it heard only through the transcript slot (an echo)", () => {
+    expect(TEMPLATES["kohai.restate_heard"].slots).toEqual(["transcript"]);
+    const action = render("kohai.restate_heard", "ja", 0, { transcript: transcript("弟が1だよ") });
+    expect(action.echo).toBe(true);
+    expect(action.text).toContain("弟が1だよ");
+  });
+
+  it("an echo of what was heard that holds the answer is refused by the gate", () => {
+    const action = render("kohai.restate_heard", "ja", 0, { transcript: transcript("弟は8匹だよ") });
+    expect(gate(action, ctx("ja")).ok).toBe(false);
+  });
+});

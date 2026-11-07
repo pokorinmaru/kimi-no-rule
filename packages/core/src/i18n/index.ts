@@ -176,6 +176,21 @@ export const TEMPLATES = {
     ja: ["手がかりは「{transcript}」、ですね", "「{transcript}」を見たんですね", "手がかりにしたのは「{transcript}」、ですね"],
     en: ['Your clue was "{transcript}", right?', 'You looked at "{transcript}".', 'You picked "{transcript}" as your clue.'],
   },
+  "kohai.restate_heard": {
+    slots: ["transcript"],
+    ja: ["「{transcript}」と聞こえました。", "「{transcript}」、と聞きました。", "「{transcript}」と言いましたね。"],
+    en: ['I heard "{transcript}".', 'You said "{transcript}".', '"{transcript}" is what I heard.'],
+  },
+  "kohai.listening": {
+    slots: [],
+    ja: ["うん、聞いています", "はい、聞いていますよ", "うん、ちゃんと聞いています"],
+    en: ["Okay, I am listening.", "Mm-hm, I am listening.", "I hear you. One moment."],
+  },
+  "kohai.show_card": {
+    slots: [],
+    ja: ["カードで見せてもらえますか？", "「1」の札で見せてもらえますか？", "札を動かして、見せてもらえますか？"],
+    en: ["Could you show me with the card?", 'Could you show me with the "1" card?', "Can you move the card to show me?"],
+  },
   "kohai.result": {
     slots: [],
     ja: ["先輩の読み方で読んだら、どの文も合いました", "教わった読み方にしたら、文がぜんぶそろいました", "その読み方だと、合わない文がなくなりました"],

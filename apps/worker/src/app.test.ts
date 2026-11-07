@@ -174,7 +174,7 @@ describe("bodies are capped and never logged", () => {
 
   it("answers 404 for other routes", async () => {
     const a = createApp(deps());
-    expect((await a.request("/interpret", { method: "POST" })).status).toBe(404);
+    expect((await a.request("/explain", { method: "POST" })).status).toBe(404);
   });
 });
 
@@ -265,5 +265,78 @@ describe("POST /scenes", () => {
     const res = await a.request("/scenes", { method: "POST", headers: { "content-type": "application/json", origin: "https://evil.example" }, body: JSON.stringify(body()) });
     expect(res.status).toBe(403);
     expect((await post(a, "/scenes", { text: "x".repeat(100_000) })).status).toBe(413);
+  });
+});
+
+// 指示書 第6.1節, 第11節 M6: POST /interpret for the child's voice. The record comes from the bank by problem_id
+// (never from the client); only the ops core validated go back, with the child's words taken out of them.
+// The same protections as the other routes. Written before the implementation.
+describe("POST /interpret", () => {
+  const good = {
+    schema_version: "6",
+    utterance_lang: "ja",
+    representable: "full",
+    ops: [{ op: "set_relation_reference", target_id: "r_ratio", reference: "q_otouto", evidence: "弟が1" }],
+    unclear: [],
+    phrases: [{ phrase: "弟", lang: "ja", element_id: "h_otouto" }],
+  };
+  const body = (over: Record<string, unknown> = {}) => ({ problem_id: "p_signboard", transcript: "弟が1だよ", lang: "ja", ...over });
+
+  it("answers 503 without a key", async () => {
+    expect((await post(createApp({ client: () => null, agent: () => null }), "/interpret", body())).status).toBe(503);
+  });
+
+  it("returns only the validated ops, without the child's words, built on the bank's record", async () => {
+    const fake = new Fake({ text: JSON.stringify(good) });
+    const res = await post(createApp(deps({ client: () => fake })), "/interpret", body());
+    expect(res.status).toBe(200);
+    const out = (await res.json()) as { status: string; ops: { op: string; evidence: string }[] };
+    expect(Object.keys(out).sort()).toEqual(["ops", "status"]);
+    expect(out.status).toBe("ok");
+    expect(out.ops).toEqual([{ op: "set_relation_reference", target_id: "r_ratio", reference: "q_otouto", evidence: "" }]);
+    expect(JSON.stringify(out)).not.toContain("弟が1");
+    // The transcript goes to Claude with the bank's problem.
+    expect(fake.requests).toHaveLength(1);
+    expect(fake.requests[0]?.userText).toContain("弟が1だよ");
+    expect(fake.requests[0]?.cachedContext).toContain("q_otouto");
+  });
+
+  it("returns no ops when Claude's reply does not pass core", async () => {
+    const bad = { ...good, ops: [{ op: "swap_relation_direction", target_id: "r_nowhere", evidence: "" }] };
+    const out = (await (await post(createApp(deps({ client: () => new Fake({ text: JSON.stringify(bad) }) })), "/interpret", body())).json()) as {
+      status: string;
+      ops: unknown[];
+    };
+    expect(out.status).not.toBe("ok");
+    expect(out.ops).toEqual([]);
+  });
+
+  it("refuses an unknown problem, a world from the client, a bad language, an empty or long transcript and bad JSON with 400", async () => {
+    const fake = new Fake({ text: JSON.stringify(good) });
+    const a = createApp(deps({ client: () => fake }));
+    expect((await post(a, "/interpret", body({ problem_id: "nope" }))).status).toBe(400);
+    expect((await post(a, "/interpret", body({ world: signboard.world }))).status).toBe(400);
+    expect((await post(a, "/interpret", body({ lang: "fr" }))).status).toBe(400);
+    expect((await post(a, "/interpret", body({ transcript: "" }))).status).toBe(400);
+    expect((await post(a, "/interpret", body({ transcript: "あ".repeat(501) }))).status).toBe(400);
+    expect((await post(a, "/interpret", null, "{bad")).status).toBe(400);
+    expect(fake.requests).toHaveLength(0);
+  });
+
+  it("is capped per process, refuses another origin and a body that is not JSON, caps the body, and logs nothing", async () => {
+    const spies = (["log", "info", "warn", "error", "debug"] as const).map((m) => vi.spyOn(console, m).mockImplementation(() => undefined));
+    const a = createApp(deps({ client: () => ({ complete: () => Promise.reject(new Error("zz-secret-body")) }) }));
+    expect(RATE_LIMITS.interpret.max).toBeGreaterThan(0);
+    for (let i = 0; i < RATE_LIMITS.interpret.max; i++) {
+      const res = await post(a, "/interpret", body());
+      if (res.status !== 200) throw new Error(`call ${String(i)}: ${String(res.status)}`);
+    }
+    expect((await post(a, "/interpret", body())).status).toBe(429);
+    for (const s of spies) expect(s).not.toHaveBeenCalled();
+    const foreign = await a.request("/interpret", { method: "POST", headers: { "content-type": "application/json", origin: "https://evil.example" }, body: JSON.stringify(body()) });
+    expect(foreign.status).toBe(403);
+    const plain = await a.request("/interpret", { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify(body()) });
+    expect(plain.status).toBe(415);
+    expect((await post(a, "/interpret", { transcript: "x".repeat(100_000) })).status).toBe(413);
   });
 });

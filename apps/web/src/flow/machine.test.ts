@@ -45,7 +45,7 @@ function values(s: Snap): Values | null {
 const GLOBAL: FlowEvent[] = [{ type: "STOP" }, { type: "DONT_KNOW" }, { type: "HARD" }];
 
 /** Child events that make sense on the current screen, and the controller's events. */
-function events(s: Snap, opts: { safety: boolean; research: boolean }): FlowEvent[] {
+function events(s: Snap, opts: { safety: boolean; research: boolean; voice?: boolean }): FlowEvent[] {
   const out: FlowEvent[] = [...GLOBAL, { type: "NEXT" }, { type: "CONSENT_YES" }, { type: "CONSENT_NO" }, { type: "RESUME" }, { type: "HOLD" }, { type: "CLOSE" }];
   const p = s.context.problem;
   if (p !== null) {
@@ -61,6 +61,12 @@ function events(s: Snap, opts: { safety: boolean; research: boolean }): FlowEven
   }
   // On the junior's rule card: the reading that keeps the sentence's 1, and one that never fits.
   if (s.context.ruleCard !== null) out.push({ type: "CARD_PICK", ruleId: "c_correct" }, { type: "CARD_PICK", ruleId: "c_swap" });
+  // The child's voice (and its ops from the worker): heard, then placed on the sentence's 1, or nothing usable.
+  if (opts.voice === true && p !== null) {
+    const rel = p.record.world.relations.find((x) => x.id === p.relationId);
+    out.push({ type: "VOICE_HEARD", transcript: "弟が1だよ" }, { type: "VOICE_OPS", ops: null });
+    if (rel !== undefined && rel.reference !== null) out.push({ type: "VOICE_OPS", ops: [{ op: "set_relation_reference", target_id: rel.id, reference: rel.reference, evidence: "" }] });
+  }
   if (opts.research) out.push({ type: "RESEARCH_RESULT", pool: null });
   if (opts.safety) out.push({ type: "SAFETY_RESULT", flag: "unchecked" }, { type: "SAFETY_RESULT", flag: "none" }, { type: "SAFETY_RESULT", flag: "distress" });
   return out;
@@ -79,7 +85,7 @@ function key(s: Snap): string {
     c.researchResult === undefined,
     c.log.filter((l) => l.outcome === "solved").length,
     c.ruleCard?.rule.id ?? null,
-    p === null ? null : [p.firstPlacement !== null, p.fixes, p.placement],
+    p === null ? null : [p.firstPlacement !== null, p.fixes, p.placement, p.listening, p.voiceTurns],
   ]);
 }
 
@@ -117,11 +123,13 @@ function checkScreen(s: Snap): void {
     // The junior never reads with a reading that builds the correct world, unless the child left it on the rule card.
     if (p.reading.source !== "taught") expect(sameReading(runRule(p.reading.hypothesis, p.record), p.record.world, true)).toBe(false);
   }
+  // The words heard stay in memory: never in the device's log or the research state (第9節).
+  expect(JSON.stringify([s.context.log, s.context.research])).not.toContain("弟が1だよ");
   // The junior never reports that a taught reading held (Q30: no thanks line, even when it reads with the card the child left).
   expect(s.context.line?.key ?? "").not.toBe("kohai.result");
 }
 
-function walk(input: FlowInput, opts: { safety: boolean; research: boolean }) {
+function walk(input: FlowInput, opts: { safety: boolean; research: boolean; voice?: boolean }) {
   return getShortestPaths(flowMachine, {
     input,
     events: (s) => events(s, opts),
@@ -130,7 +138,7 @@ function walk(input: FlowInput, opts: { safety: boolean; research: boolean }) {
 }
 
 describe("the session machine: every state is reachable and every screen keeps the rules", () => {
-  const paths = walk(FRESH, { safety: true, research: true });
+  const paths = walk(FRESH, { safety: true, research: true, voice: true });
 
   it("reaches every state node of the machine", () => {
     const reached = new Set<string>();

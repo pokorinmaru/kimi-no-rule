@@ -15,6 +15,18 @@ import { CheckMode } from "./check/CheckMode.tsx";
 import { scoreOf } from "./check/check.ts";
 import { checkText } from "./check/text.ts";
 import { AlwaysNav, Button, HoldButton, NumberPad } from "./ui/controls.tsx";
+import { VoicePanel, type RecognizerFactory } from "./voice/VoicePanel.tsx";
+import { createRecognizer } from "./voice/recognizer.ts";
+
+/** The browser's own speech recognition, in the screen's language (the user chose the Web Speech API). */
+const browserSpeech: RecognizerFactory = (lang) => createRecognizer(lang);
+
+/** What the problem screen needs for the child's voice: the recognizer, whether the session can hear, and where the final words go. */
+interface VoiceHooks {
+  make: RecognizerFactory;
+  canHear: boolean;
+  hear: (text: string) => void;
+}
 
 /** The heading the child sees in Japanese (ui(lang).title in the screen's language). The work's name is not
  * shown to the child: it would attribute the reading to the child (原則10, 指示書 第11節 M7). */
@@ -46,7 +58,7 @@ function Lines({ lines }: { lines: readonly string[] }) {
   );
 }
 
-function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"] }) {
+function ProblemScreen({ view, send, voice }: { view: ProblemView; send: Session["send"]; voice: VoiceHooks | null }) {
   const t = view.text.problem;
   const checks: StatementCheck[] = view.statements.map((s) => ({ index: s.index, verdict: s.lit ? "fails" : "holds", cues: [] }) as StatementCheck);
   const rel = view.world.relations.find((r) => r.id === view.relationId);
@@ -88,6 +100,10 @@ function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"
           {view.line ?? "…"}
         </p>
       </div>
+      {voice !== null && voice.canHear && (
+        // The child may tell the junior by talking (指示書 第7.1節 手順5); the card below always stays.
+        <VoicePanel lang={view.lang} text={t.voice} make={voice.make} canTalk={view.voice.canTalk} off={view.voice.off} onFinal={voice.hear} />
+      )}
       <WorldView
         {...(view.orderOnly ? { correct: view.world } : {})}
         world={view.world}
@@ -365,7 +381,7 @@ function ParentScreen({
   );
 }
 
-function Screen({ view, send, onLang }: { view: FlowView; send: Session["send"]; onLang: (l: Lang) => void }) {
+function Screen({ view, send, onLang, voice }: { view: FlowView; send: Session["send"]; onLang: (l: Lang) => void; voice: VoiceHooks | null }) {
   const t = view.text;
   switch (view.screen) {
     case "intro":
@@ -389,7 +405,7 @@ function Screen({ view, send, onLang }: { view: FlowView; send: Session["send"];
         </section>
       );
     case "problem":
-      return <ProblemScreen view={view} send={send} />;
+      return <ProblemScreen view={view} send={send} voice={voice} />;
     case "card":
       return <CardScreen view={view} send={send} />;
     case "research":
@@ -457,6 +473,7 @@ export function App({
   parentHoldMs = PARENT_HOLD_MS,
   onSession,
   bank = CHILD_BANK,
+  speech = browserSpeech,
 }: {
   storeName?: string;
   api?: Parameters<typeof startSession>[0]["api"];
@@ -465,6 +482,8 @@ export function App({
   onSession?: (h: SessionHandle | null) => void;
   /** The problems the flow chooses from; only the adults' try route passes one (with unchecked problems behind its toggle). */
   bank?: readonly ProblemRecord[];
+  /** The speech recognizer for the child's voice (the browser's own; a fake in the tests). */
+  speech?: RecognizerFactory;
 }) {
   const onSessionRef = useRef(onSession);
   onSessionRef.current = onSession;
@@ -503,6 +522,11 @@ export function App({
   }, [storeName, api, restart, bank]);
 
   const send = useMemo<Session["send"]>(() => (e) => session?.send(e), [session]);
+  // The words heard go to the session only (in memory); nothing here keeps them.
+  const voice = useMemo<VoiceHooks | null>(
+    () => (session === null ? null : { make: speech, canHear: session.canHear, hear: (text) => void session.hear(text) }),
+    [session, speech],
+  );
   // The screen's words follow the device's choice; the session takes it while no problem is open.
   const view = useMemo(() => (snap === null ? null : viewOf(snap, lang)), [snap, lang]);
   const t = ui(lang);
@@ -551,7 +575,7 @@ export function App({
             : {})}
         />
       )}
-      {view !== null && !parent && !check && <Screen view={view} send={send} onLang={changeLang} />}
+      {view !== null && !parent && !check && <Screen view={view} send={send} onLang={changeLang} voice={voice} />}
       {view !== null && !check && view.screen !== "ended" && <Always view={view} send={send} />}
       {!parent && !check && (view?.screen === "intro" || view?.screen === "consent" || view?.screen === "ended") && (
         <p style={{ marginTop: 24, display: "flex", gap: 12, flexWrap: "wrap" }}>

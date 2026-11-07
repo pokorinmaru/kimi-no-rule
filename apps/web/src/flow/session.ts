@@ -1,10 +1,11 @@
 // The session controller: runs the machine, asks the worker for the junior's words (4 s, 第6.8節), the
 // research pool and safety checks, and keeps the device records (第7.5節). The machine never waits on the
-// server for the junior's words; a late or failed reply is dropped and the template stays.
+// server for the junior's words; a late or failed reply is dropped and the template stays. The child's voice
+// (hear) goes to /safety and /interpret together; the words heard stay in memory and never reach the store.
 import { createActor, type Actor } from "xstate";
 import { flowMachine, type FlowEvent, type FlowInput, type Line, type ResearchRequest, type ScenesRequest } from "./machine.ts";
-import { createHttpApi, type FlowApi } from "./api.ts";
-import type { Hypothesis } from "@kimi/core";
+import { WorkerError, createHttpApi, type FlowApi } from "./api.ts";
+import type { AnyOp, Hypothesis } from "@kimi/core";
 import type { FlowStore } from "../store/store.ts";
 
 export type { FlowApi } from "./api.ts";
@@ -18,6 +19,8 @@ export const SCENES_TIMEOUT_MS = 25000;
 /** How long the research request may run on behind the flow (the agent's turns are about a minute). 【仮】 */
 export const RESEARCH_HARD_TIMEOUT_MS = 180_000;
 export const SAFETY_TIMEOUT_MS = 6000;
+/** The screen's wait for the ops of the words heard (指示書 第6.1節: the worker stops at 3.5 s, the screen at 4 s). */
+export const INTERPRET_TIMEOUT_MS = 4000;
 
 export interface SessionOptions {
   store: FlowStore;
@@ -29,13 +32,22 @@ export interface SessionOptions {
   researchHardTimeoutMs?: number;
   safetyTimeoutMs?: number;
   scenesTimeoutMs?: number;
+  interpretTimeoutMs?: number;
 }
 
 export interface Session {
   actor: Actor<typeof flowMachine>;
   send(e: FlowEvent): void;
-  /** Checks words the child typed or said (none in the finger-only flow); a failed check is "unchecked" (Q26). */
+  /** Checks words the child typed or said (the voice goes through hear); a failed check is "unchecked" (Q26). */
   checkWords(text: string): Promise<void>;
+  /** Whether the child's voice can be offered: a worker client with /interpret. */
+  readonly canHear: boolean;
+  /**
+   * The browser's final words for what the child said: the junior acknowledges at once, and the words go to
+   * /safety and /interpret together. Only a "none" safety result lets the ops be used (Q26: on unchecked the
+   * junior does not answer what was said; distress goes to the hard screen). Resolves when both are handled.
+   */
+  hear(text: string): Promise<void>;
   /** Resolves when every record so far is on the device. */
   settle(): Promise<void>;
   stop(): void;
@@ -135,6 +147,30 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
       .catch(() => undefined);
   };
 
+  const safetyOf = async (text: string): Promise<"none" | "distress" | "inappropriate" | "unchecked"> => {
+    if (api === null) return "unchecked";
+    try {
+      const reply = await within(opts.safetyTimeoutMs ?? SAFETY_TIMEOUT_MS, (signal) => api.safety(text, signal));
+      return reply === "timeout" ? "unchecked" : reply.flag;
+    } catch {
+      return "unchecked";
+    }
+  };
+
+  /** The ops of the words heard, or null; offline when the worker has no key (503) or cannot be reached. */
+  const interpretOf = async (problemId: string, text: string, lang: "ja" | "en"): Promise<{ ops: AnyOp[] | null; offline: boolean }> => {
+    const call = api?.interpret;
+    if (api === null || call === undefined) return { ops: null, offline: true };
+    try {
+      const reply = await within(opts.interpretTimeoutMs ?? INTERPRET_TIMEOUT_MS, (signal) => call.call(api, { problem_id: problemId, transcript: text, lang }, signal));
+      if (reply === "timeout" || reply.status !== "ok" || !Array.isArray(reply.ops)) return { ops: null, offline: false };
+      return { ops: reply.ops, offline: false };
+    } catch (e) {
+      const offline = (e instanceof WorkerError && e.status === 503) || e instanceof TypeError;
+      return { ops: null, offline };
+    }
+  };
+
   actor.subscribe((snap) => {
     const c = snap.context;
     if (c.line !== null && c.line !== lastLine && c.line.seq !== lastLine?.seq && c.line.source === "template") askKohai(c.line);
@@ -171,16 +207,24 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
     actor,
     send: (e) => actor.send(e),
     async checkWords(text) {
-      let flag: "none" | "distress" | "inappropriate" | "unchecked" = "unchecked";
-      if (api !== null) {
-        try {
-          const reply = await within(opts.safetyTimeoutMs ?? SAFETY_TIMEOUT_MS, (signal) => api.safety(text, signal));
-          if (reply !== "timeout") flag = reply.flag;
-        } catch {
-          flag = "unchecked";
-        }
-      }
+      const flag = await safetyOf(text);
       if (!stopped) actor.send({ type: "SAFETY_RESULT", flag });
+      await writes;
+    },
+    canHear: api !== null && api.interpret !== undefined,
+    async hear(text) {
+      const before = actor.getSnapshot().context;
+      const p = before.problem;
+      if (stopped || p === null || typeof text !== "string") return;
+      actor.send({ type: "VOICE_HEARD", transcript: text });
+      const now = actor.getSnapshot().context.problem;
+      // The machine refused it (not the step, too many turns, or already waiting): nothing is sent.
+      if (now === null || !now.listening || now.heard === null) return;
+      const heard = now.heard;
+      const [flag, out] = await Promise.all([safetyOf(heard), interpretOf(p.record.world.problem_id, heard, before.lang)]);
+      if (stopped) return;
+      actor.send({ type: "SAFETY_RESULT", flag });
+      actor.send({ type: "VOICE_OPS", ops: flag === "none" ? out.ops : null, offline: out.offline });
       await writes;
     },
     settle: () => writes,

@@ -118,6 +118,8 @@ export interface UiText {
     nextProblem: string;
     unitPad: string;
     totalPad: string;
+    /** The child's voice (指示書 第7.1節 手順5): the mic button, its stop, the waiting line, and why it is not offered. */
+    voice: { talk: string; stop: string; listening: string; unsupported: string; denied: string; off: string };
   };
   pad: { clear: string; ok: string };
   research: { label: string; wait: string };
@@ -217,6 +219,7 @@ const JA: UiText = {
       "後輩は人ではありません。心や気持ちもありません。",
       "後輩は、いろいろな読み方で問題を読みます。1問目で「1」の札をどこに置いたかを見て、その読み方で読んでみることもあります。後輩のルールカードをきみが直すと、つぎの問題をそのカードで読むこともあります。うまく読めないこともあります。",
       "このアプリが記録をしまうのは、このタブレットの中だけです。",
+      "「話して教える」をおして話すと、ブラウザが話したことを文字にして、後輩がわかるように AI の Claude に送ります。話したことは、このタブレットにはのこりません。",
       "「やめる」「わからない」「つらい」は、いつでもおせます。",
     ],
     start: "はじめる",
@@ -226,7 +229,8 @@ const JA: UiText = {
     lines: [
       "保護者の方へ",
       "後輩の言葉と読み方の研究のために、問題、子どもが置いた「1」の札（この端末に残っている前の回の置き方も含みます）、子どもがタップした問題文の言葉、子どもが直したルールカードの読み方（後輩の世界として）を、Anthropic の Claude に送ります。",
-      "子どもの名前や、声、自由に書いた言葉は送りません。送ったものは、Anthropic の方針に従って Anthropic 側に一定の期間残ることがあります。",
+      "子どもが「話して教える」で話したことは、ブラウザの音声認識が文字にし、後輩がその意味をわかるために、その文字を Claude に送ります。Claude に送るのは文字だけで、声の録音は送りません。話したことの文字は、この端末には残しません。",
+      "子どもの名前や、自由に書いた言葉は送りません。送ったものは、Anthropic の方針に従って Anthropic 側に一定の期間残ることがあります。",
       "このアプリの記録はこの端末の中にだけしまい、保護者の画面からいつでも消せます。2問目からの後輩は、1問目の子どもの置き方から作った読み方や、子どもが直したルールカードの読み方で読むことがあります。",
       "「同意する」は、保護者の方が押してください。",
       "同意して始めますか？",
@@ -247,6 +251,14 @@ const JA: UiText = {
     nextProblem: "つぎの問題へ",
     unitPad: "1区切りは、いくつ？",
     totalPad: "聞かれている数は、いくつ？",
+    voice: {
+      talk: "話して教える",
+      stop: "話しおわった",
+      listening: "聞いています…",
+      unsupported: "このブラウザでは、声は使えません。札で教えてね。",
+      denied: "マイクが使えないので、札で教えてね。",
+      off: "いまは、声は使えません。札で教えてね。",
+    },
   },
   pad: { clear: "けす", ok: "これでいい" },
   research: { label: "じゅんび", wait: "後輩が、つぎの問題をえらんでいます。" },
@@ -321,6 +333,7 @@ const EN: UiText = {
       "The junior is not a person. It has no heart and no feelings.",
       'The junior reads problems in different ways. It may look at where you put the "1" card on the first problem and try reading that way. If you fix the junior’s rule card, it may read the next problem with that card. Sometimes it cannot read well.',
       "This app keeps its records only on this tablet.",
+      'If you press "Tell by talking" and talk, the browser turns what you say into text and sends it to Claude, an AI, so the junior can understand it. What you say is not kept on this tablet.',
       'You can press "Stop", "I don\'t know" or "I feel bad" at any time.',
     ],
     start: "Start",
@@ -330,7 +343,8 @@ const EN: UiText = {
     lines: [
       "For parents and guardians",
       'For the junior\'s words and for research on ways of reading, this app sends the problem, where the child put the "1" card (including earlier placements kept on this device) the words of the problem the child tapped, and the way of reading on the rule card the child fixed (as the junior world) to Anthropic\'s Claude.',
-      "It does not send the child's name, voice or anything the child wrote freely. What is sent may be kept by Anthropic for some time under Anthropic's policies.",
+      'What the child says with "Tell by talking" is turned into text by the browser\'s speech recognition, and that text is sent to Claude so the junior can understand it. Only text is sent to Claude, not a recording of the voice. The text of what the child said is not kept on this device.',
+      "It does not send the child's name or anything the child wrote freely. What is sent may be kept by Anthropic for some time under Anthropic's policies.",
       "This app keeps its records only on this device, and you can delete them at any time from the parent screen. From the second problem, the junior may read with a way of reading made from how the child placed the card on the first problem, or with the rule card the child fixed.",
       'Please have a parent or guardian press "I agree".',
       "Do you agree and start?",
@@ -351,6 +365,14 @@ const EN: UiText = {
     nextProblem: "Next problem",
     unitPad: "How much is each part?",
     totalPad: "What number does the problem ask for?",
+    voice: {
+      talk: "Tell by talking",
+      stop: "Done talking",
+      listening: "Listening…",
+      unsupported: "Talking does not work in this browser. Show it with the card.",
+      denied: "The microphone is not available. Show it with the card.",
+      off: "Talking does not work right now. Show it with the card.",
+    },
   },
   pad: { clear: "Clear", ok: "Done" },
   research: { label: "Getting ready", wait: "The junior is choosing the next problem." },

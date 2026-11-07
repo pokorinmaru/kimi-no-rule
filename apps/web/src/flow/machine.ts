@@ -1,7 +1,9 @@
 // One session of the experience (指示書 第7.1節 reduced to HANDOFF §3 F1・F2・F3・F8; 第11節 M7).
 // The machine is pure: it never calls a server. The session controller (session.ts) sends the junior's
 // generated words (KOHAI_LINE), the research agent's pool (RESEARCH_RESULT) and safety results
-// (SAFETY_RESULT) as events; without them the flow runs on core's templates and the fallback pool.
+// (SAFETY_RESULT) as events; without them the flow runs on core's templates and the fallback pool. The
+// child's voice comes as VOICE_HEARD (the browser's final words, kept in memory only) and VOICE_OPS (the ops
+// the worker's /interpret returned); core validates the ops again here before any is used.
 // Every world, verdict and number comes from @kimi/core through problem.ts.
 import { and, assign, or, setup, stateIn } from "xstate";
 import {
@@ -21,6 +23,7 @@ import {
   readingCard,
   render,
   transcript,
+  validateOps,
   type AnyOp,
   type Hypothesis,
   type KohaiReading,
@@ -65,6 +68,12 @@ const MAX_LINE_CHARS = 40;
 export const MAX_ANSWER_TRIES = 2;
 /** The worker takes at most this many readings in one /research call; the device keeps them all. */
 export const MAX_RESEARCH_READINGS = 12;
+/** Times the child may answer by voice on one problem (指示書 第7.1節); after that the card only. */
+export const MAX_VOICE_TURNS = 2;
+/** The words heard are kept up to this length (memory only). */
+export const MAX_HEARD_CHARS = 200;
+/** The junior hands back what it heard only when it is this short; otherwise the problem words heard. */
+const MAX_HEARD_ECHO_CHARS = 40;
 
 export type KohaiIntent = "read" | "which" | "restate";
 
@@ -139,8 +148,16 @@ export interface ProblemState {
   shown: Shown;
   /** Where the child has put the "1" card and not yet confirmed. */
   placement: string | null;
-  /** The problem words the child tapped as the reason (statement, token). */
+  /** The problem words the child tapped as the reason (statement, token), or heard in the child's voice. */
   words: { statementIndex: number; token: number }[];
+  /**
+   * The child's last words heard by the browser, in memory only: for the junior's restate line and the research
+   * request's words. Never in the log, the research state or the store; let go once taught or replaced by a tap.
+   */
+  heard: string | null;
+  /** Waiting for the ops of the words heard (the junior has acknowledged them). */
+  listening: boolean;
+  voiceTurns: number;
   /** The child's first confirmed placement on this problem, before any fix (the research observation). */
   firstPlacement: string | null;
   /** The ops of the last confirmed teaching (evidence always empty). */
@@ -268,6 +285,8 @@ export interface FlowContext {
   lastSeq: number;
   uncheckedStreak: number;
   highlight: boolean;
+  /** The worker could not be reached (or has no key) for the voice: the mic is not offered for the rest of the session. */
+  voiceOff: boolean;
   log: ProblemLog[];
   safetyLog: ("distress" | "hard_button" | "rest")[];
   endedBy: null | "stop" | "finished" | "consent_declined" | "hard" | "rest";
@@ -299,6 +318,10 @@ export type FlowEvent =
   /** The agent's pool arriving after the wait ended and the fallback was used. */
   | { type: "RESEARCH_LATE"; pool: Hypothesis[] }
   | { type: "SAFETY_RESULT"; flag: SafetyFlagEvent }
+  /** The browser's final words for what the child said (the controller sends them to /safety and /interpret). */
+  | { type: "VOICE_HEARD"; transcript: string }
+  /** The ops /interpret returned for the words heard (null: none, failed, timed out, or not to be answered, Q26). */
+  | { type: "VOICE_OPS"; ops: AnyOp[] | null; offline?: boolean }
   /** The screen's language (HANDOFF §7 の4): taken only while no problem is open, so a problem's lines and card stay in one language. */
   | { type: "SET_LANG"; lang: Lang };
 
@@ -374,11 +397,103 @@ function restateLine(ctx: FlowContext): Line | null {
   const holder = holderOf(p.record, p.placement);
   if (holder === undefined) return null;
   const base = lineOf(ctx, "kohai.restate", { holder: holderName(p.shown.world, holder) }, "restate", requestOrNull(ctx, p, "restate"));
+  if (base.text === "") return base;
+  // What the junior heard is handed back as it was said, when core's gate passes it (no answer, no operation name).
+  const heard = p.heard === null ? null : heardEcho(ctx, p.heard);
+  if (heard !== null) return { ...base, text: `${heard} ${base.text}` };
   const words = wordsOf(p);
-  if (words.length === 0 || base.text === "") return base;
+  if (words.length === 0) return base;
   // The child's tapped word is handed back as it is, never put in other words (第6.8節 関門9).
-  const echo = lineOf(ctx, "kohai.restate_word", { transcript: transcript(words.join("")) }, null, null);
+  const echo = lineOf(ctx, "kohai.restate_word", { transcript: transcript(words.join("、")) }, null, null);
   return echo.text === "" ? base : { ...base, text: `${base.text} ${echo.text}` };
+}
+
+function heardEcho(ctx: FlowContext, heard: string): string | null {
+  if (heard.length > MAX_HEARD_ECHO_CHARS || hasForbiddenPhrase(heard)) return null;
+  const echo = lineOf(ctx, "kohai.restate_heard", { transcript: transcript(heard) }, null, null);
+  return echo.text === "" ? null : echo.text;
+}
+
+/** The kinds of marked problem words a voice may name as a reason (the same kinds a child taps). */
+const HEARD_KINDS = new Set(["holder_mention", "ratio_notation", "relation_word", "demonstrative"]);
+const MAX_HEARD_CUES = 3;
+
+/** The words heard as the problem writes them: full-width forms folded, and 「4分の3」 as 「3/4」. */
+function foldHeard(text: string): string {
+  return text.normalize("NFKC").replace(/(\d+)\s*分\s*の\s*(\d+)/g, "$2/$1");
+}
+
+/**
+ * Problem words heard in the child's voice, as tapped-word cues: the marked words of the problem's sentences
+ * (not the question) that the words heard hold. A word of one kana (の) is too common to take from a voice.
+ */
+function heardCues(record: ProblemRecord, heard: string): { statementIndex: number; token: number }[] {
+  const said = foldHeard(heard);
+  const out: { statementIndex: number; token: number }[] = [];
+  const seen = new Set<string>();
+  for (const m of record.syntax_marks) {
+    if (!HEARD_KINDS.has(m.kind)) continue;
+    const st = record.statements[m.statement_index];
+    if (st === undefined || st.is_question) continue;
+    for (let t = m.token_start; t <= m.token_end; t++) {
+      const tok = st.tokens[t];
+      if (tok === undefined || seen.has(tok) || /^[\u3040-\u30ff]$/.test(tok) || !said.includes(tok.normalize("NFKC"))) continue;
+      seen.add(tok);
+      out.push({ statementIndex: m.statement_index, token: t });
+    }
+  }
+  return out.slice(0, MAX_HEARD_CUES);
+}
+
+/**
+ * The ops of the words heard, as the child's own moves: core validates them on this problem's correct world;
+ * a reference op on an end of the relation is the child's "1" card (as PLACE_ONE), word cues on the problem's
+ * tokens and the problem words heard are the tapped words. Null when nothing usable is left.
+ */
+function voiceUse(ctx: FlowContext, ops: AnyOp[] | null): { quantityId: string; words: { statementIndex: number; token: number }[] } | null {
+  const p = ctx.problem;
+  if (p === null || !Array.isArray(ops) || ops.length === 0) return null;
+  try {
+    if (!validateOps(p.record.world, ops).ok) return null;
+  } catch {
+    return null;
+  }
+  let quantityId: string | null = null;
+  for (const o of ops) if (o.op === "set_relation_reference" && o.target_id === p.relationId && isEnd(ctx, o.reference)) quantityId ??= o.reference;
+  if (quantityId === null) return null;
+  const cues: { statementIndex: number; token: number }[] = [];
+  for (const o of ops) {
+    if (o.op !== "word_cue") continue;
+    for (const t of o.tokens) if (validToken(ctx, o.statement_index, t)) cues.push({ statementIndex: o.statement_index, token: t });
+  }
+  for (const c of p.heard === null ? [] : heardCues(p.record, p.heard)) {
+    if (!cues.some((x) => x.statementIndex === c.statementIndex && x.token === c.token)) cues.push(c);
+  }
+  return { quantityId, words: cues.slice(0, MAX_HEARD_CUES) };
+}
+
+/** The child's words heard: kept in memory, and the junior's fixed acknowledgement at once (no request to the worker). */
+function hear(ctx: FlowContext, text: string): Partial<FlowContext> {
+  const p = ctx.problem;
+  if (p === null) return {};
+  const problem = { ...p, heard: text.trim().slice(0, MAX_HEARD_CHARS), listening: true, voiceTurns: p.voiceTurns + 1 };
+  return { problem, line: lineOf({ ...ctx, problem }, "kohai.listening", {}, null, null) };
+}
+
+function voicePlace(ctx: FlowContext, ops: AnyOp[] | null): Partial<FlowContext> {
+  const p = ctx.problem;
+  const use = voiceUse(ctx, ops);
+  if (p === null || use === null) return {};
+  const problem = { ...p, placement: use.quantityId, words: use.words.length > 0 ? use.words : p.words, listening: false };
+  return { problem, line: restateLine({ ...ctx, problem }) };
+}
+
+/** Nothing usable came back: the junior asks for the card with a fixed line, and taps go on (no dead end). */
+function voiceMiss(ctx: FlowContext, offline: boolean): Partial<FlowContext> {
+  const p = ctx.problem;
+  if (p === null) return {};
+  const problem = { ...p, heard: null, listening: false };
+  return { problem, line: lineOf({ ...ctx, problem }, "kohai.show_card", {}, null, null), voiceOff: ctx.voiceOff || offline };
 }
 
 /** Builds the state of a new problem from core's choice of problem and the junior's reading. */
@@ -415,6 +530,9 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     shown: junior.shown,
     placement: null,
     words: [],
+    heard: null,
+    listening: false,
+    voiceTurns: 0,
     firstPlacement: null,
     taughtOps: [],
     fixes: 0,
@@ -463,7 +581,8 @@ function isEnd(ctx: FlowContext, quantityId: string): boolean {
 function place(ctx: FlowContext, quantityId: string): Partial<FlowContext> {
   const p = ctx.problem;
   if (p === null) return {};
-  const problem = { ...p, placement: quantityId };
+  // The child's own card move replaces any words heard before it, and a late reply for them is dropped.
+  const problem = { ...p, placement: quantityId, heard: null, listening: false };
   return { problem, line: restateLine({ ...ctx, problem }) };
 }
 
@@ -495,18 +614,23 @@ function confirmFirst(ctx: FlowContext): Partial<FlowContext> {
             referencePlaced: r.referencePlaced,
             afterFix: r.afterFix,
             wordbookOpenedBefore: r.wordbookOpenedBefore,
-            // Only this problem's tapped words, and only in memory (第9節).
-            words: i === recent.length - 1 ? wordsOf(problem) : [],
+            // Only this problem's tapped words or words heard, and only in memory (第9節).
+            words: i === recent.length - 1 ? researchWords(problem) : [],
           })),
         }
       : ctx.researchRequest;
   return { problem, research, researchRequest };
 }
 
+/** The words heard when they fit the worker's limit for one word, otherwise the problem words tapped or heard. */
+function researchWords(p: ProblemState): string[] {
+  return p.heard !== null && p.heard.length <= MAX_HEARD_ECHO_CHARS ? [p.heard] : wordsOf(p);
+}
+
 function tapWord(ctx: FlowContext, statementIndex: number, token: number): Partial<FlowContext> {
   const p = ctx.problem;
   if (p === null) return {};
-  const problem = { ...p, words: [{ statementIndex, token }] };
+  const problem = { ...p, words: [{ statementIndex, token }], heard: null, listening: false };
   return { problem };
 }
 
@@ -521,7 +645,7 @@ function teach(ctx: FlowContext): Partial<FlowContext> {
   const ops = [referenceOp(p.relationId, p.placement), ...p.words.map((w) => wordCueOp(w.statementIndex, w.token))];
   const shown = showOn(p.record, p.base, ops, ctx.lang);
   // When core refuses the taught world, the junior's world stays as it was and the try still counts.
-  return { problem: { ...p, shown: shown ?? p.shown, taughtOps: ops, fixes: p.fixes + 1, placement: null } };
+  return { problem: { ...p, shown: shown ?? p.shown, taughtOps: ops, fixes: p.fixes + 1, placement: null, heard: null, listening: false } };
 }
 
 function logOf(p: ProblemState, outcome: Outcome): ProblemLog {
@@ -758,6 +882,17 @@ export const flowMachine = setup({
     researchOpen: ({ context }) => !context.researchApplied && context.researchRequest !== null,
     noOpenProblem: ({ context }) => context.problem === null || context.problem.logged,
     needsCard: ({ context }) => needsCard(context),
+    hearable: ({ context, event }) =>
+      event.type === "VOICE_HEARD" &&
+      typeof event.transcript === "string" &&
+      event.transcript.trim() !== "" &&
+      !context.voiceOff &&
+      context.problem !== null &&
+      !context.problem.listening &&
+      context.problem.voiceTurns < MAX_VOICE_TURNS,
+    voicePlaces: ({ context, event }) => event.type === "VOICE_OPS" && context.problem?.listening === true && voiceUse(context, event.ops) !== null,
+    voicePending: ({ context, event }) => event.type === "VOICE_OPS" && context.problem?.listening === true,
+    voiceOffline: ({ event }) => event.type === "VOICE_OPS" && event.offline === true,
     pickable: ({ context, event }) => event.type === "CARD_PICK" && context.ruleCard !== null && CARD_RULES.some((h) => h.id === event.ruleId),
   },
 }).createMachine({
@@ -786,6 +921,7 @@ export const flowMachine = setup({
     lastSeq: 0,
     uncheckedStreak: 0,
     highlight: false,
+    voiceOff: false,
     log: [],
     safetyLog: [],
     endedBy: null,
@@ -874,6 +1010,12 @@ export const flowMachine = setup({
               on: {
                 PLACE_ONE: { guard: "placeable", target: "placed", actions: assign(({ context, event }) => (event.type === "PLACE_ONE" ? place(context, event.quantityId) : {})) },
                 TAP_WORD: { guard: "tappable", actions: assign(({ context, event }) => (event.type === "TAP_WORD" ? tapWord(context, event.statementIndex, event.token) : {})) },
+                VOICE_HEARD: { guard: "hearable", actions: assign(({ context, event }) => (event.type === "VOICE_HEARD" ? hear(context, event.transcript) : {})) },
+                VOICE_OPS: [
+                  { guard: "voicePlaces", target: "placed", actions: assign(({ context, event }) => (event.type === "VOICE_OPS" ? voicePlace(context, event.ops) : {})) },
+                  { guard: "voicePending", actions: assign(({ context, event }) => voiceMiss(context, event.type === "VOICE_OPS" && event.offline === true)) },
+                  { guard: "voiceOffline", actions: assign({ voiceOff: true }) },
+                ],
               },
             },
             placed: {
@@ -901,8 +1043,19 @@ export const flowMachine = setup({
                 },
                 CONFIRM_NO: {
                   target: "looking",
-                  actions: assign(({ context }) => (context.problem === null ? {} : { problem: { ...context.problem, placement: null } })),
+                  actions: assign(({ context }) => (context.problem === null ? {} : { problem: { ...context.problem, placement: null, heard: null, listening: false } })),
                 },
+                VOICE_HEARD: { guard: "hearable", actions: assign(({ context, event }) => (event.type === "VOICE_HEARD" ? hear(context, event.transcript) : {})) },
+                VOICE_OPS: [
+                  {
+                    guard: "voicePlaces",
+                    target: "placed",
+                    reenter: true,
+                    actions: assign(({ context, event }) => (event.type === "VOICE_OPS" ? voicePlace(context, event.ops) : {})),
+                  },
+                  { guard: "voicePending", actions: assign(({ context, event }) => voiceMiss(context, event.type === "VOICE_OPS" && event.offline === true)) },
+                  { guard: "voiceOffline", actions: assign({ voiceOff: true }) },
+                ],
               },
             },
             checking: {
