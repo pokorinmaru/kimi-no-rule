@@ -1,4 +1,4 @@
-// pnpm check:screens -- [--url http://localhost:5173/] [--run <id>] [--concurrency 8]
+// pnpm check:screens -- [--url http://localhost:5173/] [--run <id>] [--concurrency 8] [--shots-only]
 // The whole-screen check (2026-11-08): walks the child's flow in Chromium the way a child taps (intro, consent,
 // the first guess, the junior's world, the prediction, the lit sentence, placing the "1" card, the restatement,
 // the word book, the rebuilt world, the number pad, the solved problem; then the staged help, 「つらい」 and the
@@ -151,6 +151,11 @@ for (const [size, viewport] of [
 }
 await browser.close();
 
+if (args.includes("--shots-only")) {
+  for (const s of shots) writeFileSync(join(outDir, `${s.name.replace(/\//g, "__")}.png`), s.png);
+  say(`shots only ${runId}: ${outDir}`);
+  process.exit(0);
+}
 let done = 0;
 const results = await mapPool(shots, concurrency, async (s) => {
   const file = s.name.replace(/\//g, "__");

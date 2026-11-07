@@ -18,8 +18,9 @@ describe("the child's first prediction on the screen", () => {
     fireEvent.click(await screen.findByTestId("btn-next"));
     fireEvent.click(await screen.findByTestId("btn-consent-yes"));
     expect(await screen.findByTestId("screen-guess")).toBeTruthy();
-    // No junior's world and no junior's line yet; the outlines carry no segment.
-    expect(document.querySelector("svg")).toBeNull();
+    // No junior's world and no junior's line yet (the junior itself listens beside the question); the outlines carry no segment.
+    expect(document.querySelector('[data-role="stage-holder"], [data-role="tape"], [data-role="world-card"]')).toBeNull();
+    expect(document.querySelector('[data-role="junior-beside"] [data-role="kohai"]')).not.toBeNull();
     expect(screen.queryByTestId("junior-line")).toBeNull();
     expect(screen.queryByTestId("predict")).toBeNull();
     const tape = screen.getByTestId("guess-tape-h_ani");

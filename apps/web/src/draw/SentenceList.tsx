@@ -1,11 +1,17 @@
 // The problem's sentences, numbered (指示書 第8.5節 文と世界の結び). The verdicts come from core's
 // checkStatements; this list never judges. A sentence glows only when core says it fails.
 import { useRef, type ReactNode } from "react";
-import { rubySegments, rubyTokens, type Lang, type Readings, type StatementCheck } from "@kimi/core";
+import {
+  rubySegments,
+  rubyTokens,
+  type Lang,
+  type Readings,
+  type StatementCheck,
+} from "@kimi/core";
 import { ui } from "../flow/text.ts";
 import { useAnimation, useReducedMotion } from "./motion.ts";
 import { COLORS, FONT } from "./theme.ts";
-import { rubyNodes } from "../ui/Ruby.tsx";
+import { fractions, rubyNodes } from "../ui/Ruby.tsx";
 import type { HolderColor } from "./holder-colors.ts";
 import { COLOR } from "../ui/tokens.ts";
 
@@ -15,17 +21,30 @@ export interface HolderInk {
   color: HolderColor;
 }
 
-function inked(node: ReactNode, color: HolderColor, key: string | number): ReactNode {
+function inked(
+  node: ReactNode,
+  color: HolderColor,
+  key: string | number,
+): ReactNode {
   return (
-    <span key={key} data-role="holder-name" style={{ color: color.ink, borderBottom: `3px solid ${color.fill}` }}>
+    <span
+      key={key}
+      data-role="holder-name"
+      style={{ color: color.ink, borderBottom: `3px solid ${color.fill}` }}
+    >
       {node}
     </span>
   );
 }
 
 /** The text cut at the holders' names (longest first), so each name can be coloured. */
-export function splitByHolders(text: string, holders: readonly HolderInk[]): { text: string; holder: HolderInk | null }[] {
-  const names = [...holders].filter((h) => h.label !== "").sort((a, b) => b.label.length - a.label.length);
+export function splitByHolders(
+  text: string,
+  holders: readonly HolderInk[],
+): { text: string; holder: HolderInk | null }[] {
+  const names = [...holders]
+    .filter((h) => h.label !== "")
+    .sort((a, b) => b.label.length - a.label.length);
   const out: { text: string; holder: HolderInk | null }[] = [];
   let rest = text;
   while (rest !== "") {
@@ -104,9 +123,17 @@ function Sentence({
   holders: readonly HolderInk[];
 }) {
   const perToken = readings === null ? null : rubyTokens(s.tokens, readings);
-  const holderOf = (t: string): HolderInk | undefined => holders.find((x) => x.label === t);
+  const holderOf = (t: string): HolderInk | undefined =>
+    holders.find((x) => x.label === t);
   const halo = useRef<HTMLSpanElement>(null);
-  useAnimation(halo, "pulse", [{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }], glow && !reduced, `${String(s.index)}`, true);
+  useAnimation(
+    halo,
+    "pulse",
+    [{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }],
+    glow && !reduced,
+    `${String(s.index)}`,
+    true,
+  );
   return (
     <li
       data-statement={s.index}
@@ -134,7 +161,13 @@ function Sentence({
           ref={halo}
           aria-hidden="true"
           data-role="glow"
-          style={{ position: "absolute", inset: 0, borderRadius: 10, background: COLORS.accentSoft, zIndex: -1 }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 10,
+            background: COLORS.accentSoft,
+            zIndex: -1,
+          }}
         />
       )}
       <span
@@ -157,45 +190,85 @@ function Sentence({
         style={{
           font: `500 22px/1.6 ${FONT}`,
           color: COLORS.ink,
-          textDecoration: glow ? `underline wavy ${COLORS.accent}` : "none",
-          textUnderlineOffset: 6,
+          // The lit sentence is marked by its band and outline alone: a wavy line under every word read as an error mark (screen check, 2026-11-08).
         }}
       >
         {onTapWord === undefined
           ? splitByHolders(s.tokens.join(""), holders).map((part, i) => {
-              const node = readings === null ? part.text : rubyNodes(rubySegments(part.text, readings));
-              return part.holder === null ? <span key={i}>{node}</span> : inked(node, part.holder.color, i);
+              const node =
+                readings === null
+                  ? fractions(part.text)
+                  : rubyNodes(rubySegments(part.text, readings));
+              return part.holder === null ? (
+                <span key={i}>{node}</span>
+              ) : (
+                inked(node, part.holder.color, i)
+              );
             })
-          : s.tokens.map((t, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onTapWord(s.index, i)}
-                {...(holderOf(t) === undefined ? {} : { "data-role": "holder-name" })}
-                style={{
-                  minHeight: "44px",
-                  minWidth: "44px",
-                  padding: "0 2px",
-                  margin: 0,
-                  border: "none",
-                  borderRadius: 6,
-                  background: "transparent",
-                  color: holderOf(t)?.color.ink ?? "inherit",
-                  font: "inherit",
-                  textDecoration: "inherit",
-                  cursor: "pointer",
-                  // A holder's name: its colour and an underline in it (the button stays the word's only wrapper).
-                  ...(holderOf(t) === undefined ? {} : { borderBottom: `3px solid ${holderOf(t)?.color.fill ?? ""}`, borderRadius: 0 }),
-                }}
-              >
-                {perToken === null ? t : rubyNodes(perToken[i] ?? [{ text: t, ruby: null }])}
-              </button>
+          : wordGroups(s.tokens).map((g) => (
+              // A closing mark (、。」) stays on the line of the word before it.
+              <span key={g[0]} style={{ whiteSpace: "nowrap" }}>
+                {g.map((i) => {
+                  const t = s.tokens[i] ?? "";
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => onTapWord(s.index, i)}
+                      {...(holderOf(t) === undefined
+                        ? {}
+                        : { "data-role": "holder-name" })}
+                      style={{
+                        minHeight: "44px",
+                        minWidth: "44px",
+                        // Every word keeps a target of 44 px or more, but the words sit as close as in running text: each
+                        // target reaches 12 px into its neighbours instead of pushing the words apart (screen check, 2026-11-08).
+                        padding: `0 ${String(WORD_REACH)}px`,
+                        margin: `0 ${String(-WORD_REACH)}px`,
+                        border: "none",
+                        borderRadius: 6,
+                        background: "transparent",
+                        color: holderOf(t)?.color.ink ?? "inherit",
+                        font: "inherit",
+                        textDecoration: "inherit",
+                        cursor: "pointer",
+                        // A holder's name: its colour and an underline in it (the button stays the word's only wrapper).
+                        ...(holderOf(t) === undefined
+                          ? {}
+                          : {
+                              borderBottom: `3px solid ${holderOf(t)?.color.fill ?? ""}`,
+                              borderRadius: 0,
+                            }),
+                      }}
+                    >
+                      {perToken === null
+                        ? fractions(t)
+                        : rubyNodes(perToken[i] ?? [{ text: t, ruby: null }])}
+                    </button>
+                  );
+                })}
+              </span>
             ))}
       </span>
       {glow && <span style={srOnly}>{glowText}</span>}
     </li>
   );
 }
+
+/** The words' indices in groups that must not be split across lines: a closing mark joins the word before it. */
+export function wordGroups(tokens: readonly string[]): number[][] {
+  const out: number[][] = [];
+  tokens.forEach((t, i) => {
+    const last = out[out.length - 1];
+    if (last !== undefined && /^[、。，．！？!?」』）)]+$/.test(t))
+      last.push(i);
+    else out.push([i]);
+  });
+  return out;
+}
+
+/** How far each word's tap target reaches past the word on each side (px), without moving the words apart. */
+export const WORD_REACH = 12;
 
 export function SentenceList({
   statements,
@@ -210,9 +283,14 @@ export function SentenceList({
 }: SentenceListProps) {
   const glowText = ui(lang).draw.glow;
   const reduced = useReducedMotion(reducedMotion);
-  const failing = new Set((checks ?? []).filter((c) => c.verdict === "fails").map((c) => c.index));
+  const failing = new Set(
+    (checks ?? []).filter((c) => c.verdict === "fails").map((c) => c.index),
+  );
   return (
-    <ol aria-label={label} style={{ padding: 0, margin: 0, isolation: "isolate" }}>
+    <ol
+      aria-label={label}
+      style={{ padding: 0, margin: 0, isolation: "isolate" }}
+    >
       {statements.map((s) => (
         <Sentence
           key={s.index}

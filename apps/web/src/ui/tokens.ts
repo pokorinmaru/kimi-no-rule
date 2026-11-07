@@ -26,6 +26,10 @@ export const COLOR = {
   primary: "#2f63c4",
   primarySoft: PALETTE.blueLight,
   onPrimary: PALETTE.white,
+  /** The answers to a question on the screen: all alike, a soft blue apart from the white help buttons. */
+  choice: "#eaf2fe",
+  /** Deleting every record (the grown-up's screen only): a dark red that keeps AA contrast on white. */
+  danger: "#b3261e",
   /** A pressed toggle. */
   pressed: "#e3eefc",
   /** The line being read aloud, and the lit words. */
@@ -75,6 +79,9 @@ export const SHADOW = {
 /** The height the bottom band takes (its buttons and padding), so the page leaves room under the last content. */
 export const BAR_SPACE = 104;
 
+/** The page's width: one column (792 px), or on a landscape tablet two, with the junior's world on the right. */
+export const PAGE = { narrow: 792, wide: 1010, splitAt: 1000, worldPx: 548 } as const;
+
 /** A block of prose: body size, line length kept short. */
 export const prose: CSSProperties = {
   maxWidth: `${String(TYPE.proseChars)}em`,
@@ -100,7 +107,22 @@ button, a, [tabindex] { -webkit-tap-highlight-color: transparent; }
 .k-btn { transition: transform 80ms ease, box-shadow 80ms ease; }
 .k-btn:active { transform: translateY(3px); box-shadow: ${SHADOW.buttonPressed}; }
 @media (prefers-reduced-motion: reduce) { .k-btn { transition: none; } }
-rt { font-size: 0.5em; color: ${COLOR.inkSoft}; }
-:lang(ja) :is(p, li, h1, h2, h3, figcaption, summary) { word-break: auto-phrase; }
+.k-btn:has(rt) { line-height: 2.2; padding-top: 10px; }
+rt { font-size: 0.5em; color: ${COLOR.inkSoft}; margin-inline: -1em; }
+ruby { ruby-align: center; }
+.k-frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; font-size: 0.8em; line-height: 1.05; margin: 0 0.12em; position: relative; }
+.k-frac::before { content: attr(data-num) / ""; padding: 0 0.2em 1px; border-bottom: 2px solid currentColor; }
+.k-frac::after { content: attr(data-den) / ""; padding: 1px 0.2em 0; }
+.k-frac-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:lang(ja) :is(p, li, h1, h2, h3, figcaption, summary, [data-role="bubble"]) { word-break: auto-phrase; line-break: strict; }
+.k-page { max-width: ${String(PAGE.narrow)}px; }
+.k-split { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "text" "world" "act"; }
+.k-text { grid-area: text; min-width: 0; } .k-world { grid-area: world; min-width: 0; } .k-act { grid-area: act; min-width: 0; }
+@media (min-width: ${String(PAGE.splitAt)}px) {
+  .k-page.k-wide { max-width: ${String(PAGE.wide)}px; }
+  .k-split { grid-template-columns: minmax(0, 1fr) ${String(PAGE.worldPx)}px; grid-template-areas: "text world" "act world"; grid-template-rows: auto 1fr; column-gap: ${String(SPACE.xl)}px; align-items: start; }
+  .k-split .k-world { margin-top: 0 !important; }
+  .k-title-wide-hide { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
 
 `;

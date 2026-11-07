@@ -96,8 +96,9 @@ function Tape({ t, glow, reduced, color }: { t: TapeLayout; glow: boolean; reduc
           width={t.width}
           height={t.height}
           rx={6}
-          fill={t.isUnit ? COLORS.tapeUnit : COLORS.tape}
-          stroke={COLORS.tapeEdge}
+          // In the holder's colour, as its frame in the stage picture (screen check, 2026-11-08).
+          fill={t.isUnit ? (color?.tapeUnit ?? COLORS.tapeUnit) : (color?.tape ?? COLORS.tape)}
+          stroke={color?.tapeEdge ?? COLORS.tapeEdge}
           strokeWidth={2}
           strokeDasharray={t.value.kind === "unknown" ? "8 5" : undefined}
         />
@@ -110,7 +111,7 @@ function Tape({ t, glow, reduced, color }: { t: TapeLayout; glow: boolean; reduc
             width={s.width}
             height={t.height}
             fill="none"
-            stroke={COLORS.tapeEdge}
+            stroke={color?.tapeEdge ?? COLORS.tapeEdge}
             strokeWidth={2}
           />
         ))}

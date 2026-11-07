@@ -6,8 +6,15 @@ import { initialState, researchSummary, type Lang, type ResearchState } from "@k
 import { ui } from "../flow/text.ts";
 import type { AttemptRow, FlowStore, ResearchLogRow } from "../store/store.ts";
 import { trendOf, wordingFreeOf } from "./trend.ts";
+import { COLOR, SPACE, TYPE, card, prose } from "../ui/tokens.ts";
 
-const small = { fontSize: 16 } as const;
+/** The notes under each heading: body text in a short line, not small grey type (screen check, 2026-11-08). */
+const small = { ...prose, maxWidth: "44em", fontSize: TYPE.small, color: COLOR.ink, margin: `0 0 ${String(SPACE.sm)}px` } as const;
+/** Each part of the note is its own card, so the long page reads as blocks. */
+export const parentCard = { ...card, margin: `0 0 ${String(SPACE.lg)}px` } as const;
+const heading = { fontSize: TYPE.large, margin: `0 0 ${String(SPACE.sm)}px` } as const;
+/** "Nothing yet": quieter than the notes. */
+const none = { margin: 0, color: COLOR.inkSoft, fontWeight: 700 } as const;
 
 export function ParentNote({ store, lang, reload }: { store: FlowStore; lang: Lang; reload: unknown }) {
   const t = ui(lang).parent;
@@ -32,15 +39,15 @@ export function ParentNote({ store, lang, reload }: { store: FlowStore; lang: La
   const wordingFree = wordingFreeOf(attempts, lang, t.wordingUnknown);
   return (
     <>
-      <div data-testid="research-note">
-        <h3 style={{ fontSize: 20 }}>{t.researchTitle}</h3>
+      <div data-testid="research-note" style={parentCard}>
+        <h3 style={heading}>{t.researchTitle}</h3>
         {t.researchLines.map((l) => (
           <p key={l} style={small}>
             {l}
           </p>
         ))}
         {summary.entries.length === 0 ? (
-          <p>{t.researchNone}</p>
+          <p style={none}>{t.researchNone}</p>
         ) : (
           <ul>
             {summary.entries.map((e) => (
@@ -52,10 +59,10 @@ export function ParentNote({ store, lang, reload }: { store: FlowStore; lang: La
         )}
         {summary.unsettled && <p>{t.researchUnsettled}</p>}
       </div>
-      <div data-testid="research-trend">
-        <h3 style={{ fontSize: 20 }}>{t.trendTitle}</h3>
+      <div data-testid="research-trend" style={parentCard}>
+        <h3 style={heading}>{t.trendTitle}</h3>
         {days.length === 0 ? (
-          <p>{t.trendNone}</p>
+          <p style={none}>{t.trendNone}</p>
         ) : (
           <ul>
             {days.map((d) => (
@@ -80,15 +87,15 @@ export function ParentNote({ store, lang, reload }: { store: FlowStore; lang: La
         )}
         <p style={small}>{t.trendNote}</p>
       </div>
-      <div data-testid="wording-note">
-        <h3 style={{ fontSize: 20 }}>{t.wordingTitle}</h3>
+      <div data-testid="wording-note" style={parentCard}>
+        <h3 style={heading}>{t.wordingTitle}</h3>
         {t.wordingLines.map((l) => (
           <p key={l} style={small}>
             {l}
           </p>
         ))}
         {wordingFree.length === 0 ? (
-          <p>{t.wordingNone}</p>
+          <p style={none}>{t.wordingNone}</p>
         ) : (
           <ul>
             {wordingFree.map((w) => (

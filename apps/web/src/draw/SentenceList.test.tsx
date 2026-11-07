@@ -131,7 +131,7 @@ describe("the holders' names in the stage picture's colours", () => {
   });
 
   it("cuts a text at the names, longest first", () => {
-    const h = (label: string) => ({ label, color: HOLDER_COLORS[0] ?? { fill: "", ink: "" } });
+    const h = (label: string) => ({ label, color: HOLDER_COLORS[0] ?? { fill: "", ink: "", tape: "", tapeUnit: "", tapeEdge: "" } });
     expect(splitByHolders("赤い花と白い花", [h("白い花"), h("赤い花")]).map((p) => [p.text, p.holder?.label ?? null])).toEqual([
       ["赤い花", "赤い花"],
       ["と", null],

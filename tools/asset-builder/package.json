@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "make:parts": "node src/cli.ts",
     "check:scenes": "node src/scenes-cli.ts",
-    "check:screens": "node src/screens-cli.ts"
+    "check:screens": "node src/screens-cli.ts",
+    "score:parts": "node src/score-cli.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.1.0",

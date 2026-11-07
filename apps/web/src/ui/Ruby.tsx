@@ -3,10 +3,29 @@
 import { Fragment, type ReactNode } from "react";
 import { UI_READINGS, rubySegments, templateRuby, type Lang, type Readings, type RubySegment } from "@kimi/core";
 
+/**
+ * A fraction written "3/4" drawn as a school fraction, the numerator over the bar over the denominator (a slash is
+ * hard to read at nine; screen check, 2026-11-08). The digits are drawn by CSS (.k-frac in ui/tokens.ts) from data
+ * attributes, so the text itself stays "3/4" for reading aloud, the tests and copying.
+ */
+export function fractions(text: string): ReactNode {
+  const parts = text.split(/(\d+\/\d+)/);
+  if (parts.length === 1) return text;
+  return parts.map((p, i) => {
+    const m = /^(\d+)\/(\d+)$/.exec(p);
+    if (m === null) return p === "" ? null : <Fragment key={i}>{p}</Fragment>;
+    return (
+      <span key={i} className="k-frac" data-num={m[1]} data-den={m[2]}>
+        <span className="k-frac-text">{p}</span>
+      </span>
+    );
+  });
+}
+
 export function rubyNodes(segs: readonly RubySegment[]): ReactNode {
   return segs.map((s, i) =>
     s.ruby === null ? (
-      <Fragment key={i}>{s.text}</Fragment>
+      <Fragment key={i}>{fractions(s.text)}</Fragment>
     ) : (
       <ruby key={i}>
         {s.text}
@@ -18,7 +37,7 @@ export function rubyNodes(segs: readonly RubySegment[]): ReactNode {
 
 /** A line with ruby when on (the fixed lines' readings unless others are given). */
 export function RubyText({ text, on, readings = UI_READINGS }: { text: string; on: boolean; readings?: Readings }) {
-  if (!on) return <>{text}</>;
+  if (!on) return <>{fractions(text)}</>;
   return <>{rubyNodes(rubySegments(text, readings))}</>;
 }
 
@@ -28,5 +47,5 @@ export function RubyText({ text, on, readings = UI_READINGS }: { text: string; o
  */
 export function JuniorText({ text, on, lang, readings }: { text: string; on: boolean; lang: Lang; readings: Readings }) {
   const segs = on ? templateRuby(text, lang, readings) : null;
-  return segs === null ? <>{text}</> : <>{rubyNodes(segs)}</>;
+  return segs === null ? <>{fractions(text)}</> : <>{rubyNodes(segs)}</>;
 }

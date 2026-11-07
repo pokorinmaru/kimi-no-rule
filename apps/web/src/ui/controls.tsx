@@ -12,7 +12,7 @@ import type { Lang, Rational } from "@kimi/core";
 import { ui, type UiText } from "../flow/text.ts";
 import { BORDER, COLOR, RADIUS, SHADOW, SPACE, TYPE } from "./tokens.ts";
 
-export type ButtonKind = "primary" | "secondary" | "quiet";
+export type ButtonKind = "primary" | "secondary" | "choice" | "quiet";
 
 const base: CSSProperties = {
   minHeight: 56,
@@ -41,6 +41,15 @@ export const BUTTON_STYLE: Record<ButtonKind, CSSProperties> = {
     fontSize: TYPE.large,
   },
   secondary: base,
+  // An answer to the question on the screen (who has more, does it fit, yes or no): every option looks the same,
+  // larger than the three buttons at the bottom and tinted, so the answers never read as help (screen check, 2026-11-08).
+  choice: {
+    ...base,
+    minHeight: 64,
+    minWidth: 160,
+    fontSize: TYPE.large,
+    background: COLOR.choice,
+  },
   quiet: {
     ...base,
     minHeight: 48,
@@ -156,7 +165,9 @@ export function AlwaysNav(props: {
           margin: "0 auto",
           padding: `${String(SPACE.md)}px ${String(SPACE.lg)}px calc(${String(SPACE.md)}px + env(safe-area-inset-bottom, 0px))`,
           display: "flex",
-          gap: SPACE.md,
+          // Centred on the screen, whatever the page's width (screen check, 2026-11-08).
+          justifyContent: "center",
+          gap: SPACE.lg,
           flexWrap: "wrap",
         }}
       >
@@ -207,7 +218,7 @@ export function NumberPad({
   const [digits, setDigits] = useState("");
   const t = ui(lang).pad;
   const key: CSSProperties = {
-    minWidth: 72,
+    minWidth: 56,
     minHeight: 64,
     padding: 0,
     fontSize: TYPE.title,
@@ -258,7 +269,7 @@ export function NumberPad({
         </output>
       </p>
       {/* Two rows of five digits, then the clear key and the OK key: short enough to sit under the world. */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 72px)", gap: SPACE.md }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(56px, 72px))", gap: SPACE.md }}>
         {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].map((d) => (
           <Button key={d} onClick={() => press(d)} testId={`pad-${d}`} style={key}>
             {d}

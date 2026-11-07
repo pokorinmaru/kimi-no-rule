@@ -48,6 +48,8 @@ export function Helplines({
           padding: 0,
           margin: 0,
           display: "grid",
+          // Two across on a wide screen, so every number and とじる fit on one screen (screen check, 2026-11-08).
+          gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
           gap: SPACE.md,
         }}
       >
@@ -92,7 +94,8 @@ export function Helplines({
                 ...prose,
                 margin: 0,
                 fontSize: TYPE.small,
-                color: COLOR.inkSoft,
+                lineHeight: 2,
+                color: COLOR.ink,
               }}
             >
               <RubyText text={h.when} on={ruby} />

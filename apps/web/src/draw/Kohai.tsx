@@ -149,3 +149,20 @@ export function KohaiSays({
     </div>
   );
 }
+
+/**
+ * The junior with its AI mark and no bubble, on a screen where it has nothing to say (the rebuilt world, the solved
+ * problem, the child's own guess): it is still there beside the child, and an empty bubble would look like it
+ * thinking (Q30). Its pose says what it does (flow/pose.ts), never a feeling.
+ */
+export function KohaiBeside({ pose, children }: { pose: KohaiPose; children?: ReactNode }) {
+  return (
+    <div data-role="junior-beside" style={{ display: "flex", alignItems: "center", gap: SPACE.md, margin: `${String(SPACE.md)}px 0` }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: SPACE.xs, flex: "none" }}>
+        <Kohai pose={pose} />
+        <AiBadge />
+      </div>
+      {children}
+    </div>
+  );
+}

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type Readings, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
-import { Kohai, KohaiSays } from "./draw/Kohai.tsx";
+import { Kohai, KohaiBeside, KohaiSays } from "./draw/Kohai.tsx";
 import type { KohaiPose } from "./flow/pose.ts";
 import { SceneView } from "./draw/SceneView.tsx";
 import { SentenceList, splitByHolders } from "./draw/SentenceList.tsx";
@@ -17,7 +17,7 @@ import { viewOf, type CardScreenView, type FlowSnapshot, type FlowView, type Gue
 import { ui, type UiText } from "./flow/text.ts";
 import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
 import { CheckMode } from "./check/CheckMode.tsx";
-import { ParentNote } from "./parent/ParentNote.tsx";
+import { ParentNote, parentCard } from "./parent/ParentNote.tsx";
 import { scoreOf } from "./check/check.ts";
 import { checkText } from "./check/text.ts";
 import { AlwaysNav, Button, HoldButton, NumberPad, Toggle } from "./ui/controls.tsx";
@@ -27,7 +27,7 @@ import { createSpeaker, type Speaker } from "./voice/speaker.ts";
 import { ReadingTools, type ReadLine } from "./ui/ReadAloud.tsx";
 import { JuniorText, RubyText } from "./ui/Ruby.tsx";
 import { Helplines } from "./ui/Helplines.tsx";
-import { BAR_SPACE, BORDER, COLOR, GLOBAL_CSS, RADIUS, SPACE, TYPE, card, prose } from "./ui/tokens.ts";
+import { BAR_SPACE, BORDER, COLOR, GLOBAL_CSS, PAGE, RADIUS, SPACE, TYPE, card, prose } from "./ui/tokens.ts";
 
 /** The browser's own speech recognition, in the screen's language (the user chose the Web Speech API). */
 const browserSpeech: RecognizerFactory = (lang) => createRecognizer(lang);
@@ -56,7 +56,6 @@ export const APP_TITLE = ui("ja").title;
 // The page column: 760 px of content (the stage picture is laid out for 728 px inside the world's card), and room at
 // the bottom for the band of the three buttons, so it never covers the last content.
 const page: CSSProperties = {
-  maxWidth: 792,
   margin: "0 auto",
   padding: `${String(SPACE.lg)}px ${String(SPACE.lg)}px ${String(BAR_SPACE + SPACE.xl)}px`,
   boxSizing: "border-box",
@@ -65,7 +64,24 @@ const page: CSSProperties = {
   lineHeight: TYPE.lineHeight,
   color: COLOR.ink,
 };
-/** The card around the junior's world: the stage picture and the tapes together, 728 px inside. */
+/** The stage picture's width on the problem screen (px): the world's column on a landscape tablet, less its card's padding; else the page's. */
+export const STAGE_PX = { split: 516, single: 728 } as const;
+
+/** Whether the screen is wide enough for the two-column layout (ui/tokens.ts PAGE.splitAt); false where it cannot be told. */
+function useSplit(): boolean {
+  const query = `(min-width: ${String(PAGE.splitAt)}px)`;
+  const get = (): boolean => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(query).matches;
+  const [on, setOn] = useState(get);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const m = window.matchMedia(query);
+    const f = (): void => setOn(m.matches);
+    m.addEventListener("change", f);
+    return () => m.removeEventListener("change", f);
+  }, [query]);
+  return on;
+}
+/** The card around the junior's world: the stage picture and the tapes together. */
 const worldCard: CSSProperties = { ...card, padding: `${String(SPACE.md)}px 14px`, margin: `${String(SPACE.md)}px 0` };
 /** A screen's heading. */
 const h2: CSSProperties = { fontSize: TYPE.large, lineHeight: 1.5, margin: `${String(SPACE.sm)}px 0 ${String(SPACE.md)}px` };
@@ -129,6 +145,7 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
   if (view.totalValue !== null) answered[view.world.question.target_id] = view.totalValue;
   const childNumbers = [view.unitValue, view.totalValue].filter((x): x is Rational => x !== null);
   const failing = view.statements.filter((s) => s.lit).map((s) => s.text);
+  const stagePx = useSplit() ? STAGE_PX.split : STAGE_PX.single;
 
   return (
     <section aria-label={t.label} data-problem-id={view.problemId}>
@@ -145,6 +162,10 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
           <RubyText text={view.card} on={rubyUi} />
         </p>
       )}
+      {/* On a landscape tablet the words and the answers sit on the left, the junior's world on the right, so one
+          screen holds all of it; narrower, the world comes between the words and the answers (screen check, 2026-11-08). */}
+      <div className="k-split">
+      <div className="k-text">
       <ReadingTools lang={view.lang} lines={readLines} speaker={reading.speaker} onReading={setReadingIndex} furigana={reading.furigana} onFurigana={reading.onFurigana} />
       <div style={{ ...card, padding: `${String(SPACE.sm)}px ${String(SPACE.lg)}px` }}>
         <SentenceList
@@ -159,17 +180,20 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
         />
       </div>
       {/* No line, no row: a "…" would look like the junior thinking where it says nothing (Q30; run-through, 2026-11-08). */}
-      {view.line !== null && (
+      {view.line !== null ? (
         <KohaiSays pose={view.pose} reading={readingIndex !== null && readingIndex === view.statements.length}>
           <JuniorText text={view.line} on={rubyUi} lang={view.lang} readings={problemReadings} />
         </KohaiSays>
+      ) : (
+        <KohaiBeside pose={view.pose} />
       )}
-      {voice !== null && voice.canHear && (
-        // The child may tell the junior by talking (指示書 第7.1節 手順5); the card below always stays.
-        <VoicePanel lang={view.lang} text={t.voice} make={voice.make} canTalk={view.voice.canTalk} off={view.voice.off} onFinal={voice.hear} />
-      )}
-      <div data-role="world-card" style={worldCard}>
-        {view.stage !== null && <ObjectSceneView scene={view.stage} lang={view.lang} />}
+      </div>
+      <div data-role="world-card" className="k-world" style={worldCard}>
+        {view.stage !== null && (
+          <div style={{ maxWidth: stagePx, margin: "0 auto" }}>
+            <ObjectSceneView scene={view.stage} lang={view.lang} pagePx={stagePx} />
+          </div>
+        )}
         <WorldView
           {...(view.orderOnly ? { correct: view.world } : {})}
           world={view.world}
@@ -184,6 +208,7 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
           {...(view.canPlace ? { onPlaceCard: placeOn } : {})}
         />
       </div>
+      <div className="k-act">
       <div style={actions}>
         {view.predict !== null && (
           // The child's prediction about the junior's world, before any sentence lights (指示書 第7.1節 手順4).
@@ -194,7 +219,7 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
             </p>
             <div style={{ display: "flex", gap: SPACE.md, flexWrap: "wrap" }}>
               {view.predict.choices.map((c) => (
-                <Button key={c.answer} onClick={() => send({ type: "PREDICT", answer: c.answer })} testId={`btn-predict-${c.answer}`}>
+                <Button key={c.answer} kind="choice" onClick={() => send({ type: "PREDICT", answer: c.answer })} testId={`btn-predict-${c.answer}`}>
                   {c.label}
                 </Button>
               ))}
@@ -208,10 +233,11 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
         )}
         {view.step === "placed" && (
           <>
-            <Button kind="primary" onClick={() => send({ type: "CONFIRM_YES" })} testId="btn-confirm-yes">
+            {/* Yes and no look alike: a filled "yes" would nudge the child to agree with the junior (screen check, 2026-11-08). */}
+            <Button kind="choice" onClick={() => send({ type: "CONFIRM_YES" })} testId="btn-confirm-yes">
               {t.yes}
             </Button>
-            <Button onClick={() => send({ type: "CONFIRM_NO" })} testId="btn-confirm-no">
+            <Button kind="choice" onClick={() => send({ type: "CONFIRM_NO" })} testId="btn-confirm-no">
               {t.no}
             </Button>
           </>
@@ -229,6 +255,14 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
       </div>
       {view.step === "unit" && <NumberPad lang={view.lang} label={t.unitPad} labelNode={<RubyText text={t.unitPad} on={rubyUi} />} onAnswer={(v) => send({ type: "ANSWER_UNIT", value: v })} />}
       {view.step === "total" && <NumberPad lang={view.lang} label={t.totalPad} labelNode={<RubyText text={t.totalPad} on={rubyUi} />} onAnswer={(v) => send({ type: "ANSWER_TOTAL", value: v })} />}
+      {voice !== null && voice.canHear && (
+        // The child may tell the junior by talking (指示書 第7.1節 手順5), another way beside the answers; the card always stays.
+        <div style={{ marginTop: SPACE.lg }}>
+          <VoicePanel lang={view.lang} text={t.voice} make={voice.make} canTalk={view.voice.canTalk} off={view.voice.off} onFinal={voice.hear} />
+        </div>
+      )}
+      </div>
+      </div>
     </section>
   );
 }
@@ -269,12 +303,15 @@ function GuessScreen({ view, send, reading }: { view: GuessView; send: Session["
       <h2 style={h2}>
         <RubyText text={view.label} on={rubyUi} />
       </h2>
+      <div className="k-split">
+      <div className="k-text">
       <ReadingTools lang={view.lang} lines={readLines} speaker={reading.speaker} onReading={setReadingIndex} furigana={reading.furigana} onFurigana={reading.onFurigana} />
       <div style={{ ...card, padding: `${String(SPACE.sm)}px ${String(SPACE.lg)}px` }}>
         <SentenceList statements={view.statements.map((s) => ({ ...s, lit: false }))} readings={reading.furigana ? problemReadings : null} readingIndex={readingIndex} checks={null} label={view.text.problem.sentences} lang={view.lang} />
       </div>
+      </div>
       {view.tapes.length > 0 && (
-        <div role="group" aria-label={draw.world} data-testid="guess-tapes" style={{ ...worldCard, display: "grid", gap: SPACE.md }}>
+        <div role="group" aria-label={draw.world} data-testid="guess-tapes" className="k-world" style={{ ...worldCard, display: "grid", gap: SPACE.md }}>
           <p style={{ margin: 0 }}>
             <RubyText text={view.cardLine} on={rubyUi} /> <RubyText text={view.optional} on={rubyUi} />
           </p>
@@ -319,17 +356,21 @@ function GuessScreen({ view, send, reading }: { view: GuessView; send: Session["
           })}
         </div>
       )}
-      <div role="group" aria-label={view.label} data-testid="guess" style={{ display: "flex", flexDirection: "column", gap: SPACE.md, marginTop: SPACE.lg }}>
-        <p style={{ margin: 0, fontSize: TYPE.large, fontWeight: 700 }} data-testid="guess-question">
-          <RubyText text={view.question} on={rubyUi} />
-        </p>
+      <div role="group" aria-label={view.label} data-testid="guess" className="k-act" style={{ display: "flex", flexDirection: "column", gap: SPACE.md, marginTop: SPACE.lg }}>
+        {/* The junior listens for the child's own guess (it has not read the problem yet). */}
+        <KohaiBeside pose="listen">
+          <p style={{ margin: 0, fontSize: TYPE.large, fontWeight: 700 }} data-testid="guess-question">
+            <RubyText text={view.question} on={rubyUi} />
+          </p>
+        </KohaiBeside>
         <div style={{ display: "flex", gap: SPACE.md, flexWrap: "wrap" }}>
           {view.choices.map((c) => (
-            <Button key={c.holderId ?? "unknown"} onClick={() => send({ type: "GUESS", larger: c.holderId })} testId={`btn-guess-${c.holderId ?? "unknown"}`}>
+            <Button key={c.holderId ?? "unknown"} kind="choice" onClick={() => send({ type: "GUESS", larger: c.holderId })} testId={`btn-guess-${c.holderId ?? "unknown"}`}>
               {c.holderId === null ? <RubyText text={c.label} on={rubyUi} /> : name(c.label)}
             </Button>
           ))}
         </div>
+      </div>
       </div>
     </section>
   );
@@ -420,7 +461,7 @@ function CardScreen({ view, send, ruby }: { view: CardScreenView; send: Session[
 
 /** The junior's line in its bubble with the AI mark, as on the problem screen. */
 function JuniorLine({ line, reading, pose, ruby, lang, readings }: { line: string | null; reading: boolean; pose: KohaiPose; ruby: boolean; lang: Lang; readings: Readings }) {
-  if (line === null) return null;
+  if (line === null) return <KohaiBeside pose={pose} />;
   return (
     <KohaiSays pose={pose} reading={reading}>
       <JuniorText text={line} on={ruby} lang={lang} readings={readings} />
@@ -478,7 +519,7 @@ function HelpScreen({ view, send, reading }: { view: HelpView; send: Session["se
           // The two holders look alike; neither is chosen beforehand and nothing says which fits.
           <div role="group" aria-label={t.orderLabel} data-testid="help-order" style={{ display: "flex", gap: SPACE.md, flexWrap: "wrap" }}>
             {view.choices.map((c) => (
-              <Button key={c.holderId} onClick={() => send({ type: "ORDER_GUESS", holderId: c.holderId })} testId={`btn-order-${c.holderId}`}>
+              <Button key={c.holderId} kind="choice" onClick={() => send({ type: "ORDER_GUESS", holderId: c.holderId })} testId={`btn-order-${c.holderId}`}>
                 {word(c.label)}
               </Button>
             ))}
@@ -508,7 +549,9 @@ const bookReadings = { ...UI_READINGS, ...WORDBOOK_READINGS };
 
 /** The word book's two contrasting pictures side by side: each half of the page's 728 px less the gap. */
 const CONTRAST_GAP = 16;
-const CONTRAST_PX = (728 - CONTRAST_GAP) / 2;
+const CONTRAST_PX = (708 - CONTRAST_GAP) / 2;
+/** One above the other, each picture stays this wide at most (a full-width picture drew plates larger than the page; screen check, 2026-11-08). */
+const CONTRAST_STACKED_PX = 480;
 
 function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Session["send"]; reading: ReadingHooks }) {
   const t = view.text.wordbook;
@@ -563,11 +606,11 @@ function WordbookScreen({ view, send, reading }: { view: WordbookView; send: Ses
                 { scene: page.contrast.asWorded, caption: page.contrast.captions[0] },
                 ...(page.contrast.otherAsOne === null ? [] : [{ scene: page.contrast.otherAsOne, caption: page.contrast.captions[1] ?? "" }]),
               ].map((c) => (
-                <figure key={c.caption} data-testid="wordbook-contrast" style={{ flex: contrastSide ? `1 1 ${String(CONTRAST_PX - 4)}px` : "1 1 100%", minWidth: 0, margin: 0 }}>
+                <figure key={c.caption} data-testid="wordbook-contrast" style={{ flex: contrastSide ? `1 1 ${String(CONTRAST_PX - 4)}px` : "1 1 100%", minWidth: 0, margin: "0 auto", maxWidth: CONTRAST_STACKED_PX }}>
                   <figcaption data-testid="wordbook-caption" style={{ fontWeight: 700, margin: "0 0 4px" }}>
                     <RubyText text={c.caption} on={reading.furigana && view.lang === "ja"} readings={bookReadings} />
                   </figcaption>
-                  <ObjectSceneView scene={c.scene} lang={view.lang} counters compact label={c.caption} {...(contrastSide ? { pagePx: CONTRAST_PX } : {})} />
+                  <ObjectSceneView scene={c.scene} lang={view.lang} counters compact label={c.caption} pagePx={contrastSide ? CONTRAST_PX : CONTRAST_STACKED_PX} />
                 </figure>
               ))}
             </div>
@@ -610,10 +653,10 @@ function LangSwitch({ lang, onChange }: { lang: Lang; onChange: (l: Lang) => voi
 /** The AI-free checks (指示書 第7.3節・第7.4節): per check, how many of the problems given were answered right. */
 function CheckResults({ rows, text }: { rows: readonly CheckRow[]; text: UiText["parent"] }) {
   return (
-    <div data-testid="check-results">
-      <h3 style={{ fontSize: TYPE.body }}>{text.checksTitle}</h3>
+    <div data-testid="check-results" style={parentCard}>
+      <h3 style={{ fontSize: TYPE.large, margin: `0 0 ${String(SPACE.sm)}px` }}>{text.checksTitle}</h3>
       {rows.length === 0 ? (
-        <p>{text.checksNone}</p>
+        <p style={{ margin: 0, color: COLOR.inkSoft, fontWeight: 700 }}>{text.checksNone}</p>
       ) : (
         <ul>
           {rows.map((r) => {
@@ -622,10 +665,12 @@ function CheckResults({ rows, text }: { rows: readonly CheckRow[]; text: UiText[
           })}
         </ul>
       )}
-      <p style={{ ...note, ...prose, fontSize: TYPE.small }}>{text.checksNote}</p>
+      <p style={{ ...prose, fontSize: TYPE.small, margin: `${String(SPACE.sm)}px 0 0` }}>{text.checksNote}</p>
     </div>
   );
 }
+
+const DANGER = COLOR.danger;
 
 /** The grown-up's screen (F9): the language, the AI-free checks, the research note and its trend, and deleting every record on this device. */
 function ParentScreen({
@@ -656,17 +701,25 @@ function ParentScreen({
   }, [store, done]);
   return (
     <section aria-label={t.label}>
-      <h2 style={h2}>{t.label}</h2>
+      {/* もどる at the top too, so nobody has to scroll past everything to leave (screen check, 2026-11-08). */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: SPACE.md, flexWrap: "wrap" }}>
+        <h2 style={h2}>{t.label}</h2>
+        <Button onClick={onClose} testId="btn-parent-back">{t.back}</Button>
+      </div>
       <LangSwitch lang={lang} onChange={onLang} />
-      {t.lines.map((l) => (
-        <p key={l} style={prose}>
-          {l}
-        </p>
-      ))}
+      <div style={parentCard}>
+        {t.lines.map((l) => (
+          <p key={l} style={{ ...prose, maxWidth: "44em", margin: `0 0 ${String(SPACE.sm)}px` }}>
+            {l}
+          </p>
+        ))}
+      </div>
       <CheckResults rows={checks} text={t} />
       <ParentNote store={store} lang={lang} reload={done} />
+      {/* Deleting every record stands apart, in its own outlined area, and always asks first. */}
+      <div data-role="danger-zone" style={{ margin: `${String(SPACE.xl)}px 0`, padding: `${String(SPACE.md)}px ${String(SPACE.lg)}px`, border: `${String(BORDER.thin)}px dashed ${DANGER}`, borderRadius: RADIUS.md }}>
       {!asked && (
-        <Button kind="quiet" onClick={() => setAsked(true)}>
+        <Button kind="quiet" onClick={() => setAsked(true)} style={{ color: DANGER, borderColor: DANGER }}>
           {t.deleteAsk}
         </Button>
       )}
@@ -675,6 +728,7 @@ function ParentScreen({
           <p>{t.deleteWarn}</p>
           <Button
             kind="primary"
+            style={{ background: DANGER }}
             testId="btn-delete-all"
             onClick={() => {
               void onDelete().then(() => setDone(true));
@@ -686,13 +740,11 @@ function ParentScreen({
         </>
       )}
       {done && <p data-testid="deleted">{t.deleted}</p>}
+      </div>
       <p>
         <a href="#/try" data-testid="link-try" style={{ color: COLOR.ink, fontSize: TYPE.small, textDecorationColor: COLOR.inkSoft, textUnderlineOffset: 4 }}>
           {t.tryLink}
         </a>
-      </p>
-      <p>
-        <Button onClick={onClose}>{t.back}</Button>
       </p>
     </section>
   );
@@ -721,7 +773,7 @@ function Screen({
       return (
         <section aria-label={t.intro.label} data-testid="screen-intro">
           <LangSwitch lang={view.lang} onChange={onLang} />
-          <ol data-testid="intro-cards" style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: SPACE.lg }}>
+          <ol data-testid="intro-cards" style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: SPACE.lg }}>
             {t.intro.cards.map((c, i) => (
               <li key={c.title} data-role="intro-card" style={{ ...card, margin: 0 }}>
                 <h2 style={{ display: "flex", alignItems: "center", gap: SPACE.md, fontSize: TYPE.large, lineHeight: 1.5, margin: `0 0 ${String(SPACE.sm)}px` }}>
@@ -768,7 +820,7 @@ function Screen({
                   {l}
                 </h2>
               ) : (
-                <p key={l} style={{ ...prose, maxWidth: "none", fontSize: TYPE.small, margin: `0 0 ${String(SPACE.md)}px` }}>
+                <p key={l} style={{ ...prose, maxWidth: "40em", fontSize: TYPE.small, lineHeight: 1.9, margin: `0 0 ${String(SPACE.md)}px` }}>
                   {l}
                 </p>
               ),
@@ -776,10 +828,10 @@ function Screen({
           </div>
           <p style={actions}>
             {/* The two answers look alike: nothing nudges the grown-up to agree. */}
-            <Button onClick={() => send({ type: "CONSENT_YES" })} testId="btn-consent-yes">
+            <Button kind="choice" onClick={() => send({ type: "CONSENT_YES" })} testId="btn-consent-yes">
               {t.consent.yes}
             </Button>
-            <Button onClick={() => send({ type: "CONSENT_NO" })}>{t.consent.no}</Button>
+            <Button kind="choice" onClick={() => send({ type: "CONSENT_NO" })}>{t.consent.no}</Button>
           </p>
         </section>
       );
@@ -827,6 +879,10 @@ function Screen({
     case "rest":
       return (
         <section aria-label={view.screen === "hard" ? t.hard.label : t.rest.label} data-testid={`screen-${view.screen}`}>
+          {/* A calm heading of its own: the app's title would not belong here (screen check, 2026-11-08). */}
+          <h2 style={h2}>
+            <RubyText text={view.screen === "hard" ? t.hard.label : t.rest.label} on={ruby} />
+          </h2>
           <Lines lines={view.lines} ruby={ruby} />
           <Helplines helpline={view.helpline} lang={view.lang} furigana={reading.furigana} />
           <p style={actions}>
@@ -842,6 +898,12 @@ function Screen({
       );
   }
 }
+
+/** The screens that draw the junior with its AI mark (its line, or the junior beside the child). */
+const JUNIOR_SCREENS: ReadonlySet<string> = new Set(["guess", "problem", "help", "wordbook", "card"]);
+
+/** The screens laid out in two columns on a landscape tablet (the words and answers, and the world). */
+const SPLIT_SCREENS: ReadonlySet<string> = new Set(["guess", "problem"]);
 
 /** How long the grown-up holds 「おうちの人へ」 to open the parent screen (Q31). */
 export const PARENT_HOLD_MS = 2000;
@@ -943,13 +1005,15 @@ export function App({
   };
 
   return (
-    <main style={page} lang={lang}>
+    <main className={view !== null && !parent && !check && SPLIT_SCREENS.has(view.screen) ? "k-page k-wide" : "k-page"} style={page} lang={lang}>
       <style>{GLOBAL_CSS}</style>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: SPACE.md, margin: `0 0 ${String(SPACE.md)}px` }}>
-        <h1 style={{ fontSize: TYPE.title, lineHeight: 1.5, margin: 0 }}>
+        {/* On a landscape tablet the junior's screens give the title's row to the problem and its world (it stays for screen readers). */}
+        <h1 className={view !== null && !parent && !check && JUNIOR_SCREENS.has(view.screen) ? "k-title-wide-hide" : undefined} style={{ fontSize: TYPE.title, lineHeight: 1.5, margin: 0, ...(view !== null && !parent && !check && (view.screen === "hard" || view.screen === "rest") ? srOnly : {}) }}>
           <RubyText text={t.title} on={furigana && lang === "ja"} />
         </h1>
-        <AiBadge />
+        {/* The AI mark sits beside the junior where it is drawn; elsewhere it stays here, so every screen has it. */}
+        {!(view !== null && !parent && !check && JUNIOR_SCREENS.has(view.screen)) && <AiBadge />}
       </header>
       {view === null && <p>{t.preparing}</p>}
       {view !== null && store !== null && parent && (
@@ -987,7 +1051,10 @@ export function App({
             : {})}
         />
       )}
-      {view !== null && !parent && !check && <Screen view={view} send={send} onLang={changeLang} voice={voice} reading={reading} />}
+      {view !== null && !parent && !check && (
+        // Only the screens laid out in two columns use the landscape page's full width; the others keep one column.
+        <Screen view={view} send={send} onLang={changeLang} voice={voice} reading={reading} />
+      )}
       {/* The grown-ups' doors: quiet, under the child's screen, apart from its one main action. */}
       {!parent && !check && (view?.screen === "intro" || view?.screen === "consent" || view?.screen === "ended") && (
         <section data-role="adult-doors" aria-label={t.parent.label} style={{ marginTop: SPACE.xxxl, padding: `${String(SPACE.md)}px ${String(SPACE.lg)}px`, border: `${String(BORDER.thin)}px solid ${COLOR.line}`, borderRadius: RADIUS.md, background: COLOR.surfaceSoft }}>

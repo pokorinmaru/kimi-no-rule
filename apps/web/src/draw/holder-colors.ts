@@ -8,11 +8,15 @@ export interface HolderColor {
   fill: string;
   /** For text: dark enough to read on white (contrast above 4.5). */
   ink: string;
+  /** The holder's tape: a soft tint, a deeper one for the unit tape, and its edge (the tapes match the picture's frames). */
+  tape: string;
+  tapeUnit: string;
+  tapeEdge: string;
 }
 
 export const HOLDER_COLORS: readonly HolderColor[] = [
-  { fill: PALETTE.blue, ink: "#1f5fae" },
-  { fill: PALETTE.orange, ink: "#a14a05" },
+  { fill: PALETTE.blue, ink: "#1f5fae", tape: "#cfe3f5", tapeUnit: "#a9cdee", tapeEdge: "#2b5f8a" },
+  { fill: PALETTE.orange, ink: "#a14a05", tape: "#ffe6cc", tapeUnit: PALETTE.orangeLight, tapeEdge: "#a14a05" },
 ];
 
 /** A colour per holder, in the world's order of holders; a third holder and more get none. */
