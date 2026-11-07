@@ -5,12 +5,13 @@
 import type { ProblemRecord } from "../schema/problem-record.ts";
 import type { WorldScene } from "../schema/world-scene.ts";
 import { hypothesis as hypothesisSchema } from "../schema/reading-rule.ts";
-import { predict } from "../rules/predict.ts";
+import { classOf, predict } from "../rules/predict.ts";
 import { firedClauses, runRule, type Hypothesis } from "../rules/run.ts";
 import { sameReading } from "../rules/same-reading.ts";
 import { groupHypotheses } from "../rules/score.ts";
 import {
   addHypothesis,
+  agreementLikelihoods,
   confirmation,
   constructiveLikelihoods,
   countsAsObservation,
@@ -125,6 +126,34 @@ export function observe(state: ResearchState, reading: FirstReading): ResearchSt
   const counted = state.pool.map((e) => ({ ...e, splitObservations: e.splitObservations + (split ? 1 : 0) }));
   const { pool, unexpressible } = restated(counted, weights);
   return { ...state, pool, weights, readings, unexpressible };
+}
+
+/** The child's prediction about the junior's world (指示書 第7.1節 手順4): "fits", "odd", or "unknown" (no observation). */
+export interface AgreementObservation {
+  record: ProblemRecord;
+  /** The world the junior showed, as its reading built it. */
+  shownWorld: WorldScene;
+  answer: "fits" | "odd" | "unknown";
+  referencePlaced: boolean;
+}
+
+/**
+ * An agreement observation (指示書 第6.7節 手順2 (ii)): "fits" supports the hypotheses that predict the shown
+ * world, "odd" the others. "unknown", or a pool with no hypothesis yet, changes nothing. It is not a
+ * constructive observation, so it never counts toward confirming (手順4), and it is not kept as a reading.
+ */
+export function observeAgreement(state: ResearchState, o: AgreementObservation): ResearchState {
+  if (o.answer === "unknown" || state.pool.length === 0) return state;
+  const pred = predict(
+    state.pool.map((e) => e.hypothesis),
+    o.record,
+    o.referencePlaced,
+  );
+  // A shown world no hypothesis predicts takes a class of its own (classOf adds it to this W only).
+  const shownClass = classOf(pred.worlds, o.shownWorld, o.referencePlaced);
+  const weights = update(state.weights, agreementLikelihoods(pred, shownClass, o.answer));
+  const { pool, unexpressible } = restated(state.pool, weights);
+  return { ...state, pool, weights, unexpressible };
 }
 
 /** What one hypothesis alone says about the scored readings: its weight's catch-up factor and its split count. */

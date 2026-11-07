@@ -70,6 +70,8 @@ export interface UiText {
     /** On the English screen: the problem is shown as written, in Japanese. */
     note: string | null;
     next: string;
+    /** The child's prediction about the junior's world (指示書 第7.1節 手順4): the question and its three buttons. */
+    predict: { label: string; question: string; fits: string; odd: string; unknown: string };
     looking: string;
     yes: string;
     no: string;
@@ -184,6 +186,7 @@ const JA: UiText = {
     world: "後輩が作った世界",
     note: null,
     next: "つぎへ",
+    predict: { label: "後輩の世界を見て", question: "この世界、問題とぴったり？ へん？", fits: "ぴったり", odd: "へん", unknown: "まだわからない" },
     looking: "「1」の札を、1とみる人のテープに動かして、後輩に教えてね。",
     yes: "うん、そう",
     no: "ちがう",
@@ -276,6 +279,7 @@ const EN: UiText = {
     world: "The world the junior made",
     note: "The problem is written in Japanese.",
     next: "Next",
+    predict: { label: "Look at the junior's world", question: "Does this world fit the problem?", fits: "It fits", odd: "Something's odd", unknown: "Not sure yet" },
     looking: 'Move the "1" card onto the tape of the person you count as 1, and show the junior.',
     yes: "Yes, that's it",
     no: "Not that",

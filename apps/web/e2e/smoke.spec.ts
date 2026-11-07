@@ -34,7 +34,13 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   // The junior's world: the younger brother's tape is asked, so it shows ？ and never the answer.
   await expect(page.getByTestId("junior-line")).not.toHaveText("…");
   await expect(page.locator("main")).not.toContainText("8匹");
-  await page.getByTestId("btn-next").click();
+  // Before any sentence lights, the child says whether the junior's world fits (指示書 第7.1節 手順4).
+  await expect(page.getByTestId("predict-question")).toHaveText("この世界、問題とぴったり？ へん？");
+  await expect(page.locator('[data-glow="true"]')).toHaveCount(0);
+  const first = await page.getByTestId("predict").getByRole("button").allTextContents();
+  await page.getByTestId("btn-predict-fits").click();
+  await expect(page.getByTestId("predict")).toHaveCount(0);
+  await expect(page.locator('[data-glow="true"]').first()).toBeAttached();
   // The child teaches with the 1 card: tap it, then tap the younger brother's whole tape.
   await page.locator('[data-role="reference_mark"]').click();
   await page.locator('[data-drop-target="h_otouto"]').first().click();
@@ -50,6 +56,10 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   await expect(page.locator("main")).toContainText("8匹");
   await page.getByTestId("btn-next").click();
   await expect(page.getByTestId("reading-card")).toContainText("後輩の読み方：");
+  // On the second problem the two prediction buttons come in the other order (指示書 第11節 M7).
+  const second = await page.getByTestId("predict").getByRole("button").allTextContents();
+  expect(second.slice(0, 2)).toEqual([first[1], first[0]]);
+  expect(second[2]).toBe(first[2]);
   await expect(page.locator("main")).not.toContainText("君のルール");
 });
 
@@ -73,7 +83,7 @@ test("the three buttons stay on the parent screen too", async ({ page }) => {
   await expect(page.getByTestId("btn-hard")).toBeVisible();
 });
 
-test("axe-core finds no violation on the intro, consent and number-pad screens", async ({ page }) => {
+test("axe-core finds no violation on the intro, consent, prediction and number-pad screens", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
   await expect(page.getByTestId("btn-next")).toBeVisible();
@@ -82,7 +92,9 @@ test("axe-core finds no violation on the intro, consent and number-pad screens",
   await expect(page.getByTestId("btn-consent-yes")).toBeVisible();
   await expectNoAxeViolations(page, "consent");
   await page.getByTestId("btn-consent-yes").click();
-  await page.getByTestId("btn-next").click();
+  await expect(page.getByTestId("btn-predict-fits")).toBeVisible();
+  await expectNoAxeViolations(page, "prediction");
+  await page.getByTestId("btn-predict-odd").click();
   await page.locator('[data-role="reference_mark"]').click();
   await page.locator('[data-drop-target="h_otouto"]').first().click();
   await page.getByTestId("btn-confirm-yes").click();
@@ -96,7 +108,7 @@ test("a wrong unit gets the junior's words, never the right number; a second wro
   await page.goto("/");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
-  await page.getByTestId("btn-next").click();
+  await page.getByTestId("btn-predict-unknown").click();
   await page.locator('[data-role="reference_mark"]').click();
   await page.locator('[data-drop-target="h_otouto"]').first().click();
   await page.getByTestId("btn-confirm-yes").click();
@@ -157,7 +169,8 @@ test("in English: switch on the intro, then the first problem with taps; the cho
   await expect(page.getByTestId("junior-line")).not.toHaveText("…");
   await expect(page.getByTestId("junior-line")).not.toContainText(/[\u3040-\u30ff]/);
   await expect(page.locator("main")).not.toContainText("8匹");
-  await page.getByTestId("btn-next").click();
+  await expect(page.getByTestId("predict-question")).toHaveText("Does this world fit the problem?");
+  await page.getByTestId("btn-predict-odd").click();
   await page.locator('[data-role="reference_mark"]').click();
   await page.locator('[data-drop-target="h_otouto"]').first().click();
   // The holder's name stays as in the problem.

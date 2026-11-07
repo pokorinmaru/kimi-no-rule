@@ -1,8 +1,8 @@
 // What each screen shows, from a snapshot of the session machine. The screens draw only this, so the
 // tests can read every word a child may see (childTexts) on every path.
 import type { SnapshotFrom } from "xstate";
-import { render, type GateContext, type Lang, type Rational, type WorldScene } from "@kimi/core";
-import type { flowMachine } from "./machine.ts";
+import { gate, render, type GateContext, type Lang, type Rational, type WorldScene } from "@kimi/core";
+import type { PredictionAnswer, flowMachine } from "./machine.ts";
 import { gateContext } from "./problem.ts";
 import { AI_MARK, hardLines, helplineLine, restLines, ui, type HelplineText, type UiText } from "./text.ts";
 
@@ -39,6 +39,12 @@ export interface ProblemView extends Common {
   line: string | null;
   /** The junior's reading card (from the second problem), or null. */
   card: string | null;
+  /**
+   * The child's prediction about the junior's world, asked before any sentence lights (指示書 第7.1節 手順4):
+   * the question and the buttons in this problem's order ("fits" and "odd" swap on every problem, "unknown"
+   * last). Null once answered or skipped. Nothing on screen ever says whether the answer fits.
+   */
+  predict: { label: string; question: string; choices: { answer: PredictionAnswer; label: string }[] } | null;
   /** On the English screen: a line that the problem is shown as written, in Japanese (the bank is Japanese). */
   note: string | null;
   /** Numbers the child said on this problem (may be drawn as the child's own). */
@@ -90,8 +96,19 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
   const p = c.problem;
   const step = STEPS.find((x) => s.matches({ active: { problem: x } }));
   if (p === null || step === undefined) return { ...common, screen: "research", lines: [t.research.wait] };
-  // Sentences light only once the junior has shown its world and said so (step "reading" lights none).
-  const lit = step === "reading" ? new Set<number>() : new Set(p.shown.failing);
+  // Sentences light only once the junior has shown its world and the child has answered or skipped the
+  // prediction: core's gate refuses the sentences' check while the prediction is pending.
+  const shownOk = step !== "reading" && gate({ kind: "show_statements" }, gateContext(p.record, c.lang, [], p.prediction === null ? "pending" : "answered")).ok;
+  const lit = shownOk ? new Set(p.shown.failing) : new Set<number>();
+  const pt = t.problem.predict;
+  const predict =
+    step === "reading" && p.prediction === null
+      ? {
+          label: pt.label,
+          question: pt.question,
+          choices: [...p.predictionOrder, "unknown" as const].map((answer) => ({ answer, label: pt[answer] })),
+        }
+      : null;
   const rel = p.shown.world.relations.find((r) => r.id === p.relationId);
   return {
     ...common,
@@ -106,6 +123,7 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
     tappedWords: [...p.words],
     line: c.line === null || c.line.text === "" ? null : c.line.text,
     card: p.card,
+    predict,
     note: t.problem.note,
     unitValue: p.unitValue,
     totalValue: p.totalValue,
@@ -125,6 +143,7 @@ export function childTexts(v: FlowView): string[] {
       out.push(...v.statements.map((s) => s.text));
       if (v.line !== null) out.push(v.line);
       if (v.card !== null) out.push(v.card);
+      if (v.predict !== null) out.push(v.predict.label, v.predict.question, ...v.predict.choices.map((c) => c.label));
       if (v.note !== null) out.push(v.note);
       out.push(p.label, p.sentences, p.world, p.next, p.looking, p.yes, p.no, p.nextProblem, p.unitPad, p.totalPad, t.pad.clear, t.pad.ok);
       out.push(t.draw.sentences, t.draw.glow, t.draw.world, t.draw.cardAria, t.draw.cardHere, t.draw.odd);

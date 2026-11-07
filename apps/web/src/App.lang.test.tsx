@@ -76,7 +76,9 @@ describe("the language switch", () => {
     const sign = FRACTION_BANK.find((r) => r.world.problem_id === "p_signboard") as ProblemRecord;
     for (const s of sign.statements) expect(document.body.textContent).toContain(s.text);
     expectEnglishOnly([sign]);
-    fireEvent.click(screen.getByTestId("btn-next"));
+    // The prediction about the junior's world, in English, before any sentence lights.
+    expect(screen.getByTestId("predict-question").textContent).toBe("Does this world fit the problem?");
+    fireEvent.click(screen.getByTestId("btn-predict-odd"));
     expectEnglishOnly([sign]);
     for (const t of [...document.querySelectorAll("button, p, h1, h2, li")].map((e) => e.textContent ?? "")) expect(hasForbiddenPhrase(t), t).toBe(false);
   });

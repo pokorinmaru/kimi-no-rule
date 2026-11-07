@@ -10,6 +10,7 @@ import {
   holderName,
   initialState,
   observe,
+  observeAgreement,
   problemNumber,
   readingCard,
   render,
@@ -56,6 +57,19 @@ export const MAX_RESEARCH_READINGS = 12;
 
 export type KohaiIntent = "read" | "which" | "restate";
 
+/** The child's prediction about the junior's world (指示書 第7.1節 手順4): "unknown" is the skip (no observation). */
+export type PredictionAnswer = "fits" | "odd" | "unknown";
+export type PredictionOrder = readonly ["fits", "odd"] | readonly ["odd", "fits"];
+
+/**
+ * The order of the two prediction buttons on the n-th problem of the session (1-based). It changes on every
+ * problem, so no answer sits in the same place twice in a row (指示書 第11節 M7), and it is decided by the
+ * problem's number so the tests can check it. Neither button is chosen beforehand.
+ */
+export function predictionOrder(n: number): PredictionOrder {
+  return n % 2 === 1 ? (["fits", "odd"] as const) : (["odd", "fits"] as const);
+}
+
 /** What the controller sends to POST /kohai. No correct world, no right or wrong, no child's free words. */
 export interface KohaiRequest {
   problem_id: string;
@@ -100,6 +114,10 @@ export interface ProblemState {
   reading: KohaiReading;
   /** The card's one line (from the second problem), or null. */
   card: string | null;
+  /** The child's prediction about the junior's world, null until the child answers or skips it. */
+  prediction: PredictionAnswer | null;
+  /** The order of the "fits" and "odd" buttons on this problem. */
+  predictionOrder: PredictionOrder;
   /** The junior's world as its rule built it: the child's teaching is applied to this. */
   base: WorldScene;
   /** The world on screen now, with its failing sentences. */
@@ -129,6 +147,8 @@ export interface ProblemLog {
   source: KohaiReading["source"];
   readingId: string;
   reading: Hypothesis;
+  /** The child's prediction about the junior's world (null: the problem ended before it). */
+  prediction: PredictionAnswer | null;
   firstPlacement: string | null;
   ops: AnyOp[];
   fixes: number;
@@ -180,6 +200,7 @@ export type FlowEvent =
   | { type: "NEXT" }
   | { type: "CONSENT_YES" }
   | { type: "CONSENT_NO" }
+  | { type: "PREDICT"; answer: PredictionAnswer }
   | { type: "PLACE_ONE"; quantityId: string }
   | { type: "TAP_WORD"; statementIndex: number; token: number }
   | { type: "CONFIRM_YES" }
@@ -295,6 +316,8 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     relationId: rel.id,
     reading: junior.reading,
     card: ctx.done.length >= 1 ? readingCard(junior.reading.hypothesis, record, ctx.lang) : null,
+    prediction: null,
+    predictionOrder: predictionOrder(ctx.done.length + 1),
     base: junior.base,
     shown: junior.shown,
     placement: null,
@@ -316,6 +339,25 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     done: [...ctx.done, record.world.problem_id],
     line: readLine(next, problem),
   };
+}
+
+/**
+ * The child's prediction about the junior's world. It is kept on the problem and observed by core's
+ * agreement model (指示書 第6.7節 手順2 (ii)); "unknown" observes nothing. Whether it "fits" is never shown:
+ * every answer goes on to the same lit sentences and the same junior's line.
+ */
+function predict(ctx: FlowContext, answer: PredictionAnswer): Partial<FlowContext> {
+  const p = ctx.problem;
+  if (p === null || p.prediction !== null) return {};
+  let research: ResearchState;
+  try {
+    // The junior's world as its reading built it, with its "1" card drawn (so the reference is observed).
+    research = observeAgreement(ctx.research, { record: p.record, shownWorld: p.base, answer, referencePlaced: true });
+  } catch {
+    // core could not judge it: the prediction is kept on the log and the research state stays as it was.
+    research = ctx.research;
+  }
+  return { problem: { ...p, prediction: answer }, research };
 }
 
 function isEnd(ctx: FlowContext, quantityId: string): boolean {
@@ -398,6 +440,7 @@ function logOf(p: ProblemState, outcome: Outcome): ProblemLog {
     source: p.reading.source,
     readingId: p.reading.hypothesis.id,
     reading: p.reading.hypothesis,
+    prediction: p.prediction,
     firstPlacement: p.firstPlacement,
     ops,
     fixes: p.fixes,
@@ -477,6 +520,8 @@ export const flowMachine = setup({
     needsIntro: ({ context }) => !context.introSeen,
     needsConsent: ({ context }) => !context.consented,
     hasProblem: ({ context }) => context.problem !== null && !context.problem.logged,
+    predictable: ({ context, event }) =>
+      event.type === "PREDICT" && (["fits", "odd", "unknown"] as const).includes(event.answer) && context.problem !== null && context.problem.prediction === null,
     placeable: ({ context, event }) => event.type === "PLACE_ONE" && isEnd(context, event.quantityId),
     tappable: ({ context, event }) => event.type === "TAP_WORD" && validToken(context, event.statementIndex, event.token),
     allHold: ({ context }) => context.problem !== null && context.problem.shown.failing.length === 0 && context.problem.taughtOps.length > 0,
@@ -580,8 +625,16 @@ export const flowMachine = setup({
         problem: {
           initial: "reading",
           states: {
+            // The junior has shown its world; the child answers "fits" / "odd" (or skips) before any sentence
+            // lights (指示書 第7.1節 手順4, 第11節 M7). "Next" does not skip the question.
             reading: {
-              on: { NEXT: "looking" },
+              on: {
+                PREDICT: {
+                  guard: "predictable",
+                  target: "looking",
+                  actions: assign(({ context, event }) => (event.type === "PREDICT" ? predict(context, event.answer) : {})),
+                },
+              },
             },
             looking: {
               entry: assign(({ context }) => ({ line: whichLine(context) })),

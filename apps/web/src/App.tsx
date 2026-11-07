@@ -99,10 +99,21 @@ function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"
         {...(view.canPlace ? { onPlaceCard: placeOn } : {})}
       />
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
-        {view.step === "reading" && (
-          <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-next">
-            {t.next}
-          </Button>
+        {view.predict !== null && (
+          // The child's prediction about the junior's world, before any sentence lights (指示書 第7.1節 手順4).
+          // The buttons look alike and none is chosen beforehand; their order changes on every problem.
+          <div role="group" aria-label={view.predict.label} data-testid="predict" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <p style={{ margin: 0 }} data-testid="predict-question">
+              {view.predict.question}
+            </p>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {view.predict.choices.map((c) => (
+                <Button key={c.answer} onClick={() => send({ type: "PREDICT", answer: c.answer })} testId={`btn-predict-${c.answer}`}>
+                  {c.label}
+                </Button>
+              ))}
+            </div>
+          </div>
         )}
         {view.step === "looking" && <p>{t.looking}</p>}
         {view.step === "placed" && (

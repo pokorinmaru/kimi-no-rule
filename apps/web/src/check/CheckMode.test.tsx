@@ -115,6 +115,7 @@ describe("the check screen", () => {
         source: "competitor",
         readingId: "c_swap",
         reading: null as never,
+        prediction: null,
         firstPlacement: null,
         ops: [],
         fixes: 0,

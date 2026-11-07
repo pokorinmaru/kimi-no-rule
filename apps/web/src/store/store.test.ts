@@ -29,6 +29,7 @@ function log(ops: AnyOp[]): ProblemLog {
     source: "competitor",
     readingId: "c_swap",
     reading: swap as never,
+    prediction: "odd",
     firstPlacement: "q_ani",
     ops,
     fixes: 1,
@@ -84,6 +85,13 @@ describe("attempts", () => {
     expect(rows[0]?.interpretation.ops.map((o) => o.op)).toEqual(["set_relation_reference", "word_cue"]);
     expect(rows[0]?.problemId).toBe("p_signboard");
     expect(typeof rows[0]?.at).toBe("string");
+  });
+
+  it("keeps the child's prediction about the junior's world (指示書 第7.1節 手順4)", async () => {
+    const s = fresh();
+    await s.addAttempt(log([]));
+    await s.addAttempt({ ...log([]), prediction: null });
+    expect((await s.listAttempts()).map((r) => r.prediction)).toEqual(["odd", null]);
   });
 });
 

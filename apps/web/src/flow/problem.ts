@@ -48,14 +48,20 @@ export interface SessionMisread {
   locked: boolean;
 }
 
-export function gateContext(record: ProblemRecord, lang: Lang, saidNumbers: readonly Rational[] = []): GateContext {
+/** core's gate context of a problem. `prediction` is "pending" while the child's prediction is still open (core then refuses to show the sentences' check). */
+export function gateContext(
+  record: ProblemRecord,
+  lang: Lang,
+  saidNumbers: readonly Rational[] = [],
+  prediction: GateContext["prediction"] = "disabled",
+): GateContext {
   return {
     correct: record.world,
     lang,
     childSaid: { numbers: [...saidNumbers], words: [] },
     grade: record.world.grade,
     interpretationRecorded: true,
-    prediction: "disabled",
+    prediction,
   };
 }
 

@@ -9,7 +9,7 @@ import { predict } from "../rules/predict.ts";
 import { runRule, type Hypothesis } from "../rules/run.ts";
 import { sameReading } from "../rules/same-reading.ts";
 import { gate, numbersIn } from "../gates/index.ts";
-import { addHypothesis, constructiveLikelihoods, infoGain, update, type Weights } from "../rules/weights.ts";
+import { addHypothesis, agreementLikelihoods, constructiveLikelihoods, infoGain, update, type Weights } from "../rules/weights.ts";
 import { act, always, clause, hyp, p, ALWAYS } from "../rules/test-rules.ts";
 import {
   chooseNext,
@@ -20,6 +20,7 @@ import {
   initialState,
   kohaiReading,
   observe,
+  observeAgreement,
   OTHER,
   POOL_MAX,
   readingCard,
@@ -173,6 +174,99 @@ describe("observe", () => {
     const before = structuredClone(s);
     observe(s, readingBy(KNOWN(), bank("p_bank_tulip")));
     expect(s).toEqual(before);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// 指示書 第6.7節 手順2 (ii): the child's prediction about the junior's world (an agreement observation)
+// ---------------------------------------------------------------------------------------------
+
+describe("observeAgreement", () => {
+  const tulip = () => bank("p_bank_tulip");
+  const pool = () => [common(CORRECT_READING_ID), KNOWN()];
+  const w: Weights = { c_correct: 0.4, c_known_whole: 0.4, other: 0.2 };
+  const start = () => stateOf(pool().map((h) => entry(h, "hypothesis", 1)), { ...w }, [readingBy(KNOWN(), bank("p_signboard"))], 1);
+  const shownBy = (h: Hypothesis) => runRule(h, tulip());
+
+  it("each model's likelihoods over fits and odd sum to 1", () => {
+    const pred = predict(pool(), tulip(), true);
+    for (let shownClass = 0; shownClass < pred.worlds.length + 1; shownClass++) {
+      const fits = agreementLikelihoods(pred, shownClass, "fits");
+      const odd = agreementLikelihoods(pred, shownClass, "odd");
+      for (const k of Object.keys(fits)) expect((fits[k] as number) + (odd[k] as number)).toBeCloseTo(1, CLOSE);
+    }
+  });
+
+  it("a fits answer on the world a hypothesis predicts raises that hypothesis", () => {
+    const out = observeAgreement(start(), { record: tulip(), shownWorld: shownBy(KNOWN()), answer: "fits", referencePlaced: true });
+    expect(out.weights.c_known_whole as number).toBeGreaterThan(w.c_known_whole as number);
+    expect(out.weights.c_correct as number).toBeLessThan(w.c_correct as number);
+    expect(sum(out.weights)).toBeCloseTo(1, CLOSE);
+  });
+
+  it("an odd answer on that world lowers it", () => {
+    const out = observeAgreement(start(), { record: tulip(), shownWorld: shownBy(KNOWN()), answer: "odd", referencePlaced: true });
+    expect(out.weights.c_known_whole as number).toBeLessThan(w.c_known_whole as number);
+    expect(out.weights.c_correct as number).toBeGreaterThan(w.c_correct as number);
+  });
+
+  it("weighs by the agreement likelihoods of the pool's predictions and the shown world's class", () => {
+    const pred = predict(pool(), tulip(), true);
+    const shown = shownBy(KNOWN());
+    const shownClass = pred.worlds.findIndex((x) => sameReading(x, shown, true));
+    const expected = update(w, agreementLikelihoods(pred, shownClass, "fits"));
+    const out = observeAgreement(start(), { record: tulip(), shownWorld: shown, answer: "fits", referencePlaced: true });
+    for (const [k, v] of Object.entries(expected)) expect(out.weights[k]).toBeCloseTo(v, CLOSE);
+  });
+
+  it("a fits answer on a world no hypothesis predicts lowers every hypothesis against other", () => {
+    const out = observeAgreement(start(), { record: tulip(), shownWorld: shownBy(common("c_invert")), answer: "fits", referencePlaced: true });
+    expect(out.weights.other as number).toBeGreaterThan(w.other as number);
+  });
+
+  it("an unknown answer changes nothing", () => {
+    const s = start();
+    const out = observeAgreement(s, { record: tulip(), shownWorld: shownBy(KNOWN()), answer: "unknown", referencePlaced: true });
+    expect(out).toEqual(s);
+  });
+
+  it("with no hypothesis yet, changes nothing", () => {
+    const out = observeAgreement(initialState(), { record: tulip(), shownWorld: shownBy(KNOWN()), answer: "fits", referencePlaced: true });
+    expect(out).toEqual(initialState());
+  });
+
+  it("does not count toward the constructive observations that confirm, nor add a reading", () => {
+    const s = start();
+    const out = observeAgreement(s, { record: tulip(), shownWorld: shownBy(KNOWN()), answer: "fits", referencePlaced: true });
+    expect(out.pool.map((e) => e.splitObservations)).toEqual([1, 1]);
+    expect(out.readings).toEqual(s.readings);
+    expect(out.unscored).toBe(s.unscored);
+    // Agreement alone never confirms, however heavy the hypothesis grows.
+    let heavy = s;
+    for (let i = 0; i < 10; i++) heavy = observeAgreement(heavy, { record: tulip(), shownWorld: shownBy(KNOWN()), answer: "fits", referencePlaced: true });
+    expect(heavy.weights.c_known_whole as number).toBeGreaterThan(0.8);
+    expect(heavy.pool.every((e) => e.status === "hypothesis")).toBe(true);
+  });
+
+  it("does not change the state or the world it was given", () => {
+    const s = start();
+    const shown = shownBy(KNOWN());
+    const before = structuredClone({ s, shown });
+    observeAgreement(s, { record: tulip(), shownWorld: shown, answer: "odd", referencePlaced: true });
+    expect({ s, shown }).toEqual(before);
+  });
+
+  it("keeps the weights summing to 1 over any answers (property)", () => {
+    const worlds = [KNOWN(), common("c_swap"), common("c_invert"), common(CORRECT_READING_ID)].map(shownBy);
+    fc.assert(
+      fc.property(fc.array(fc.tuple(fc.integer({ min: 0, max: worlds.length - 1 }), fc.constantFrom("fits", "odd", "unknown") as fc.Arbitrary<"fits" | "odd" | "unknown">), { maxLength: 6 }), (steps) => {
+        let s = start();
+        for (const [i, answer] of steps) s = observeAgreement(s, { record: tulip(), shownWorld: worlds[i] as never, answer, referencePlaced: true });
+        expect(sum(s.weights)).toBeCloseTo(1, CLOSE);
+        expect(Object.values(s.weights).every((v) => v > 0)).toBe(true);
+      }),
+      PROPERTY_RUNS,
+    );
   });
 });
 

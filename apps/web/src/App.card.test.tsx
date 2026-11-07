@@ -27,7 +27,8 @@ describe("placing the card from the screen", () => {
     render(<App storeName="kimi-app-card" api={null} />);
     fireEvent.click(await screen.findByTestId("btn-next"));
     fireEvent.click(await screen.findByTestId("btn-consent-yes"));
-    fireEvent.click(await screen.findByTestId("btn-next"));
+    // The child first says whether the junior's world fits (指示書 第7.1節 手順4).
+    fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     // The card is a button only once the child may move it.
     const card = await screen.findByRole("button", { name: /「1」/ });
     await act(async () => {

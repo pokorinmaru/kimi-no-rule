@@ -20,6 +20,8 @@ export interface AttemptRow {
   /** Where the junior's reading came from (shown only on the grown-up's screen, 原則10). */
   source: ProblemLog["source"];
   readingId: string;
+  /** The child's prediction about the junior's world (absent on rows kept before it was asked). */
+  prediction?: ProblemLog["prediction"];
   firstPlacement: string | null;
   /** The child's ops on this problem, redacted by core. */
   interpretation: Interpretation;
@@ -146,6 +148,7 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
         consistency: log.consistency,
         source: log.source,
         readingId: log.readingId,
+        prediction: log.prediction,
         firstPlacement: log.firstPlacement,
         interpretation: interpretationOf(log),
         fixes: log.fixes,
