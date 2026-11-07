@@ -151,7 +151,7 @@ export const PANEL = {
  */
 export const PART_NARROW: Readonly<Record<string, number>> = {
   goldfish: 0.71,
-  fish: 0.6,
+  fish: 0.63,
   ribbon: 0.92,
   sticker: 0.86,
   tulip: 0.52,
