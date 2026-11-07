@@ -2,6 +2,7 @@
 // only (指示書 第11節 M7: the flow never stops when the server does). Every step is a tap.
 import { createRequire } from "node:module";
 import { expect, test, type Page } from "@playwright/test";
+import { FRACTION_BANK, judgeAnswer } from "@kimi/core";
 
 const axePath = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 
@@ -106,4 +107,34 @@ test("a wrong unit gets the junior's words, never the right number; a second wro
   await page.getByTestId("pad-5").click();
   await page.getByTestId("pad-ok").click();
   await expect(page.getByTestId("btn-next")).toHaveText("つぎの問題へ");
+});
+
+test("the AI-free check: three problems, a neutral line after each, and the result on the parent screen", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "AIなしで ためしてみる" }).click();
+  for (let i = 0; i < 3; i++) {
+    const problem = page.getByTestId("check-problem");
+    await expect(problem).toBeVisible();
+    const id = await problem.getAttribute("data-problem-id");
+    const record = FRACTION_BANK.find((r) => r.world.problem_id === id);
+    if (record === undefined) throw new Error(`no bank problem ${String(id)}`);
+    // The answer comes from the prepared problem, checked by core here; the screen never shows it.
+    const answer = record.expected_answer as { num: number; den: number };
+    expect(judgeAnswer(record, answer as never)).toBe(true);
+    // No junior and no world on this screen; the AI mark and the three buttons stay.
+    await expect(page.getByTestId("junior-line")).toHaveCount(0);
+    await expect(page.locator('[data-role="tape"]')).toHaveCount(0);
+    await expect(page.locator('[data-role="ai-badge"]').first()).toBeVisible();
+    await expect(page.getByTestId("btn-hard")).toBeInViewport();
+    for (const d of String(answer.num)) await page.getByTestId(`pad-${d}`).click();
+    await page.getByTestId("pad-ok").click();
+    await expect(page.getByTestId("check-line")).toHaveText("こたえを、うけとりました。");
+    await expect(page.locator("main")).not.toContainText(/正し|まちが|間違|合って|正解/);
+    await page.getByTestId("btn-check-next").click();
+  }
+  await expect(page.getByTestId("check-done")).toBeVisible();
+  await page.getByTestId("btn-check-back").click();
+  await page.getByTestId("btn-parent").click();
+  await expect(page.getByTestId("check-results")).toContainText(/\d{4}\/\d{1,2}\/\d{1,2} \d{2}:\d{2}：3問中3問/);
 });

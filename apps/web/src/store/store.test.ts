@@ -94,6 +94,25 @@ describe("gate and safety logs keep kinds and dates only", () => {
   });
 });
 
+describe("AI-free checks (指示書 第7.3節)", () => {
+  it("keeps each check's outcomes with its date, and only ids, kinds and outcomes", async () => {
+    const s = fresh();
+    expect(await s.listChecks()).toEqual([]);
+    await s.addCheck([
+      { problemId: "p_bank_card", consistency: "consistent", outcome: "right" },
+      { problemId: "p_bank_tulip", consistency: "inconsistent", outcome: "not_right" },
+      { problemId: "p_bank_sticker", consistency: "consistent", outcome: "skipped" },
+    ]);
+    await s.addCheck([{ problemId: "p_bank_motoni", consistency: "inconsistent", outcome: "right" }]);
+    const rows = await s.listChecks();
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.items.map((i) => i.outcome)).toEqual(["right", "not_right", "skipped"]);
+    expect(Number.isNaN(Date.parse(rows[0]?.at ?? ""))).toBe(false);
+    expect(Object.keys(rows[0] ?? {}).sort()).toEqual(["at", "id", "items"]);
+    expect(Object.keys(rows[0]?.items[0] ?? {}).sort()).toEqual(["consistency", "outcome", "problemId"]);
+  });
+});
+
 describe("delete everything (the grown-up's screen)", () => {
   it("removes every record and setting", async () => {
     const s = fresh();
@@ -103,11 +122,13 @@ describe("delete everything (the grown-up's screen)", () => {
     await s.saveResearch(initialState());
     await s.logGate(["length"]);
     await s.logSafety("hard_button");
+    await s.addCheck([{ problemId: "p_bank_card", consistency: "consistent", outcome: "right" }]);
     await s.deleteAll();
     expect(await s.getSettings()).toEqual({ consented: false, introSeen: false });
     expect(await s.listAttempts()).toEqual([]);
     expect(await s.listGateLog()).toEqual([]);
     expect(await s.listSafety()).toEqual([]);
+    expect(await s.listChecks()).toEqual([]);
     expect(await s.loadResearch()).toEqual(initialState());
   });
 });

@@ -41,6 +41,19 @@ export interface SafetyRow {
   kind: SafetyKind;
 }
 
+/** One problem of an AI-free check (指示書 第7.3節): which problem, its kind, and how core judged it. */
+export interface CheckItem {
+  problemId: string;
+  consistency: AttemptRow["consistency"];
+  outcome: "right" | "not_right" | "skipped";
+}
+
+export interface CheckRow {
+  id?: number;
+  at: string;
+  items: CheckItem[];
+}
+
 interface KeyValue {
   key: string;
   value: unknown;
@@ -52,6 +65,7 @@ class KimiDB extends Dexie {
   research!: Table<KeyValue, string>;
   gateLog!: Table<GateRow, number>;
   safetyEvents!: Table<SafetyRow, number>;
+  checks!: Table<CheckRow, number>;
 
   constructor(name: string) {
     super(name);
@@ -62,6 +76,7 @@ class KimiDB extends Dexie {
       gateLog: "++id, at",
       safetyEvents: "++id, at",
     });
+    this.version(2).stores({ checks: "++id, at" });
   }
 }
 
@@ -77,6 +92,9 @@ export interface FlowStore {
   listGateLog(): Promise<GateRow[]>;
   logSafety(kind: SafetyKind): Promise<void>;
   listSafety(): Promise<SafetyRow[]>;
+  /** One AI-free check: the outcome of each problem given (no number the child typed). */
+  addCheck(items: readonly CheckItem[]): Promise<void>;
+  listChecks(): Promise<CheckRow[]>;
   /** Removes every record and setting on this device (the grown-up's screen). */
   deleteAll(): Promise<void>;
   close(): Promise<void>;
@@ -150,9 +168,19 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
     async listSafety() {
       return db.safetyEvents.orderBy("id").toArray();
     },
+    async addCheck(items) {
+      await db.checks.add({
+        at: now(),
+        items: items.map((i) => ({ problemId: i.problemId, consistency: i.consistency, outcome: i.outcome })),
+      });
+    },
+    async listChecks() {
+      return db.checks.orderBy("id").toArray();
+    },
     async deleteAll() {
-      await db.transaction("rw", [db.settings, db.attempts, db.research, db.gateLog, db.safetyEvents], async () => {
-        await Promise.all([db.settings.clear(), db.attempts.clear(), db.research.clear(), db.gateLog.clear(), db.safetyEvents.clear()]);
+      const tables = [db.settings, db.attempts, db.research, db.gateLog, db.safetyEvents, db.checks];
+      await db.transaction("rw", tables, async () => {
+        await Promise.all(tables.map((t) => t.clear()));
       });
     },
     async close() {

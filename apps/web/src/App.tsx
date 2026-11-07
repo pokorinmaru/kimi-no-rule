@@ -1,52 +1,34 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { gate, type Rational, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { SentenceList } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
 import { startSession, type Session } from "./flow/session.ts";
 import { viewOf, type FlowView, type ProblemView } from "./flow/view.ts";
-import { openStore, type FlowStore } from "./store/store.ts";
+import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
+import { CheckMode } from "./check/CheckMode.tsx";
+import { scoreOf } from "./check/check.ts";
+import { CHECK_TEXT } from "./check/text.ts";
+import { AlwaysNav, Button, NumberPad } from "./ui/controls.tsx";
 
 /** The heading the child sees. The work's name (君のルールで世界を作る) is not shown to the child: it would
  * attribute the reading to the child (原則10, 指示書 第11節 M7). */
 export const APP_TITLE = "後輩と問題を読もう";
 
 const page: CSSProperties = { maxWidth: 760, margin: "0 auto", padding: "16px", fontFamily: "system-ui, sans-serif", fontSize: 20, lineHeight: 1.6, color: "#1f2933" };
-const big: CSSProperties = { minHeight: 48, minWidth: 48, padding: "8px 18px", fontSize: 20, borderRadius: 12, border: "2px solid #52606d", background: "#fff", cursor: "pointer" };
-const primary: CSSProperties = { ...big, background: "#1f6feb", color: "#fff", borderColor: "#1f6feb" };
-
-function Button(props: { onClick: () => void; children: ReactNode; kind?: "primary"; highlight?: boolean; testId?: string }) {
-  const style = { ...(props.kind === "primary" ? primary : big), ...(props.highlight === true ? { outline: "4px solid #f5a623", outlineOffset: 2 } : {}) };
-  return (
-    <button type="button" style={style} onClick={props.onClick} data-testid={props.testId}>
-      {props.children}
-    </button>
-  );
-}
-
 /** The three buttons every screen keeps (原則7): stop, don't know, it's hard. */
 function Always({ view, send }: { view: FlowView; send: Session["send"] }) {
   return (
-    <nav
-      aria-label="いつでも使えるボタン"
-      data-testid="always"
-      style={{ position: "sticky", bottom: 0, display: "flex", gap: 12, flexWrap: "wrap", marginTop: 24, borderTop: "1px solid #cbd2d9", padding: "12px 0", background: "#fff" }}
-    >
-      <Button onClick={() => send({ type: "STOP" })} highlight={view.highlightButtons} testId="btn-stop">
-        {view.buttons.stop}
-      </Button>
-      {/* The math has stopped on these screens: "don't know" would do nothing there (Q30). */}
-      {view.screen !== "hard" && view.screen !== "rest" && (
-        <Button onClick={() => send({ type: "DONT_KNOW" })} highlight={view.highlightButtons} testId="btn-dont-know">
-          {view.buttons.dontKnow}
-        </Button>
-      )}
-      <Button onClick={() => send({ type: "HARD" })} highlight={view.highlightButtons} testId="btn-hard">
-        {view.buttons.hard}
-      </Button>
-    </nav>
+    <AlwaysNav
+      buttons={view.buttons}
+      highlight={view.highlightButtons}
+      onStop={() => send({ type: "STOP" })}
+      // The math has stopped on these screens: "don't know" would do nothing there (Q30).
+      {...(view.screen !== "hard" && view.screen !== "rest" ? { onDontKnow: () => send({ type: "DONT_KNOW" }) } : {})}
+      onHard={() => send({ type: "HARD" })}
+    />
   );
 }
 
@@ -57,40 +39,6 @@ function Lines({ lines }: { lines: readonly string[] }) {
         <p key={l}>{l}</p>
       ))}
     </>
-  );
-}
-
-/** A number pad for the child's answer: digits only (the bank's answers are whole numbers). */
-function NumberPad({ label, onAnswer }: { label: string; onAnswer: (v: Rational) => void }) {
-  const [digits, setDigits] = useState("");
-  return (
-    <div role="group" aria-label={label} style={{ marginTop: 12 }}>
-      <p>
-        {label}
-        <output aria-live="polite" data-testid="pad-value" style={{ display: "inline-block", minWidth: 64, marginLeft: 12, padding: "2px 12px", border: "2px solid #52606d", borderRadius: 8, textAlign: "center" }}>
-          {digits === "" ? "？" : digits}
-        </output>
-      </p>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].map((d) => (
-          <Button key={d} onClick={() => setDigits((x) => (x.length < 3 ? x + d : x))} testId={`pad-${d}`}>
-            {d}
-          </Button>
-        ))}
-        <Button onClick={() => setDigits("")}>けす</Button>
-        <Button
-          kind="primary"
-          testId="pad-ok"
-          onClick={() => {
-            if (digits === "") return;
-            onAnswer({ num: Number(digits), den: 1 });
-            setDigits("");
-          }}
-        >
-          これでいい
-        </Button>
-      </div>
-    </div>
   );
 }
 
@@ -174,15 +122,57 @@ function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"
   );
 }
 
-/** The grown-up's screen (F9): consent and deleting every record on this device. */
-function ParentScreen({ onDelete, onClose }: { onDelete: () => Promise<void>; onClose: () => void }) {
+/** The date and time of a check, for the grown-up (this device's clock). */
+export function checkDate(at: string): string {
+  const d = new Date(at);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${String(d.getFullYear())}/${String(d.getMonth() + 1)}/${String(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** The AI-free checks (指示書 第7.3節・第7.4節): per check, how many of the problems given were answered right. */
+function CheckResults({ rows }: { rows: readonly CheckRow[] }) {
+  return (
+    <div data-testid="check-results">
+      <h3 style={{ fontSize: 20 }}>AIなしで ためした記録</h3>
+      {rows.length === 0 ? (
+        <p>まだありません。</p>
+      ) : (
+        <ul>
+          {rows.map((r) => {
+            const { right, total } = scoreOf(r.items);
+            return (
+              <li key={r.id ?? r.at}>
+                {checkDate(r.at)}：{total}問中{right}問 正しく答えました
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p style={{ fontSize: 16 }}>後輩も図もなしで、問題の文と数の入力だけで解いた結果です。答えはプログラムが確かめています。「わからない」でとばした問題は、正しく答えた数に入りません。</p>
+    </div>
+  );
+}
+
+/** The grown-up's screen (F9): consent, the AI-free checks and deleting every record on this device. */
+function ParentScreen({ store, onDelete, onClose }: { store: FlowStore; onDelete: () => Promise<void>; onClose: () => void }) {
   const [asked, setAsked] = useState(false);
   const [done, setDone] = useState(false);
+  const [checks, setChecks] = useState<CheckRow[]>([]);
+  useEffect(() => {
+    let live = true;
+    void store.listChecks().then((rows) => {
+      if (live) setChecks(rows);
+    });
+    return () => {
+      live = false;
+    };
+  }, [store, done]);
   return (
     <section aria-label="おうちの人へ">
       <h2>おうちの人へ</h2>
       <p>このアプリの記録は、この端末の中にだけ保存されます。子どもの言葉の本文は保存しません。</p>
       <p>後輩は AI（Anthropic の Claude）で、人ではありません。2問目からは、1問目の子どもの「1」の札の置き方から作った読み方や、よくある読み違いで問題を読みます。後輩は答えを知らされていません。</p>
+      <CheckResults rows={checks} />
       {!asked && <Button onClick={() => setAsked(true)}>記録をすべて消す</Button>}
       {asked && !done && (
         <>
@@ -277,6 +267,7 @@ export function App({ storeName = "kimi-no-rule", api }: { storeName?: string; a
   const [view, setView] = useState<FlowView | null>(null);
   const [parent, setParent] = useState(false);
   const [restart, setRestart] = useState(0);
+  const [check, setCheck] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -311,6 +302,7 @@ export function App({ storeName = "kimi-no-rule", api }: { storeName?: string; a
       {view === null && <p>じゅんびしています…</p>}
       {view !== null && store !== null && parent && (
         <ParentScreen
+          store={store}
           onClose={() => setParent(false)}
           onDelete={async () => {
             // Stop the session and let its last writes land first, so nothing is written back after the delete.
@@ -321,10 +313,31 @@ export function App({ storeName = "kimi-no-rule", api }: { storeName?: string; a
           }}
         />
       )}
-      {view !== null && !parent && <Screen view={view} send={send} />}
-      {view !== null && view.screen !== "ended" && <Always view={view} send={send} />}
-      {!parent && (view?.screen === "intro" || view?.screen === "consent" || view?.screen === "ended") && (
-        <p style={{ marginTop: 24 }}>
+      {view !== null && store !== null && check && !parent && (
+        <CheckMode
+          store={store}
+          lang="ja"
+          onExit={() => setCheck(false)}
+          // The session's hard screen is reachable while it is still running (not on the ended screen).
+          {...(view.screen !== "ended"
+            ? {
+                onSessionHard: () => {
+                  setCheck(false);
+                  send({ type: "HARD" });
+                },
+              }
+            : {})}
+        />
+      )}
+      {view !== null && !parent && !check && <Screen view={view} send={send} />}
+      {view !== null && !check && view.screen !== "ended" && <Always view={view} send={send} />}
+      {!parent && !check && (view?.screen === "intro" || view?.screen === "consent" || view?.screen === "ended") && (
+        <p style={{ marginTop: 24, display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {(view.screen === "intro" || view.screen === "ended") && (
+            <Button onClick={() => setCheck(true)} testId="btn-check">
+              {CHECK_TEXT.entry}
+            </Button>
+          )}
           <Button onClick={() => setParent(true)} testId="btn-parent">
             おうちの人へ
           </Button>
