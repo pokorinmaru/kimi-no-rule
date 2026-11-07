@@ -87,6 +87,20 @@ describe("gate 2: relation_word", () => {
     expect(rules(say("read", "The tape of 弟 should be longer.", ["q_otouto"], "en"), inp)).toContain("relation_word");
   });
 
+  // Live eval (leak judge, 2026-11-07): the junior said the problem's own direction although its world
+  // takes the other holder as the base. A "of <holder>" with a fraction must name its own world's base.
+  it("lets the junior name its own world's base", () => {
+    expect(rules(say("read", "弟は兄の3/4、こう読んだよ。", ["q_otouto"]))).not.toContain("relation_word");
+  });
+
+  it("stops the other holder as base in Japanese and English", () => {
+    expect(rules(say("read", "兄の金魚は、弟の金魚の数の3/4です。", ["q_ani"]))).toContain("relation_word");
+    expect(rules(say("read", "兄は弟の4分の3だと読みました。", ["q_ani"]))).toContain("relation_word");
+    const inp = input("read", { lang: "en" });
+    expect(rules(say("read", "I read 兄 as 3/4 of 弟.", ["q_ani"], "en"), inp)).toContain("relation_word");
+    expect(rules(say("read", "I read 弟 as 3/4 of 兄.", ["q_otouto"], "en"), inp)).not.toContain("relation_word");
+  });
+
   it("lets words for the shape of the junior world through", () => {
     expect(rules(READ_OK)).not.toContain("relation_word");
     expect(rules(say("read", "この読み方だと、弟のテープの区切りが足りないです。", ["q_otouto"]))).not.toContain("relation_word");

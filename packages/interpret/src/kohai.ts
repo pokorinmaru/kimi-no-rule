@@ -98,6 +98,35 @@ function lengthsOf(w: WorldScene): Map<string, Rational> {
  * so: "A ... B より 短い" (or "A ... shorter than B") holds when A is shorter than B there; with one
  * holder, when it is the shortest (or longest) of all.
  */
+const FRACTION = /の\s*(\d+\s*\/\s*\d+|\d+\s*分の\s*\d+)/;
+
+/**
+ * When a reading line names a holder as the base of a fraction ("Xの3/4", "3/4 of X"), X must be a base
+ * in the junior's own world. Otherwise the junior would say the right direction while its world shows
+ * the other one (found by the leak judge, 2026-11-07).
+ */
+function basesMatch(text: string, input: KohaiInput): boolean {
+  const w = input.kohaiWorld;
+  const holderOf = (id: string | null): string | undefined => w.quantities.find((q) => q.id === id)?.holder;
+  const bases = new Set(w.relations.map((r) => holderOf(r.reference)).filter((h): h is string => h !== undefined));
+  const labels = w.holders.map((h) => h.label).filter((l) => l !== "");
+  for (const h of w.holders) {
+    if (h.label === "" || bases.has(h.id)) continue;
+    // Japanese: "<label>(の…)の3/4" within the same phrase (not past は, が, 、, 。 or another holder).
+    for (let at = text.indexOf(h.label); at !== -1; at = text.indexOf(h.label, at + 1)) {
+      let tail = text.slice(at + h.label.length, at + h.label.length + 14);
+      const stop = tail.search(/[はが、。,.]/);
+      if (stop !== -1) tail = tail.slice(0, stop);
+      for (const other of labels) if (other !== h.label && !h.label.includes(other) && tail.includes(other)) tail = tail.slice(0, tail.indexOf(other));
+      if (FRACTION.test(tail)) return false;
+    }
+    // English: "3/4 of (the) <label>".
+    const escaped = h.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (new RegExp(`\\d+\\s*/\\s*\\d+\\s+of\\s+(the\\s+)?${escaped}`, "i").test(text)) return false;
+  }
+  return true;
+}
+
 function lengthsMatch(sentence: string, input: KohaiInput): boolean {
   const w = input.kohaiWorld;
   const longer = /長い|長く|\blonger\b|\blong\b/i.test(sentence);
@@ -157,6 +186,7 @@ export function kohaiGates(u: KohaiUtterance, input: KohaiInput, gateCtx: GateCo
   // 2: words that could point to the right reading, unless the problem itself uses them; lengths only as drawn.
   for (const m of text.matchAll(RELATION_WORDS)) if (!allowedHere(m[0], input)) out.add("relation_word");
   for (const s of sentences(text)) if (!lengthsMatch(s, input)) out.add("relation_word");
+  if (u.intent === "read" && !basesMatch(text, input)) out.add("relation_word");
   // 4, 5, 10, and the child's reading put in the junior's mouth.
   if (JUDGING.test(text)) out.add("judging");
   if (FEELING.test(text)) out.add("feeling");

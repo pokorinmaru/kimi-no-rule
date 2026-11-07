@@ -30,7 +30,7 @@ describe("numbers the problem does not write are refused", () => {
   });
 
   it("the numbers of the problem pass", () => {
-    expect(passes(say("read", "この読み方だと、兄の6が弟の3/4です。"))).toBe(true);
+    expect(passes(say("read", "この読み方だと、弟が兄の6の3/4です。"))).toBe(true);
   });
 });
 
