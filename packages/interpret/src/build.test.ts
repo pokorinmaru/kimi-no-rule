@@ -8,6 +8,7 @@ import {
   buildCompanion,
   buildPair,
   buildProblem,
+  fixMarkEnds,
   formatBuildLog,
   type BuildDeps,
   type BuildInput,
@@ -17,7 +18,7 @@ import {
 } from "./build.ts";
 import type { AgentClient, AgentStep, AgentTool } from "./agent.ts";
 import { MODELS, type ClaudeClient, type ClaudeRequest, type ClaudeResponse } from "./client.ts";
-import { fails, json, stopped, text, type FakeReply } from "./fake.ts";
+import { FakeAgent, FakeClaude, fails, json, stopped, text, type FakeReply } from "./fake.ts";
 import { interpretationOf, requestText } from "./test-support.ts";
 import { PROVISIONAL } from "../../core/fixtures/problems/provisional.ts";
 import { signboardProcedural } from "../../core/fixtures/problems/signboard.ts";
@@ -199,7 +200,8 @@ type Handler = (req: ClaudeRequest, nth: number) => FakeReply;
 
 /** Which judge call a request is, from the property names of the reply shape it asks for (design of step B). */
 function kindOf(req: ClaudeRequest): JudgeKind {
-  const s = JSON.stringify(req.schema);
+  // A large reply shape is sent as text after the context (Q41); read it from there when it is.
+  const s = JSON.stringify(req.schema) + (req.cachedContext.split("must follow this JSON Schema:" + String.fromCharCode(10))[1] ?? "");
   if (s.includes("same_meaning")) return "restate";
   if (s.includes("syntax_marks")) return "statements";
   if (s.includes("expected_ops")) return "misread";
@@ -827,5 +829,30 @@ describe("review fixes (Q27)", () => {
     const truth = provisional("p_percent_c");
     const s = setup(truth, { judge: { restate: () => json({ same_meaning: true, differences: ["the base is swapped"] }) } });
     expect(reasonOf(await buildProblem(s.deps, inputOf(truth)))).toBe("restate_mismatch");
+  });
+});
+
+describe("buildProblem: the agent is told the world's shape (live-run fix)", () => {
+  it("the first message carries the world-scene schema and an example of another kind of problem", async () => {
+    const agent = new FakeAgent([{ stopReason: "end_turn", text: "", toolCalls: [] }]);
+    const judge = new FakeClaude([fails()]);
+    await buildProblem({ agent, judge, listen: judge }, { problemId: "p_x", problemText: "テスト", lang: "ja", grade: 6, consistency: "consistent", source: "prepared" });
+    const first = JSON.stringify(agent.steps[0]?.messages[0]);
+    expect(first).toContain("schema_version");
+    expect(first).toContain("p_example");
+  });
+});
+
+describe("fixMarkEnds (live-run fix)", () => {
+  it("moves an end that is one past the last token back, and leaves a right mark alone", () => {
+    const parts = {
+      statements: [{ index: 0, text: "兄の金魚", element_ids: [], is_question: false, speaker_holder_id: null, tokens: ["兄", "の", "金魚"] }],
+      syntax_marks: [
+        { kind: "holder_mention" as const, statement_index: 0, token_start: 0, token_end: 1, element_id: "h_a", word: "兄", ratio_kind: null, l1_pattern_id: null, native_checked: null },
+        { kind: "unit_word" as const, statement_index: 0, token_start: 2, token_end: 2, element_id: "k_a", word: "金魚", ratio_kind: null, l1_pattern_id: null, native_checked: null },
+      ],
+    };
+    const out = fixMarkEnds(parts);
+    expect(out.syntax_marks.map((m) => m.token_end)).toEqual([0, 2]);
   });
 });

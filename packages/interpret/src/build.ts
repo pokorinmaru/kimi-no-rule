@@ -25,7 +25,10 @@ import {
 } from "@kimi/core";
 import { runAgent, type AgentClient, type AgentTool } from "./agent.ts";
 import { MODELS, withDeadline, type ClaudeClient } from "./client.ts";
-import { interpret } from "./interpret.ts";
+import { RESULT_WRAPPER, interpret } from "./interpret.ts";
+
+/** Above this size a structured-output schema is sent as text instead (the API refuses large grammars). */
+const LARGE_SCHEMA_CHARS = 1500;
 
 export interface BuildDeps {
   agent: AgentClient;
@@ -71,6 +74,44 @@ export type RejectReason =
 export type BuildOutcome =
   | { status: "adopted"; record: ProblemRecord; log: BuildLogEntry[] }
   | { status: "rejected"; reason: RejectReason; log: BuildLogEntry[] };
+
+/**
+ * What a world_json must look like: the world-scene JSON Schema and one small example of another kind of
+ * problem (a difference, not a multiple), so the shape is clear without hinting at any fraction problem.
+ * Without it the model guessed the shape and every tool call was refused (found in the first live run).
+ */
+const WORLD_EXAMPLE = {
+  schema_version: "3",
+  problem_id: "p_example",
+  problem_type: "compare",
+  problem_text: "あかねさんはシールを5まい持っています。ゆうさんは、あかねさんより2まい多く持っています。ゆうさんは何まい持っていますか。",
+  grade: 2,
+  problem_lang: "ja",
+  holders: [
+    { id: "h_a", label: "あかねさん" },
+    { id: "h_b", label: "ゆうさん" },
+  ],
+  item_kinds: [{ id: "k_seal", noun: "シール", counter: "まい", asset_key: null, countable: true }],
+  quantities: [
+    { id: "q_a", holder: "h_a", item_kind: "k_seal", at_event: null, value: { num: 5, den: 1 } },
+    { id: "q_b", holder: "h_b", item_kind: "k_seal", at_event: null, value: null },
+  ],
+  relations: [{ id: "r_more", operator: "more_by", subject: "q_b", reference: "q_a", reference_list: null, amount: { num: 2, den: 1 }, other_description: null }],
+  events: [],
+  question: { target_type: "quantity", target_id: "q_b" },
+  word_links: [],
+};
+
+let formatText: string | null = null;
+function worldFormat(): string {
+  formatText ??= [
+    'world_json is the world as JSON text. It must follow this JSON Schema exactly (schema_version is the string "3"; amounts and values are {num, den} integers):',
+    JSON.stringify(z.toJSONSchema(schemas.worldScene, { target: "draft-2020-12" })),
+    "A small example of the shape, for a different kind of problem:",
+    JSON.stringify(WORLD_EXAMPLE),
+  ].join("\n");
+  return formatText;
+}
 
 export const BUILD_TOOLS: readonly string[] = ["solve", "diagnose_candidates", "restate", "submit_world"];
 
@@ -235,7 +276,9 @@ async function buildOnce(
     await runAgent(deps.agent, {
       model: MODELS.build,
       system: BUILD_SYSTEM,
-      prompt: `Problem (${input.lang}, grade ${input.grade}, id ${input.problemId}):\n${input.problemText}`,
+      prompt: `Problem (${input.lang}, grade ${input.grade}, id ${input.problemId}):\n${input.problemText}
+
+${worldFormat()}`,
       tools,
       maxTurns: opts.maxTurns,
     });
@@ -259,14 +302,27 @@ export async function judgeCall<T>(
   askWith: z.ZodType = schema,
   timeoutMs: number = JUDGE_TIMEOUT_MS,
 ): Promise<T | null> {
-  const jsonSchema = z.toJSONSchema(askWith, { target: "draft-2020-12" }) as Record<string, unknown>;
+  const full = z.toJSONSchema(askWith, { target: "draft-2020-12" }) as Record<string, unknown>;
+  // A large schema (the sentence list with its marks) is refused by the API as too big a grammar: ask for the
+  // result as JSON text in one string field and give the schema in the context, as interpret does (Q41).
+  const large = JSON.stringify(full).length > LARGE_SCHEMA_CHARS;
+  const jsonSchema = large ? RESULT_WRAPPER : full;
+  const ctx = large ? `${context}
+
+Write your result as JSON text in result_json. The JSON must follow this JSON Schema:
+${JSON.stringify(full)}` : context;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await withDeadline(timeoutMs, (signal) =>
-        deps.judge.complete({ model: MODELS.build, system, cachedContext: context, userText, schema: jsonSchema, effort: "high", maxTokens: 16000, signal }),
+        deps.judge.complete({ model: MODELS.build, system, cachedContext: ctx, userText, schema: jsonSchema, effort: "high", maxTokens: 16000, signal }),
       );
       if (res === "timeout" || res.stopReason !== "end_turn") continue;
-      const parsed = schema.safeParse(JSON.parse(res.text));
+      const outer: unknown = JSON.parse(res.text);
+      const inner =
+        outer !== null && typeof outer === "object" && typeof (outer as { result_json?: unknown }).result_json === "string"
+          ? JSON.parse((outer as { result_json: string }).result_json)
+          : outer;
+      const parsed = schema.safeParse(inner);
       if (parsed.success && check(parsed.data)) return parsed.data;
     } catch {
       // a failed call counts as a failed attempt
@@ -282,7 +338,27 @@ const problemTextReply = z.strictObject({ problem_text: z.string() });
 const RESTATE_SYSTEM =
   "Compare a word problem with sentences a program wrote back from a world built for it. Say whether they mean the same: the same people and things, the same numbers, the same question, and every comparison in the same direction (who is compared with whom, which is the base). List each difference.";
 const STATEMENTS_SYSTEM =
-  "Split the problem text into its sentences, in order, so that they join back to the text exactly. Give each sentence its tokens (joining back to the sentence), the ids of the world elements it states, and whether it asks the question. Mark demonstratives, relation words, ratio notations, holder mentions, unit words and sentence patterns on their tokens.";
+  "Split the problem text into its sentences, in order, so that they join back to the text exactly. Give each sentence its tokens (joining back to the sentence), the ids of the world elements it states, and whether it asks the question. Mark demonstratives, relation words, ratio notations, holder mentions, unit words and sentence patterns on their tokens. token_start and token_end are both the index of a token in the sentence, and token_end is the last token of the mark itself (a one-token mark has token_end equal to token_start).";
+
+type StatementsParts = z.infer<typeof statementsReply>;
+
+/**
+ * Marks written with an end one past the last token (as many tools count) are moved back by one when that
+ * makes the marked word match its tokens (found in the first live run: every mark was off by one).
+ */
+export function fixMarkEnds(parts: StatementsParts): StatementsParts {
+  const tokensOf = (i: number): readonly string[] => parts.statements.find((s) => s.index === i)?.tokens ?? [];
+  return {
+    ...parts,
+    syntax_marks: parts.syntax_marks.map((m) => {
+      const t = tokensOf(m.statement_index);
+      const join = (a: number, b: number): string => t.slice(a, b + 1).join("");
+      if (join(m.token_start, m.token_end) === m.word) return m;
+      if (m.token_end > m.token_start && join(m.token_start, m.token_end - 1) === m.word) return { ...m, token_end: m.token_end - 1 };
+      return m;
+    }),
+  };
+}
 const MISREAD_SYSTEM =
   "Write what an elementary school child might say aloud when reading this problem in a wrong but common way (the base swapped, the direction turned, multiplying because of a fraction or the word for times, adding instead of comparing), and the ops a careful listener would make of each saying, on the given world. Say only what the child says; a reading given as a calculation is a state_procedure.";
 
@@ -318,7 +394,11 @@ export async function buildProblem(deps: BuildDeps, input: BuildInput, options: 
   if (!meant) return reject("restate_mismatch");
 
   const worldJson = JSON.stringify(world);
-  const parts = await judgeCall(deps, STATEMENTS_SYSTEM, `World:\n${worldJson}`, `Problem text:\n${input.problemText}`, statementsReply, (s) => validateStatements(world, s.statements, s.syntax_marks).ok);
+  const rawParts = await judgeCall(deps, STATEMENTS_SYSTEM, `World:\n${worldJson}`, `Problem text:\n${input.problemText}`, statementsReply, (s) => {
+    const f = fixMarkEnds(s);
+    return validateStatements(world, f.statements, f.syntax_marks).ok;
+  });
+  const parts = rawParts === null ? null : fixMarkEnds(rawParts);
   log.push({ step: "statements", ok: parts !== null, detail: parts === null ? "no valid sentence list" : `${parts.statements.length} sentences, ${parts.syntax_marks.length} marks` });
   if (parts === null) return reject("statements_invalid");
 
