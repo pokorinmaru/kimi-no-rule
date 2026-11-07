@@ -5,6 +5,7 @@
 import {
   COMMON_FRACTION_READINGS,
   ensurePool,
+  supportedBy,
   infoGain,
   predict,
   revisePool,
@@ -260,6 +261,19 @@ export async function writeHypotheses(
         } catch (e) {
           rejections++;
           throw new Error(`refused: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+        }
+        // A common reading that still reproduces every first reading cannot be changed or dropped (Q43): the
+        // evidence supports it. Claude adds a new hypothesis instead.
+        const protectedIds = new Set(
+          COMMON_FRACTION_READINGS.filter((h) => supportedBy(h, input.readings)).map((h) => h.id),
+        );
+        const touchesProtected = parsed.edits.flatMap((e, index) => {
+          const id = e.kind === "delete" ? e.id : e.kind === "modify" ? e.hypothesis.id : null;
+          return id !== null && protectedIds.has(id) ? [`edit ${index}: ${id} reproduces every reading so far; keep it and add a new hypothesis instead`] : [];
+        });
+        if (touchesProtected.length > 0) {
+          rejections++;
+          throw new Error(`refused: ${touchesProtected.join("; ")}`);
         }
         const leaks = parsed.edits.flatMap((e, index) => (e.kind === "delete" ? [] : leakOf(e.hypothesis, words, texts).map((why) => `edit ${index}: ${why}`)));
         if (leaks.length > 0) {

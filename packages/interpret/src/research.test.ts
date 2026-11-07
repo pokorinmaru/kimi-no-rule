@@ -561,3 +561,19 @@ describe("writeHypotheses: the program's floor under Claude's pool (Q43)", () =>
     expect(ids.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("writeHypotheses: the readings the evidence supports are protected (Q43)", () => {
+  it("refuses to modify or delete a common reading that reproduces every reading, and says why", async () => {
+    const input = oneReading();
+    const agent = new FakeAgent([submit([{ kind: "add", hypothesis: reading("c_known_whole") }, { kind: "add", hypothesis: reading("c_correct") }]), submit([{ kind: "delete", id: "c_known_whole" }]), done()]);
+    // The first submit fills the pool; build a state that has it, then try to delete.
+    const first = await writeHypotheses(new FakeAgent([submit([{ kind: "add", hypothesis: reading("c_known_whole") }, { kind: "add", hypothesis: reading("c_correct") }]), done()]), input);
+    if (first.kind !== "submitted") throw new Error(first.kind);
+    const del = new FakeAgent([submit([{ kind: "delete", id: "c_known_whole" }]), done()]);
+    await writeHypotheses(del, { ...input, state: first.revision.state });
+    const r = resultsOf(del)[0];
+    expect(isError(r)).toBe(true);
+    expect(contentText(r)).toContain("reproduces every reading");
+    void agent;
+  });
+});

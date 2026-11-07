@@ -125,6 +125,7 @@ export {
   readingCard,
   revisePool,
   ensurePool,
+  supportedBy,
   type AgreementObservation,
   type Choice,
   type FirstReading,

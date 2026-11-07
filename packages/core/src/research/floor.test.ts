@@ -40,3 +40,28 @@ describe("ensurePool", () => {
     expect(ensurePool(s, COMMON_FRACTION_READINGS, FRACTION_BANK)).toEqual(s);
   });
 });
+
+describe("ensurePool: a rewritten common id does not stand for the common reading", () => {
+  it("adds the common reading again under a fresh id when the pool's same id builds other worlds", () => {
+    const known = common("c_known_whole");
+    let s = observe(initialState(), read(known, "p_signboard"));
+    const rewritten: Hypothesis = { ...common("c_invert"), id: "c_known_whole" };
+    s = revisePool(s, [{ kind: "add", hypothesis: rewritten }], FRACTION_BANK).state;
+    const out = ensurePool(s, COMMON_FRACTION_READINGS, FRACTION_BANK);
+    const added = out.pool.find((e) => e.hypothesis.id !== "c_known_whole" && e.hypothesis.clauses[0]?.then.action === "choose_reference");
+    expect(added?.hypothesis.id).toBe("c_known_whole_2");
+  });
+});
+
+describe("ensurePool: one slip does not drop the child's own reading", () => {
+  it("keeps a common reading that misses one of three readings", () => {
+    const known = common("c_known_whole");
+    const swap = common("c_swap");
+    let s = observe(initialState(), read(known, "p_signboard"));
+    s = revisePool(s, [{ kind: "add", hypothesis: { ...common("c_invert"), id: "h_other" } }], FRACTION_BANK).state;
+    s = observe(s, read(swap, "p_bank_tulip"));
+    s = observe(s, read(known, "p_bank_card"));
+    const out = ensurePool(s, COMMON_FRACTION_READINGS, FRACTION_BANK);
+    expect(out.pool.some((e) => e.hypothesis.clauses[0]?.then.action === "choose_reference" && e.hypothesis.clauses[0]?.then.by === "known_value")).toBe(true);
+  });
+});

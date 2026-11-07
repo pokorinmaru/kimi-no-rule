@@ -250,6 +250,21 @@ export function revisePool(state: ResearchState, edits: readonly PoolEdit[], pro
   return { state: { ...state, pool: statused, weights, unexpressible }, rejected, merged };
 }
 
+/** Whether a reading reproduces the child's first readings, allowing one slip once there are two or more. */
+export function supportedBy(h: Hypothesis, readings: readonly FirstReading[]): boolean {
+  let misses = 0;
+  for (const r of readings) {
+    let ok = false;
+    try {
+      ok = sameReading(runRule(h, r.record), r.childWorld, r.referencePlaced);
+    } catch {
+      ok = false;
+    }
+    if (!ok) misses++;
+  }
+  return misses === 0 || (readings.length >= 2 && misses <= 1);
+}
+
 /**
  * The floor under the pool Claude writes (Q43): every candidate reading that reproduces all the child's
  * first readings so far stays in the pool, and the pool holds at least two, so a problem that tells them
@@ -257,25 +272,28 @@ export function revisePool(state: ResearchState, edits: readonly PoolEdit[], pro
  * supports. Readings already represented (same worlds on every problem) are not added twice.
  */
 export function ensurePool(state: ResearchState, candidates: readonly Hypothesis[], problems: readonly ProblemRecord[]): ResearchState {
-  const reproduces = (h: Hypothesis): boolean =>
-    state.readings.every((r) => {
-      try {
-        return sameReading(runRule(h, r.record), r.childWorld, r.referencePlaced);
-      } catch {
-        return false;
-      }
-    });
-  const represented = (h: Hypothesis, pool: readonly Hypothesis[]): boolean =>
-    pool.some((e) => e.id === h.id || groupHypotheses([e, h], problems).length === 1);
+  // A child slips now and then (a world from another reading): one miss does not drop a reading the rest of
+  // the evidence supports, or the child's own reading could leave the pool for good after one slip.
+  const reproduces = (h: Hypothesis): boolean => supportedBy(h, state.readings);
+  // Represented means "builds the same worlds", never "has the same id": a hypothesis that kept a common
+  // reading's id but was rewritten does not stand for it.
+  const represented = (h: Hypothesis, pool: readonly Hypothesis[]): boolean => pool.some((e) => groupHypotheses([e, h], problems).length === 1);
+  const taken = new Set(state.pool.map((e) => e.hypothesis.id));
+  const fresh = (h: Hypothesis): Hypothesis => {
+    let id = h.id;
+    for (let n = 2; taken.has(id); n++) id = `${h.id}_${n}`;
+    taken.add(id);
+    return id === h.id ? h : { ...h, id };
+  };
   const pool = state.pool.map((e) => e.hypothesis);
   const adds: Hypothesis[] = [];
   for (const h of candidates) {
     if (pool.length + adds.length >= POOL_MAX) break;
-    if (reproduces(h) && !represented(h, [...pool, ...adds])) adds.push(h);
+    if (reproduces(h) && !represented(h, [...pool, ...adds])) adds.push(fresh(h));
   }
   for (const h of candidates) {
     if (pool.length + adds.length >= 2) break;
-    if (!represented(h, [...pool, ...adds])) adds.push(h);
+    if (!represented(h, [...pool, ...adds])) adds.push(fresh(h));
   }
   if (adds.length === 0) return state;
   return revisePool(
