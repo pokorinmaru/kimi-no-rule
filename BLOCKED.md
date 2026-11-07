@@ -4,8 +4,8 @@
 
 ## 待ち
 
-### B3 本物の Claude を呼ぶ評価と問題の組み立て（API キーが無い）
-- 理由：この PC には Anthropic の API キーが無い（2026-11-07 確認。人が登録を試み、アプリを開き直した後も、ユーザー環境変数に ANTHROPIC_API_KEY が無く、`ant` CLI も入っていない）。世界組み立てエージェントと評価は、偽物の Claude で全経路をテストしてある。キーワード規則の基線は Claude を使わないので、その数字だけは本物。
+### B3 本物の Claude を呼ぶ評価と問題の組み立て、第三者の評価データ
+- 状況：2026-11-07 に人がキーをユーザー環境変数 ANTHROPIC_API_KEY に登録し、本物の Claude で呼べることを確かめた。`pnpm eval:live` を回している（Claude Code の中では ANTHROPIC_BASE_URL を外して回す）。
 - 再開の手順：キーを環境変数 ANTHROPIC_API_KEY に置き（リポジトリには書かない）、`pnpm eval:live` を1回だけ回す。結果の EVALS.md と、費用・遅延を HANDOFF.md に書く。問題の組み立ては `pnpm build:problems` で回し、出来た問題は人が目で確かめてから `human_checked` を true にする。
 - 人の作業：評価データの一部は第三者の大人が書く（指示書 第10.1節）。今のデータは AI の下書き（source が ai_draft）なので、第三者の行を足して EVALS-PROTOCOL.md の改訂として固定し直す。
 
