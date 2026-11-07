@@ -17,6 +17,7 @@ import {
   sameReading,
   verifiedDrawWorld,
   type AnyOp,
+  type Choice,
   type FirstReading,
   type GateContext,
   type Hypothesis,
@@ -246,6 +247,15 @@ export function lockSession(state: ResearchState, first: ProblemRecord, provisio
   return { ...provisional, locked: true };
 }
 
+/**
+ * Why a problem was opened, for the adults' research note only (指示書 第6.7節 研究ノート): core chooseNext's
+ * choice with the hypotheses it compared, or how the problem was picked without it. Never drawn for the child.
+ */
+export type PickReason =
+  | { kind: "first" }
+  | { kind: "chosen"; choice: Choice; hypotheses: Hypothesis[] }
+  | { kind: "bank_order" };
+
 /** The next problem: core chooseNext over the problems the junior can misread (or read with the taught reading), else the first of them. */
 export function selectNext(
   bank: readonly ProblemRecord[],
@@ -254,7 +264,7 @@ export function selectNext(
   session: SessionMisread | null,
   lang: Lang,
   taught: Hypothesis | null = null,
-): { record: ProblemRecord; junior: Junior } | null {
+): { record: ProblemRecord; junior: Junior; reason: PickReason } | null {
   const seen = new Set(done);
   const all = bank.filter((r) => !seen.has(r.world.problem_id)).flatMap((record) => {
     const junior = juniorFor(record, state, session, lang, taught);
@@ -264,18 +274,21 @@ export function selectNext(
   const changing = all.filter((o) => !o.junior.orderOnly);
   const open = changing.length > 0 ? changing : all;
   if (open.length === 0) return null;
-  let choice: string | null = null;
+  let choice: Choice | null = null;
   try {
-    choice =
-      chooseNext(
-        state,
-        open.map((o) => o.record),
-        seen,
-      )?.problemId ?? null;
+    choice = chooseNext(
+      state,
+      open.map((o) => o.record),
+      seen,
+    );
   } catch {
     choice = null;
   }
-  return open.find((o) => o.record.world.problem_id === choice) ?? (open[0] as { record: ProblemRecord; junior: Junior });
+  const chosen = open.find((o) => o.record.world.problem_id === choice?.problemId);
+  if (chosen !== undefined && choice !== null) {
+    return { ...chosen, reason: { kind: "chosen", choice, hypotheses: state.pool.map((e) => e.hypothesis) } };
+  }
+  return { ...(open[0] as { record: ProblemRecord; junior: Junior }), reason: { kind: "bank_order" } };
 }
 
 /** The one relation of a fraction-as-a-multiple problem. */

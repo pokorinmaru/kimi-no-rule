@@ -153,6 +153,8 @@ export interface UiText {
     deleteNo: string;
     deleted: string;
     back: string;
+    /** The link to the adults' try route (指示書 第6.9節); on the grown-up's screen only. */
+    tryLink: string;
   };
   draw: {
     sentences: string;
@@ -287,6 +289,7 @@ const JA: UiText = {
     deleteNo: "やめておく",
     deleted: "消しました。",
     back: "もどる",
+    tryLink: "大人向けの試用と「中身を見る」（子どもの記録とは別です）",
   },
   draw: {
     sentences: "もんだいの 文",
@@ -390,6 +393,7 @@ const EN: UiText = {
     deleteNo: "Keep them",
     deleted: "Deleted.",
     back: "Back",
+    tryLink: "Try it as an adult, with \"see inside\" (kept apart from the child's records)",
   },
   draw: {
     sentences: "The problem's sentences",

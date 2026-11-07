@@ -51,6 +51,7 @@ import {
   showOn,
   wordCueOp,
   type GalleryItem,
+  type PickReason,
   type SessionMisread,
   type Shown,
 } from "./problem.ts";
@@ -120,6 +121,8 @@ export interface Line {
 
 export interface ProblemState {
   record: ProblemRecord;
+  /** Why this problem was opened (core chooseNext), for the adults' research note only. */
+  pickedBy: PickReason;
   relationId: string;
   reading: KohaiReading;
   /** The card's one line (from the second problem), or null. */
@@ -381,11 +384,11 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
   if (ctx.done.length === 0) {
     const first = ctx.bank.find((r) => r.world.problem_id === ctx.firstProblemId);
     const junior = first === undefined ? null : juniorFor(first, ctx.research, ctx.session, ctx.lang, ctx.taught);
-    if (first !== undefined && junior !== null) pick = { record: first, junior };
+    if (first !== undefined && junior !== null) pick = { record: first, junior, reason: { kind: "first" } };
   }
   pick ??= selectNext(ctx.bank, ctx.done, ctx.research, ctx.session, ctx.lang, ctx.taught);
   if (pick === null) return { problem: null, ...noLine(ctx) };
-  const { record, junior } = pick;
+  const { record, junior, reason } = pick;
   const rel = relationOf(record);
   if (rel === undefined) return { problem: null, ...noLine(ctx) };
   const session: SessionMisread =
@@ -397,6 +400,7 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     };
   const problem: ProblemState = {
     record,
+    pickedBy: reason,
     relationId: rel.id,
     reading: junior.reading,
     card: ctx.done.length >= 1 ? readingCard(junior.reading.hypothesis, record, ctx.lang) : null,

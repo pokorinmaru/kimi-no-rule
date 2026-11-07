@@ -1,6 +1,6 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { gate, type Lang, type Rational, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { SceneView } from "./draw/SceneView.tsx";
@@ -353,6 +353,11 @@ function ParentScreen({
       )}
       {done && <p data-testid="deleted">{t.deleted}</p>}
       <p>
+        <a href="#/try" data-testid="link-try">
+          {t.tryLink}
+        </a>
+      </p>
+      <p>
         <Button onClick={onClose}>{t.back}</Button>
       </p>
     </section>
@@ -436,15 +441,26 @@ function Screen({ view, send, onLang }: { view: FlowView; send: Session["send"];
 /** How long the grown-up holds 「おうちの人へ」 to open the parent screen (Q31). */
 export const PARENT_HOLD_MS = 2000;
 
+/** The running session and its store, handed to the adults' try route (never drawn on the child's screens). */
+export interface SessionHandle {
+  session: Session;
+  store: FlowStore;
+}
+
 export function App({
   storeName = "kimi-no-rule",
   api,
   parentHoldMs = PARENT_HOLD_MS,
+  onSession,
 }: {
   storeName?: string;
   api?: Parameters<typeof startSession>[0]["api"];
   parentHoldMs?: number;
+  /** The try route watches the same session for 「中身を見る」 and the simulated child; null when it stops. */
+  onSession?: (h: SessionHandle | null) => void;
 }) {
+  const onSessionRef = useRef(onSession);
+  onSessionRef.current = onSession;
   const [store, setStore] = useState<FlowStore | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [snap, setSnap] = useState<FlowSnapshot | null>(null);
@@ -470,9 +486,11 @@ export function App({
       setSession(started);
       setSnap(started.actor.getSnapshot());
       started.actor.subscribe((x) => setSnap(x));
+      onSessionRef.current?.({ session: started, store: st });
     })();
     return () => {
       live = false;
+      if (s !== null) onSessionRef.current?.(null);
       s?.stop();
     };
   }, [storeName, api, restart]);

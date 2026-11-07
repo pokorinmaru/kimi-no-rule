@@ -58,7 +58,7 @@ pnpm install
 pnpm --filter @kimi/web dev
 ```
 
-ブラウザで http://localhost:5173 を開きます。サーバーが無くても、後輩は決まった言い方で、研究はよくある読み違いで動きます。Claude を使う時は、環境変数 `ANTHROPIC_API_KEY` を置いてからローカルのサーバーを起動します。
+ブラウザで http://localhost:5173 を開きます。審査や大人が試す時は http://localhost:5173/#/try を開くと、同じ流れの横に「中身を見る」（仮説の重み、次の問題を選んだ理由、後輩の読み方の由来）と、模擬の子どもが出ます（記録は子どもの記録と分けて、開くたびに消します）。サーバーが無くても、後輩は決まった言い方で、研究はよくある読み違いで動きます。Claude を使う時は、環境変数 `ANTHROPIC_API_KEY` を置いてからローカルのサーバーを起動します。
 
 ```bash
 pnpm --filter @kimi/worker exec node src/serve.ts
