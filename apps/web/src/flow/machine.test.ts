@@ -59,6 +59,8 @@ function events(s: Snap, opts: { safety: boolean; research: boolean }): FlowEven
       out.push({ type: "ANSWER_TOTAL", value: v.totalOk }, { type: "ANSWER_TOTAL", value: v.totalNg });
     }
   }
+  // On the junior's rule card: the reading that keeps the sentence's 1, and one that never fits.
+  if (s.context.ruleCard !== null) out.push({ type: "CARD_PICK", ruleId: "c_correct" }, { type: "CARD_PICK", ruleId: "c_swap" });
   if (opts.research) out.push({ type: "RESEARCH_RESULT", pool: null });
   if (opts.safety) out.push({ type: "SAFETY_RESULT", flag: "unchecked" }, { type: "SAFETY_RESULT", flag: "none" }, { type: "SAFETY_RESULT", flag: "distress" });
   return out;
@@ -75,6 +77,8 @@ function key(s: Snap): string {
     c.uncheckedStreak > 0,
     c.researchApplied,
     c.researchResult === undefined,
+    c.log.filter((l) => l.outcome === "solved").length,
+    c.ruleCard?.rule.id ?? null,
     p === null ? null : [p.firstPlacement !== null, p.fixes, p.placement],
   ]);
 }
@@ -102,14 +106,18 @@ function checkScreen(s: Snap): void {
     // No sentence lights, and nothing glows, before the child's prediction or its skip (指示書 第11節 M7).
     if (view.screen === "problem" && (view.statements.some((x) => x.lit) || view.glowIds.length > 0)) expect(p.prediction).not.toBeNull();
     if (p.taughtOps.length > 0 || p.firstPlacement !== null) expect(p.prediction).not.toBeNull();
-    // The world on screen is the correct one only after the child's own first placement was recorded.
-    if (sameReading(p.shown.world, p.record.world, true)) expect(p.firstPlacement).not.toBeNull();
+    // The world on screen is the correct one only after the child's own first placement was recorded, or, for a
+    // reading the child left on the rule card, drawn as the length order only (no "1" card) until then.
+    if (sameReading(p.shown.world, p.record.world, true) && p.firstPlacement === null) {
+      expect(p.orderOnly).toBe(true);
+      if (view.screen === "problem") expect(view.one).toBeNull();
+    }
     // A recheck of the child's teaching never comes before that record.
     if (p.taughtOps.length > 0) expect(p.firstPlacement).not.toBeNull();
-    // The junior never reads with a reading that builds the correct world.
-    expect(sameReading(runRule(p.reading.hypothesis, p.record), p.record.world, true)).toBe(false);
+    // The junior never reads with a reading that builds the correct world, unless the child left it on the rule card.
+    if (p.reading.source !== "taught") expect(sameReading(runRule(p.reading.hypothesis, p.record), p.record.world, true)).toBe(false);
   }
-  // The junior never reports that a taught reading held (it never reads with the taught reading here).
+  // The junior never reports that a taught reading held (Q30: no thanks line, even when it reads with the card the child left).
   expect(s.context.line?.key ?? "").not.toBe("kohai.result");
 }
 
@@ -214,6 +222,8 @@ function solveProblem(actor: ReturnType<typeof run>): void {
   actor.send({ type: "ANSWER_TOTAL", value: v?.totalOk as Rational });
   expect(actor.getSnapshot().matches({ active: { problem: "solved" } })).toBe(true);
   actor.send({ type: "NEXT" });
+  // After two solved problems the junior's rule card comes; left as it is, the session's misreading goes on.
+  if (actor.getSnapshot().matches({ active: "card" })) actor.send({ type: "NEXT" });
 }
 
 describe("the flow of one problem (F1)", () => {
@@ -807,6 +817,7 @@ const JAPANESE = /[\u3000-\u303f\u3040-\u30ff\u3400-\u9fff\uff01-\uff60]/;
 function allowedJapanese(s: Snap): string[] {
   const out: string[] = helplinesFor("en").map((h) => h.name);
   const p = s.context.problem;
+  for (const g of s.context.ruleCard?.gallery ?? []) for (const st of g.record.statements) out.push(st.text, ...st.tokens);
   if (p !== null) {
     for (const st of p.record.statements) out.push(st.text, ...st.tokens);
     const w = p.record.world;
@@ -828,7 +839,13 @@ function checkScreenEn(s: Snap): void {
   // No Japanese UI string is left: only the problem as written, holder names and helpline names.
   expect(stripAll(texts.join("\n"), allowedJapanese(s)), JSON.stringify(s.value)).not.toMatch(JAPANESE);
   // Numbers: the problem's sentences and the junior's line are checked by core's gate; nothing else carries a number.
-  const own = new Set<string>(v.screen === "problem" ? [...v.statements.map((x) => x.text), ...(v.line === null ? [] : [v.line])] : []);
+  const own = new Set<string>(
+    v.screen === "problem"
+      ? [...v.statements.map((x) => x.text), ...(v.line === null ? [] : [v.line])]
+      : v.screen === "card"
+        ? v.gallery.flatMap((g) => g.statements.map((x) => x.text))
+        : [],
+  );
   for (const t of texts.filter((x) => !own.has(x))) {
     const plain = withoutCard(withoutEnHelplines(t));
     expect(numbersIn(plain), t).toEqual([]);

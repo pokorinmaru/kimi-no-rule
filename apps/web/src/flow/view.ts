@@ -1,7 +1,7 @@
 // What each screen shows, from a snapshot of the session machine. The screens draw only this, so the
 // tests can read every word a child may see (childTexts) on every path.
 import type { SnapshotFrom } from "xstate";
-import { gate, render, type GateContext, type Lang, type Rational, type WorldScene } from "@kimi/core";
+import { CARD_RULES, cardSlot, gate, readingCard, render, type GateContext, type Lang, type Rational, type WorldScene } from "@kimi/core";
 import type { PredictionAnswer, flowMachine } from "./machine.ts";
 import { gateContext } from "./problem.ts";
 import { AI_MARK, hardLines, helplineLine, restLines, ui, type HelplineText, type UiText } from "./text.ts";
@@ -58,10 +58,36 @@ export interface ProblemView extends Common {
   gate: GateContext;
 }
 
+/** One solved problem on the rule card: its sentences (lit where core says they do not fit) and the rule's world. */
+export interface GalleryView {
+  problemId: string;
+  statements: { index: number; text: string; tokens: string[]; lit: boolean }[];
+  /** The world the card's rule builds there (verified by core; the asked quantity has no value), or null when core refused it. */
+  world: WorldScene | null;
+  glowIds: string[];
+}
+
+/**
+ * The junior's rule card (指示書 第7.1節 後輩のルールカード): the junior's card line, the options for who is taken
+ * as 1 (core's CARD_RULES, in core's order), and the gallery. Nothing on it says right or wrong.
+ */
+export interface CardScreenView extends Common {
+  screen: "card";
+  lines: string[];
+  /** The card's line now (core readingCard), or null when core has no line for the reading. */
+  card: string | null;
+  slotLabel: string;
+  options: { ruleId: string; label: string; chosen: boolean }[];
+  galleryLabel: string;
+  gallery: GalleryView[];
+  next: string;
+}
+
 export type FlowView =
   | (Common & { screen: "intro"; lines: string[] })
   | (Common & { screen: "consent"; lines: string[] })
   | ProblemView
+  | CardScreenView
   | (Common & { screen: "research"; lines: string[] })
   | (Common & { screen: "stuck"; lines: string[]; resume: string; hold: string | null })
   | (Common & { screen: "hard"; lines: string[]; helpline: HelplineText })
@@ -93,6 +119,29 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
     return { ...common, screen: "research", lines: [t.research.wait] };
   }
   if (s.matches({ active: "finished" })) return { ...common, screen: "finished", lines: [...t.finished.lines] };
+  if (s.matches({ active: "card" }) && c.ruleCard !== null) {
+    const rc = c.ruleCard;
+    const rt = t.ruleCard;
+    return {
+      ...common,
+      screen: "card",
+      lines: [...rt.lines],
+      card: readingCard(rc.rule, undefined, lang, { forEdit: true }) ?? readingCard(rc.rule, undefined, lang),
+      slotLabel: rt.slot,
+      options: CARD_RULES.map((h) => ({ ruleId: h.id, label: cardSlot(h, lang) ?? "", chosen: h.id === rc.rule.id })),
+      galleryLabel: rt.gallery,
+      gallery: rc.gallery.map((g) => {
+        const lit = new Set(g.shown?.failing ?? []);
+        return {
+          problemId: g.record.world.problem_id,
+          statements: g.record.statements.map((st) => ({ index: st.index, text: st.text, tokens: [...st.tokens], lit: lit.has(st.index) })),
+          world: g.shown?.world ?? null,
+          glowIds: [...new Set(g.record.statements.filter((st) => lit.has(st.index)).flatMap((st) => st.element_ids))],
+        };
+      }),
+      next: rt.next,
+    };
+  }
   const p = c.problem;
   const step = STEPS.find((x) => s.matches({ active: { problem: x } }));
   if (p === null || step === undefined) return { ...common, screen: "research", lines: [t.research.wait] };
@@ -110,6 +159,9 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
         }
       : null;
   const rel = p.shown.world.relations.find((r) => r.id === p.relationId);
+  // A taught reading that builds the sentence's own world is drawn as the length order only (no "1" card, no
+  // segment) until the child's own 1 is confirmed (指示書 第7.1節 手順3; Q29).
+  const orderOnly = p.orderOnly && p.taughtOps.length === 0;
   return {
     ...common,
     screen: "problem",
@@ -118,7 +170,7 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
     statements: p.record.statements.map((st) => ({ index: st.index, text: st.text, tokens: [...st.tokens], isQuestion: st.is_question, lit: lit.has(st.index) })),
     world: p.shown.world,
     relationId: p.relationId,
-    one: rel?.reference ?? null,
+    one: orderOnly ? null : (rel?.reference ?? null),
     placement: p.placement,
     tappedWords: [...p.words],
     line: c.line === null || c.line.text === "" ? null : c.line.text,
@@ -170,6 +222,12 @@ export function childTexts(v: FlowView): string[] {
       break;
     case "research":
       out.push(t.research.label, ...v.lines);
+      break;
+    case "card":
+      out.push(t.ruleCard.label, ...v.lines, v.slotLabel, ...v.options.map((o) => o.label), v.galleryLabel, v.next);
+      if (v.card !== null) out.push(v.card);
+      out.push(...v.gallery.flatMap((g) => g.statements.map((s) => s.text)));
+      out.push(t.problem.sentences, t.problem.world, t.draw.sentences, t.draw.glow, t.draw.world, t.draw.odd);
       break;
     case "finished":
       out.push(t.finished.label, ...v.lines, t.finished.end);

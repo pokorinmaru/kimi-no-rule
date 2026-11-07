@@ -89,6 +89,25 @@ describe("startSession", () => {
     s.stop();
   });
 
+  it("keeps the junior's rule card the child left on the device (指示書 第7.1節 後輩のルールカード)", async () => {
+    const st = store();
+    await st.setConsent(true);
+    await st.setIntroSeen(true);
+    const s = await startSession({ store: st, api: down, input: { maxProblems: 3 } });
+    await solveCurrent(s);
+    await vi.waitFor(() => expect(s.actor.getSnapshot().matches({ active: { problem: "reading" } })).toBe(true));
+    await solveCurrent(s);
+    expect(s.actor.getSnapshot().matches({ active: "card" })).toBe(true);
+    s.send({ type: "CARD_PICK", ruleId: "c_correct" });
+    s.send({ type: "NEXT" });
+    await flush();
+    await s.settle();
+    const rows = await st.listCards();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ leftRuleId: "c_correct", picks: 1, fitsAll: true });
+    s.stop();
+  });
+
   it("uses the junior's generated words when they come in time and pass core's gate; logs only rejected kinds", async () => {
     const st = store();
     await st.setConsent(true);

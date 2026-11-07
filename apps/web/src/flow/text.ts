@@ -121,6 +121,8 @@ export interface UiText {
   };
   pad: { clear: string; ok: string };
   research: { label: string; wait: string };
+  /** The junior's rule card (指示書 第7.1節 後輩のルールカード): no word says right or wrong, nothing is put on the child. */
+  ruleCard: { label: string; lines: readonly string[]; slot: string; gallery: string; next: string };
   finished: { label: string; lines: readonly string[]; end: string };
   stuck: { label: string; resume: string; hold: string };
   hard: { label: string; talk: string; close: string };
@@ -201,7 +203,7 @@ const JA: UiText = {
     lines: [
       "これからいっしょに問題を読む「後輩」は、AIです。",
       "後輩は人ではありません。心や気持ちもありません。",
-      "後輩は、いろいろな読み方で問題を読みます。1問目で「1」の札をどこに置いたかを見て、その読み方で読んでみることもあります。うまく読めないこともあります。",
+      "後輩は、いろいろな読み方で問題を読みます。1問目で「1」の札をどこに置いたかを見て、その読み方で読んでみることもあります。後輩のルールカードをきみが直すと、つぎの問題をそのカードで読むこともあります。うまく読めないこともあります。",
       "このアプリが記録をしまうのは、このタブレットの中だけです。",
       "「やめる」「わからない」「つらい」は、いつでもおせます。",
     ],
@@ -213,7 +215,7 @@ const JA: UiText = {
       "保護者の方へ",
       "後輩の言葉と読み方の研究のために、問題、子どもが置いた「1」の札（この端末に残っている前の回の置き方も含みます）、子どもがタップした問題文の言葉を、Anthropic の Claude に送ります。",
       "子どもの名前や、声、自由に書いた言葉は送りません。送ったものは、Anthropic の方針に従って Anthropic 側に一定の期間残ることがあります。",
-      "このアプリの記録はこの端末の中にだけしまい、保護者の画面からいつでも消せます。2問目からの後輩は、1問目の子どもの置き方から作った読み方で読むことがあります。",
+      "このアプリの記録はこの端末の中にだけしまい、保護者の画面からいつでも消せます。2問目からの後輩は、1問目の子どもの置き方から作った読み方や、子どもが直したルールカードの読み方で読むことがあります。",
       "「同意する」は、保護者の方が押してください。",
       "同意して始めますか？",
     ],
@@ -236,6 +238,13 @@ const JA: UiText = {
   },
   pad: { clear: "けす", ok: "これでいい" },
   research: { label: "じゅんび", wait: "後輩が、つぎの問題をえらんでいます。" },
+  ruleCard: {
+    label: "後輩のルールカード",
+    lines: ["後輩が、自分のカードを持ってきました。", "1とみる人を、えらびなおせます。"],
+    slot: "1とみる人",
+    gallery: "この回の問題",
+    next: "つぎへ",
+  },
   finished: { label: "おわり", lines: ["きょうは、ここまでです。", "「やめる」をおすと、おわります。"], end: "おわる" },
   stuck: { label: "まっています", resume: "つづける", hold: "この問題は、あとで" },
   hard: { label: "つらいとき", talk: "家の人や先生など、信じられる大人に、いまのことを話してみてね。", close: "とじる" },
@@ -294,7 +303,7 @@ const EN: UiText = {
     lines: [
       'The "junior" who reads the problems with you is an AI.',
       "The junior is not a person. It has no heart and no feelings.",
-      'The junior reads problems in different ways. It may look at where you put the "1" card on the first problem and try reading that way. Sometimes it cannot read well.',
+      'The junior reads problems in different ways. It may look at where you put the "1" card on the first problem and try reading that way. If you fix the junior’s rule card, it may read the next problem with that card. Sometimes it cannot read well.',
       "This app keeps its records only on this tablet.",
       'You can press "Stop", "I don\'t know" or "I feel bad" at any time.',
     ],
@@ -306,7 +315,7 @@ const EN: UiText = {
       "For parents and guardians",
       'For the junior\'s words and for research on ways of reading, this app sends the problem, where the child put the "1" card (including earlier placements kept on this device) and the words of the problem the child tapped to Anthropic\'s Claude.',
       "It does not send the child's name, voice or anything the child wrote freely. What is sent may be kept by Anthropic for some time under Anthropic's policies.",
-      "This app keeps its records only on this device, and you can delete them at any time from the parent screen. From the second problem, the junior may read with a way of reading made from how the child placed the card on the first problem.",
+      "This app keeps its records only on this device, and you can delete them at any time from the parent screen. From the second problem, the junior may read with a way of reading made from how the child placed the card on the first problem, or with the rule card the child fixed.",
       'Please have a parent or guardian press "I agree".',
       "Do you agree and start?",
     ],
@@ -329,6 +338,13 @@ const EN: UiText = {
   },
   pad: { clear: "Clear", ok: "Done" },
   research: { label: "Getting ready", wait: "The junior is choosing the next problem." },
+  ruleCard: {
+    label: "The junior's rule card",
+    lines: ["The junior brought its reading card.", "Pick again who the junior takes as 1."],
+    slot: "Who is taken as 1",
+    gallery: "Problems from this time",
+    next: "Next",
+  },
   finished: { label: "The end", lines: ["That's all for today.", 'Press "Stop" to finish.'], end: "Finish" },
   stuck: { label: "Waiting", resume: "Keep going", hold: "Save this problem for later" },
   hard: { label: "When you feel bad", talk: "Try telling a grown-up you trust, like someone at home or a teacher, about how you feel now.", close: "Close" },

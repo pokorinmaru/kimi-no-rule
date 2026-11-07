@@ -143,6 +143,18 @@ describe("AI-free checks (指示書 第7.3節)", () => {
   });
 });
 
+describe("the junior's rule card (指示書 第7.1節 後輩のルールカード)", () => {
+  it("keeps the card the child left: rule ids, the number of picks, whether every world fit and the problems, with a date", async () => {
+    const s = fresh();
+    await s.addCard({ afterProblemId: "p_bank_card", startRuleId: "c_swap", leftRuleId: "c_correct", picks: 2, fitsAll: true, galleryIds: ["p_signboard", "p_bank_card"] });
+    const rows = await s.listCards();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ afterProblemId: "p_bank_card", startRuleId: "c_swap", leftRuleId: "c_correct", picks: 2, fitsAll: true, galleryIds: ["p_signboard", "p_bank_card"] });
+    expect(Number.isNaN(Date.parse(rows[0]?.at ?? ""))).toBe(false);
+    expect(Object.keys(rows[0] ?? {}).sort()).toEqual(["afterProblemId", "at", "fitsAll", "galleryIds", "id", "leftRuleId", "picks", "startRuleId"]);
+  });
+});
+
 describe("delete everything (the grown-up's screen)", () => {
   it("removes every record and setting", async () => {
     const s = fresh();
@@ -153,12 +165,14 @@ describe("delete everything (the grown-up's screen)", () => {
     await s.logGate(["length"]);
     await s.logSafety("hard_button");
     await s.addCheck([{ problemId: "p_bank_card", consistency: "consistent", outcome: "right" }]);
+    await s.addCard({ afterProblemId: "p_bank_card", startRuleId: "c_swap", leftRuleId: "c_swap", picks: 0, fitsAll: false, galleryIds: ["p_bank_card"] });
     await s.deleteAll();
     expect(await s.getSettings()).toEqual({ consented: false, introSeen: false, lang: "ja" });
     expect(await s.listAttempts()).toEqual([]);
     expect(await s.listGateLog()).toEqual([]);
     expect(await s.listSafety()).toEqual([]);
     expect(await s.listChecks()).toEqual([]);
+    expect(await s.listCards()).toEqual([]);
     expect(await s.loadResearch()).toEqual(initialState());
   });
 });

@@ -63,7 +63,7 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
   let stopped = false;
   let lastLine: Line | null = null;
   let researchSent: ResearchRequest | null = null;
-  let saved = { consented: settings.consented, introSeen: settings.introSeen, research, log: 0, safety: 0 };
+  let saved = { consented: settings.consented, introSeen: settings.introSeen, research, log: 0, safety: 0, cards: 0 };
   // Writes go one after another, so a later state never lands before an earlier one.
   let writes: Promise<void> = Promise.resolve();
   const write = (f: () => Promise<void>): void => {
@@ -119,7 +119,8 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
     }
     for (const entry of c.log.slice(saved.log)) write(() => store.addAttempt(entry));
     for (const kind of c.safetyLog.slice(saved.safety)) write(() => store.logSafety(kind));
-    saved = { consented: c.consented, introSeen: c.introSeen, research: c.research, log: c.log.length, safety: c.safetyLog.length };
+    for (const card of c.cardLog.slice(saved.cards)) write(() => store.addCard(card));
+    saved = { consented: c.consented, introSeen: c.introSeen, research: c.research, log: c.log.length, safety: c.safetyLog.length, cards: c.cardLog.length };
   });
   actor.start();
 

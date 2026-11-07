@@ -5,7 +5,9 @@
 // Every world, verdict and number comes from @kimi/core through problem.ts.
 import { and, assign, or, setup, stateIn } from "xstate";
 import {
+  CARD_RULES,
   FRACTION_BANK,
+  cardFits,
   gate,
   holderName,
   initialState,
@@ -29,6 +31,7 @@ import {
 import {
   MAX_FIXES,
   firstReading,
+  galleryOf,
   gateContext,
   judgeTotal,
   judgeUnit,
@@ -41,6 +44,7 @@ import {
   selectNext,
   showOn,
   wordCueOp,
+  type GalleryItem,
   type SessionMisread,
   type Shown,
 } from "./problem.ts";
@@ -114,6 +118,8 @@ export interface ProblemState {
   reading: KohaiReading;
   /** The card's one line (from the second problem), or null. */
   card: string | null;
+  /** The taught reading builds the sentence's own world here: drawn as the length order only until the child's 1. */
+  orderOnly: boolean;
   /** The child's prediction about the junior's world, null until the child answers or skips it. */
   prediction: PredictionAnswer | null;
   /** The order of the "fits" and "odd" buttons on this problem. */
@@ -157,6 +163,32 @@ export interface ProblemLog {
   outcome: Outcome;
 }
 
+/**
+ * The junior's rule card the child edits (指示書 第7.1節 後輩のルールカード, 第2節 自分で直す): the reading it
+ * opened with, the rule on the card now, and the solved problems of this session drawn as that rule's worlds.
+ */
+export interface RuleCardState {
+  /** The problem after which the card opened (it opens once after each problem). */
+  afterProblemId: string;
+  /** The junior's reading when the card opened. */
+  start: Hypothesis;
+  /** The rule on the card now: the start, or one of core's CARD_RULES the child chose. */
+  rule: Hypothesis;
+  /** How many times the child chose a rule. */
+  picks: number;
+  gallery: GalleryItem[];
+}
+
+/** What the device keeps of one rule card (no child's words): the rule left and whether every world fit. */
+export interface CardLog {
+  afterProblemId: string;
+  startRuleId: string;
+  leftRuleId: string;
+  picks: number;
+  fitsAll: boolean;
+  galleryIds: string[];
+}
+
 export type SafetyFlagEvent = "none" | "distress" | "inappropriate" | "unchecked";
 
 export interface FlowInput {
@@ -184,6 +216,12 @@ export interface FlowContext {
   researchApplied: boolean;
   session: SessionMisread | null;
   firstRecord: ProblemRecord | null;
+  /** The reading the child left on the rule card when it made every gallery world fit; the junior reads with it. */
+  taught: Hypothesis | null;
+  ruleCard: RuleCardState | null;
+  /** The problem after which the rule card was last shown (so it opens once after each problem). */
+  cardShownAfter: string | null;
+  cardLog: CardLog[];
   done: string[];
   problem: ProblemState | null;
   line: Line | null;
@@ -212,6 +250,8 @@ export type FlowEvent =
   | { type: "HARD" }
   | { type: "RESUME" }
   | { type: "HOLD" }
+  /** The child chooses who is taken as 1 on the junior's rule card: one of core's CARD_RULES. */
+  | { type: "CARD_PICK"; ruleId: string }
   | { type: "CLOSE" }
   | { type: "KOHAI_LINE"; seq: number; text: string }
   | { type: "RESEARCH_RESULT"; pool: Hypothesis[] | null }
@@ -296,10 +336,10 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
   let pick: ReturnType<typeof selectNext> = null;
   if (ctx.done.length === 0) {
     const first = ctx.bank.find((r) => r.world.problem_id === ctx.firstProblemId);
-    const junior = first === undefined ? null : juniorFor(first, ctx.research, ctx.session, ctx.lang);
+    const junior = first === undefined ? null : juniorFor(first, ctx.research, ctx.session, ctx.lang, ctx.taught);
     if (first !== undefined && junior !== null) pick = { record: first, junior };
   }
-  pick ??= selectNext(ctx.bank, ctx.done, ctx.research, ctx.session, ctx.lang);
+  pick ??= selectNext(ctx.bank, ctx.done, ctx.research, ctx.session, ctx.lang, ctx.taught);
   if (pick === null) return { problem: null, ...noLine(ctx) };
   const { record, junior } = pick;
   const rel = relationOf(record);
@@ -316,6 +356,7 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     relationId: rel.id,
     reading: junior.reading,
     card: ctx.done.length >= 1 ? readingCard(junior.reading.hypothesis, record, ctx.lang) : null,
+    orderOnly: junior.orderOnly,
     prediction: null,
     predictionOrder: predictionOrder(ctx.done.length + 1),
     base: junior.base,
@@ -456,6 +497,65 @@ function close(ctx: FlowContext, outcome: Outcome): Partial<FlowContext> {
   return { problem: { ...p, logged: true }, log: [...ctx.log, logOf(p, outcome)] };
 }
 
+/** The solved problems of this session, in order: the rule card's gallery. */
+function solvedRecords(ctx: FlowContext): ProblemRecord[] {
+  return ctx.log.flatMap((l) => {
+    const r = l.outcome === "solved" ? ctx.bank.find((b) => b.world.problem_id === l.problemId) : undefined;
+    return r === undefined ? [] : [r];
+  });
+}
+
+/** Two solved problems, and the card not yet shown after the last problem. */
+function needsCard(ctx: FlowContext): boolean {
+  const last = ctx.log.at(-1)?.problemId;
+  return last !== undefined && last !== ctx.cardShownAfter && solvedRecords(ctx).length >= 2;
+}
+
+/** Opens the rule card with the junior's reading on the last problem (kept as it is when the child comes back to it). */
+function openCard(ctx: FlowContext): Partial<FlowContext> {
+  const last = ctx.log.at(-1);
+  if (last === undefined) return {};
+  if (ctx.ruleCard?.afterProblemId === last.problemId) return {};
+  const start = ctx.taught ?? last.reading;
+  return {
+    ruleCard: { afterProblemId: last.problemId, start, rule: start, picks: 0, gallery: galleryOf(start, solvedRecords(ctx), ctx.lang) },
+    ...noLine(ctx),
+  };
+}
+
+/** The child chose a rule: every gallery world is built again by core with it. */
+function pickCard(ctx: FlowContext, ruleId: string): Partial<FlowContext> {
+  const c = ctx.ruleCard;
+  const h = CARD_RULES.find((x) => x.id === ruleId);
+  if (c === null || h === undefined) return {};
+  return { ruleCard: { ...c, rule: h, picks: c.picks + 1, gallery: galleryOf(h, solvedRecords(ctx), ctx.lang) } };
+}
+
+/**
+ * The child leaves the card: it is recorded, and its rule becomes the junior's taught reading only when it
+ * makes every gallery world fit (core cardFits); otherwise the session's one misreading goes on (Q30).
+ */
+function leaveCard(ctx: FlowContext): Partial<FlowContext> {
+  const c = ctx.ruleCard;
+  if (c === null) return {};
+  const records = solvedRecords(ctx);
+  let fitsAll: boolean;
+  try {
+    fitsAll = cardFits(c.rule, records);
+  } catch {
+    fitsAll = false;
+  }
+  const entry: CardLog = {
+    afterProblemId: c.afterProblemId,
+    startRuleId: c.start.id,
+    leftRuleId: c.rule.id,
+    picks: c.picks,
+    fitsAll,
+    galleryIds: records.map((r) => r.world.problem_id),
+  };
+  return { ruleCard: null, cardShownAfter: c.afterProblemId, cardLog: [...ctx.cardLog, entry], taught: fitsAll ? c.rule : null };
+}
+
 function applyResearch(ctx: FlowContext): Partial<FlowContext> {
   if (ctx.researchApplied || ctx.done.length === 0) return {};
   const research = ctx.researchRequest === null ? ctx.research : researched(ctx.research, ctx.researchResult ?? null, ctx.bank);
@@ -541,6 +641,8 @@ export const flowMachine = setup({
     checkedNone: ({ event }) => event.type === "SAFETY_RESULT" && event.flag === "none",
     researchOpen: ({ context }) => !context.researchApplied && context.researchRequest !== null,
     noOpenProblem: ({ context }) => context.problem === null || context.problem.logged,
+    needsCard: ({ context }) => needsCard(context),
+    pickable: ({ context, event }) => event.type === "CARD_PICK" && context.ruleCard !== null && CARD_RULES.some((h) => h.id === event.ruleId),
   },
 }).createMachine({
   id: "flow",
@@ -557,6 +659,10 @@ export const flowMachine = setup({
     researchApplied: false,
     session: null,
     firstRecord: null,
+    taught: null,
+    ruleCard: null,
+    cardShownAfter: null,
+    cardLog: [],
     done: [],
     problem: null,
     line: null,
@@ -637,7 +743,8 @@ export const flowMachine = setup({
               },
             },
             looking: {
-              entry: assign(({ context }) => ({ line: whichLine(context) })),
+              // With nothing lit (a taught reading drawn as the order only) the junior keeps its reading line.
+              entry: assign(({ context }) => (context.problem !== null && context.problem.shown.failing.length === 0 ? {} : { line: whichLine(context) })),
               on: {
                 PLACE_ONE: { guard: "placeable", target: "placed", actions: assign(({ context, event }) => (event.type === "PLACE_ONE" ? place(context, event.quantityId) : {})) },
                 TAP_WORD: { guard: "tappable", actions: assign(({ context, event }) => (event.type === "TAP_WORD" ? tapWord(context, event.statementIndex, event.token) : {})) },
@@ -740,7 +847,20 @@ export const flowMachine = setup({
           },
         },
         next: {
-          always: [{ guard: "waitResearch", target: "researching" }, { target: "loading", actions: assign(({ context }) => applyResearch(context)) }],
+          always: [
+            { guard: "needsCard", target: "card" },
+            { guard: "waitResearch", target: "researching" },
+            { target: "loading", actions: assign(({ context }) => applyResearch(context)) },
+          ],
+        },
+        // The junior's rule card (指示書 第7.1節 後輩のルールカード): after two solved problems, before the next
+        // problem and at the session's end. Nothing here says right or wrong; the sentences' light is the only feedback.
+        card: {
+          entry: assign(({ context }) => openCard(context)),
+          on: {
+            CARD_PICK: { guard: "pickable", actions: assign(({ context, event }) => (event.type === "CARD_PICK" ? pickCard(context, event.ruleId) : {})) },
+            NEXT: { target: "next", actions: assign(({ context }) => leaveCard(context)) },
+          },
         },
         researching: {
           entry: assign(({ context }) => noLine(context)),

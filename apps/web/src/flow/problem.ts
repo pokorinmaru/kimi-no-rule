@@ -102,30 +102,65 @@ export interface Junior {
   /** The junior's world as the rule builds it (the base the child's teaching is applied to). */
   base: WorldScene;
   shown: Shown;
+  /**
+   * The taught reading builds the sentence's own world here: the junior's world is drawn as the length order
+   * only (no "1" card, no segment) until the child's own 1 (指示書 第7.1節 手順3; Q29), and no sentence lights.
+   */
+  orderOnly: boolean;
 }
 
 /**
- * The junior's reading of a problem (core kohaiReading, never with a taught reading) and its world. Null when
- * the reading builds the correct world there (changesWorld false), or no sentence fails, or core refuses.
+ * The junior's reading of a problem (core kohaiReading) and its world. Without a taught reading: null when the
+ * reading builds the correct world there (changesWorld false), or no sentence fails, or core refuses. With the
+ * reading the child left on the rule card (指示書 第7.1節 後輩のルールカード): a world it changes is shown as a
+ * misreading as before; one it does not change is shown as the length order only (orderOnly).
  */
-export function juniorFor(record: ProblemRecord, state: ResearchState, session: SessionMisread | null, lang: Lang): Junior | null {
+export function juniorFor(
+  record: ProblemRecord,
+  state: ResearchState,
+  session: SessionMisread | null,
+  lang: Lang,
+  taught: Hypothesis | null = null,
+): Junior | null {
   try {
     const reading = kohaiReading({
       state,
       record,
       sessionMisreadId: session?.id ?? null,
       sessionMisread: session?.hypothesis ?? null,
-      taught: null,
+      taught,
     });
-    if (!reading.changesWorld) return null;
     const base = runRule(reading.hypothesis, record);
-    if (sameReading(base, record.world, true)) return null;
+    if (!reading.changesWorld || sameReading(base, record.world, true)) {
+      if (taught === null || reading.source !== "taught") return null;
+      const shown = showOn(record, base, [], lang);
+      if (shown === null || shown.failing.length > 0) return null;
+      return { reading, base, shown, orderOnly: true };
+    }
     const shown = showOn(record, base, [], lang);
     if (shown === null || shown.failing.length === 0) return null;
-    return { reading, base, shown };
+    return { reading, base, shown, orderOnly: false };
   } catch {
     return null;
   }
+}
+
+/** One problem of the rule card's gallery: the world the card's rule builds there, checked by core. */
+export interface GalleryItem {
+  record: ProblemRecord;
+  /** Null when core refuses the world (it is then not drawn, and the card does not fit). */
+  shown: Shown | null;
+}
+
+/** The gallery of the rule card: each solved problem drawn as the world the rule builds (core runRule, checkStatements). */
+export function galleryOf(h: Hypothesis, records: readonly ProblemRecord[], lang: Lang): GalleryItem[] {
+  return records.map((record) => {
+    try {
+      return { record, shown: showOn(record, runRule(h, record), [], lang) };
+    } catch {
+      return { record, shown: null };
+    }
+  });
 }
 
 export function referenceOp(relationId: string, quantityId: string): AnyOp {
@@ -211,19 +246,23 @@ export function lockSession(state: ResearchState, first: ProblemRecord, provisio
   return { ...provisional, locked: true };
 }
 
-/** The next problem: core chooseNext over the problems the junior can misread, else the first of them. */
+/** The next problem: core chooseNext over the problems the junior can misread (or read with the taught reading), else the first of them. */
 export function selectNext(
   bank: readonly ProblemRecord[],
   done: readonly string[],
   state: ResearchState,
   session: SessionMisread | null,
   lang: Lang,
+  taught: Hypothesis | null = null,
 ): { record: ProblemRecord; junior: Junior } | null {
   const seen = new Set(done);
-  const open = bank.filter((r) => !seen.has(r.world.problem_id)).flatMap((record) => {
-    const junior = juniorFor(record, state, session, lang);
+  const all = bank.filter((r) => !seen.has(r.world.problem_id)).flatMap((record) => {
+    const junior = juniorFor(record, state, session, lang, taught);
     return junior === null ? [] : [{ record, junior }];
   });
+  // With a taught reading, a problem where it changes the world comes first (a transfer problem, 指示書 第6.7節 手順6).
+  const changing = all.filter((o) => !o.junior.orderOnly);
+  const open = changing.length > 0 ? changing : all;
   if (open.length === 0) return null;
   let choice: string | null = null;
   try {

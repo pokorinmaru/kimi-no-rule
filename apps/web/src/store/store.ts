@@ -3,7 +3,7 @@
 // and the junior's rejected lines and the safety events keep only their kinds and dates.
 import { Dexie, type Table } from "dexie";
 import { hasChildText, initialState, redactInterpretation, type Interpretation, type Lang, type ResearchState } from "@kimi/core";
-import type { ProblemLog } from "../flow/machine.ts";
+import type { CardLog, ProblemLog } from "../flow/machine.ts";
 
 export interface Settings {
   consented: boolean;
@@ -58,6 +58,12 @@ export interface CheckRow {
   items: CheckItem[];
 }
 
+/** The junior's rule card the child left (指示書 第7.1節 後輩のルールカード): rule ids and counts only, no child's words. */
+export interface CardRow extends CardLog {
+  id?: number;
+  at: string;
+}
+
 interface KeyValue {
   key: string;
   value: unknown;
@@ -70,6 +76,7 @@ class KimiDB extends Dexie {
   gateLog!: Table<GateRow, number>;
   safetyEvents!: Table<SafetyRow, number>;
   checks!: Table<CheckRow, number>;
+  cards!: Table<CardRow, number>;
 
   constructor(name: string) {
     super(name);
@@ -81,6 +88,7 @@ class KimiDB extends Dexie {
       safetyEvents: "++id, at",
     });
     this.version(2).stores({ checks: "++id, at" });
+    this.version(3).stores({ cards: "++id, at" });
   }
 }
 
@@ -100,6 +108,9 @@ export interface FlowStore {
   /** One AI-free check: the outcome of each problem given (no number the child typed). */
   addCheck(items: readonly CheckItem[]): Promise<void>;
   listChecks(): Promise<CheckRow[]>;
+  /** The junior's rule card the child left: which rule, how many picks, whether every gallery world fit. */
+  addCard(card: CardLog): Promise<void>;
+  listCards(): Promise<CardRow[]>;
   /** Removes every record and setting on this device (the grown-up's screen), except the screen's language:
    * it is how the screen reads, not a record of the child. */
   deleteAll(): Promise<void>;
@@ -188,8 +199,22 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
     async listChecks() {
       return db.checks.orderBy("id").toArray();
     },
+    async addCard(card) {
+      await db.cards.add({
+        at: now(),
+        afterProblemId: card.afterProblemId,
+        startRuleId: card.startRuleId,
+        leftRuleId: card.leftRuleId,
+        picks: card.picks,
+        fitsAll: card.fitsAll,
+        galleryIds: [...card.galleryIds],
+      });
+    },
+    async listCards() {
+      return db.cards.orderBy("id").toArray();
+    },
     async deleteAll() {
-      const tables = [db.settings, db.attempts, db.research, db.gateLog, db.safetyEvents, db.checks];
+      const tables = [db.settings, db.attempts, db.research, db.gateLog, db.safetyEvents, db.checks, db.cards];
       await db.transaction("rw", tables, async () => {
         const lang = await db.settings.get("lang");
         await Promise.all(tables.map((t) => t.clear()));

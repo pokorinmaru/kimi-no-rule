@@ -6,7 +6,7 @@ import { AiBadge } from "./draw/AiBadge.tsx";
 import { SentenceList } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
 import { startSession, type Session } from "./flow/session.ts";
-import { viewOf, type FlowSnapshot, type FlowView, type ProblemView } from "./flow/view.ts";
+import { viewOf, type CardScreenView, type FlowSnapshot, type FlowView, type ProblemView } from "./flow/view.ts";
 import { helplineLine, ui, type UiText } from "./flow/text.ts";
 import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
 import { CheckMode } from "./check/CheckMode.tsx";
@@ -62,7 +62,7 @@ function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"
   const failing = view.statements.filter((s) => s.lit).map((s) => s.text);
 
   return (
-    <section aria-label={t.label}>
+    <section aria-label={t.label} data-problem-id={view.problemId}>
       {view.note !== null && (
         <p data-testid="problem-note" style={{ fontSize: 16, color: "#52606d", margin: "0 0 8px" }}>
           {view.note}
@@ -139,6 +139,87 @@ function ProblemScreen({ view, send }: { view: ProblemView; send: Session["send"
       </div>
       {view.step === "unit" && <NumberPad lang={view.lang} label={t.unitPad} onAnswer={(v) => send({ type: "ANSWER_UNIT", value: v })} />}
       {view.step === "total" && <NumberPad lang={view.lang} label={t.totalPad} onAnswer={(v) => send({ type: "ANSWER_TOTAL", value: v })} />}
+    </section>
+  );
+}
+
+/**
+ * The junior's rule card (指示書 第7.1節 後輩のルールカード, 第2節 自分で直す). The child chooses who is taken as 1
+ * in the card's slot; each choice goes to the flow, core builds every gallery world again and WorldView draws
+ * the new worlds (the tapes grow again unless motion is reduced). Nothing here says right or wrong: the
+ * sentences' light is the only feedback, and the asked value stays "？".
+ */
+function CardScreen({ view, send }: { view: CardScreenView; send: Session["send"] }) {
+  const t = view.text;
+  return (
+    <section aria-label={t.ruleCard.label} data-testid="screen-card">
+      <h2 style={{ fontSize: 20, margin: "0 0 8px" }}>{t.ruleCard.label}</h2>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <AiBadge />
+        <div>
+          {view.lines.map((l) => (
+            <p key={l} style={{ margin: 0 }}>
+              {l}
+            </p>
+          ))}
+        </div>
+      </div>
+      <div style={{ margin: "12px 0", padding: "10px 14px", border: "2px dashed #9aa5b1", borderRadius: 10, background: "#f5f7fa" }}>
+        <p data-testid="rule-card" aria-live="polite" style={{ margin: "0 0 8px" }}>
+          {view.card ?? ""}
+        </p>
+        <div role="group" aria-label={view.slotLabel} data-testid="card-slot" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {view.options.map((o) => (
+            <button
+              key={o.ruleId}
+              type="button"
+              data-rule={o.ruleId}
+              data-testid={`card-option-${o.ruleId}`}
+              aria-pressed={o.chosen}
+              onClick={() => send({ type: "CARD_PICK", ruleId: o.ruleId })}
+              style={{
+                minHeight: 48,
+                padding: "8px 14px",
+                fontSize: 18,
+                borderRadius: 12,
+                border: "2px solid #52606d",
+                // The chosen option looks pressed only; no option is marked as better than another.
+                background: o.chosen ? "#e4ecf7" : "#fff",
+                color: "#1f2933",
+                fontWeight: o.chosen ? 700 : 400,
+                cursor: "pointer",
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <h3 style={{ fontSize: 18 }}>{view.galleryLabel}</h3>
+      <ul data-testid="gallery" style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 16 }}>
+        {view.gallery.map((g) => {
+          const checks: StatementCheck[] = g.statements.map((s) => ({ index: s.index, verdict: s.lit ? "fails" : "holds", cues: [] }) as StatementCheck);
+          return (
+            <li key={g.problemId} data-testid="gallery-item" data-problem-id={g.problemId} style={{ borderTop: "1px solid #cbd2d9", paddingTop: 8 }}>
+              <SentenceList statements={g.statements} checks={checks} label={t.problem.sentences} lang={view.lang} />
+              {g.world !== null && (
+                <WorldView
+                  world={g.world}
+                  glowIds={g.glowIds}
+                  failingSentences={g.statements.filter((s) => s.lit).map((s) => s.text)}
+                  label={t.problem.world}
+                  lang={view.lang}
+                />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <p style={{ marginTop: 12 }}>
+        <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-card-next">
+          {view.next}
+        </Button>
+      </p>
     </section>
   );
 }
@@ -287,6 +368,8 @@ function Screen({ view, send, onLang }: { view: FlowView; send: Session["send"];
       );
     case "problem":
       return <ProblemScreen view={view} send={send} />;
+    case "card":
+      return <CardScreen view={view} send={send} />;
     case "research":
     case "finished":
       return (

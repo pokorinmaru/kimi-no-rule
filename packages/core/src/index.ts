@@ -106,12 +106,17 @@ export {
 export { parseRestated, restate, type RestatedSentence } from "./restate/index.ts";
 export { hasChildText, redactExplanation, redactInterpretation } from "./redact/index.ts";
 export {
+  CARD_RULE_IDS,
+  CARD_RULES,
   COMMON_FRACTION_READINGS,
   COMMON_MISREADINGS,
   CORRECT_READING_ID,
   GAIN_THRESHOLD,
   OTHER,
   POOL_MAX,
+  cardFailing,
+  cardFits,
+  cardSlot,
   chooseNext,
   initialState,
   kohaiReading,

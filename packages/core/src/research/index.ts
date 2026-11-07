@@ -23,8 +23,10 @@ import {
 } from "../rules/weights.ts";
 import { COMMON_MISREADINGS } from "./common.ts";
 import { hasOperationName, numbersIn } from "../gates/index.ts";
+import { apply } from "../apply/index.ts";
+import { checkStatements } from "../statements/index.ts";
 
-export { COMMON_FRACTION_READINGS, COMMON_MISREADINGS, CORRECT_READING_ID } from "./common.ts";
+export { CARD_RULE_IDS, CARD_RULES, COMMON_FRACTION_READINGS, COMMON_MISREADINGS, CORRECT_READING_ID } from "./common.ts";
 
 export const OTHER = "other";
 export const POOL_MAX = 5;
@@ -349,6 +351,7 @@ const CARD_WORDS = {
     bySize: "数の大きさで、読み方を決める",
     percent: "百分率を、そのままの数とみる",
     same: "どの問題も、同じやり方で読む",
+    asWritten: "文が言うとおりの人を、1とみる",
     invert: "分数を、上と下を入れかえて読む",
     flip: "ふえた・へったを、反対に読む",
     question: "聞かれている人を、ほかの人として読む",
@@ -363,6 +366,7 @@ const CARD_WORDS = {
     bySize: "picks the reading by how big the counts are",
     percent: "reads a percent as a plain count",
     same: "reads every problem in the same way",
+    asWritten: "takes as 1 the person the sentence says",
     invert: "reads the fraction upside down",
     flip: "reads gaining and losing the other way round",
     question: "reads the person asked about as someone else",
@@ -415,7 +419,12 @@ export function safeWord(w: string): boolean {
  * and none when the reading builds the correct world; without a problem, the first clause that changes anything.
  * In English (lang "en") the card follows the same rules (HANDOFF §7 の4).
  */
-export function readingCard(h: Hypothesis, record?: ProblemRecord, lang: CardLang = "ja"): string | null {
+export function readingCard(h: Hypothesis, record?: ProblemRecord, lang: CardLang = "ja", opts: { forEdit?: boolean } = {}): string | null {
+  // The card the child edits (指示書 第7.1節 後輩のルールカード) always shows its slot, on any problem.
+  if (opts.forEdit === true) {
+    const slot = cardSlot(h, lang);
+    return slot === null ? null : `${CARD_WORDS[lang].prefix}${slot}`;
+  }
   const acting = record === undefined ? h.clauses : [...new Set(firedClauses(h, record))].sort((x, y) => x - y).map((i) => h.clauses[i] as Hypothesis["clauses"][number]);
   if (record !== undefined && sameReading(runRule(h, record), record.world, true)) return null;
   for (const c of acting) {
@@ -423,4 +432,45 @@ export function readingCard(h: Hypothesis, record?: ProblemRecord, lang: CardLan
     if (text !== null) return `${CARD_WORDS[lang].prefix}${text}`;
   }
   return null;
+}
+
+/**
+ * The slot of the rule card the child edits: who the rule takes as 1 (指示書 第7.1節 後輩のルールカード). Only a
+ * rule with one clause that chooses who is 1, swaps it, or keeps the sentence's own 1 has a slot; the reading
+ * that keeps it reads "the person the sentence says". The same card rules hold (no number but the 1, no
+ * operation, no judging word, nothing placed on the child), in both languages.
+ */
+export function cardSlot(h: Hypothesis, lang: CardLang = "ja"): string | null {
+  if (h.clauses.length !== 1) return null;
+  const a = (h.clauses[0] as Hypothesis["clauses"][number]).then;
+  if (a.action === "no_change") return CARD_WORDS[lang].asWritten;
+  if (a.action === "choose_reference" || a.action === "swap_reference") return cardText(a, lang);
+  return null;
+}
+
+/**
+ * The sentences that do not hold in the world the rule builds on a problem (core runRule, then checkStatements
+ * as the screen checks a world with no op of the child's). Null when core cannot run or check it.
+ */
+export function cardFailing(h: Hypothesis, record: ProblemRecord): number[] | null {
+  try {
+    const base = runRule(h, record);
+    const phrases = [...new Set(record.statements.flatMap((s) => s.element_ids))].map((element_id) => ({
+      phrase: element_id,
+      lang: record.world.problem_lang,
+      element_id,
+    }));
+    const child = apply({ correct: base, ops: [], phrases });
+    if (child.discarded.length > 0) return null;
+    const checked = checkStatements({ correct: record.world, statements: record.statements, syntaxMarks: record.syntax_marks, ops: [], child });
+    if (checked.kind !== "checked") return null;
+    return checked.statements.filter((s) => s.verdict !== "holds").map((s) => s.index);
+  } catch {
+    return null;
+  }
+}
+
+/** Whether the rule makes every sentence hold on every problem given. An empty list never fits. */
+export function cardFits(h: Hypothesis, records: readonly ProblemRecord[]): boolean {
+  return records.length > 0 && records.every((r) => cardFailing(h, r)?.length === 0);
 }
