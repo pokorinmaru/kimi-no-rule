@@ -1,0 +1,278 @@
+{
+  "schema_version": "1",
+  "world": {
+    "schema_version": "3",
+    "problem_id": "p_disc_c_first_whole_s_motoni_plain_2",
+    "problem_type": "ratio",
+    "problem_text": "小さいびんのジュースは、大きいびんのジュースをもとにすると3/5です。小さいびんのジュースは6dLです。大きいびんのジュースは何dLですか。",
+    "grade": 6,
+    "problem_lang": "ja",
+    "holders": [
+      {
+        "id": "h_small",
+        "label": "小さいびん"
+      },
+      {
+        "id": "h_large",
+        "label": "大きいびん"
+      }
+    ],
+    "item_kinds": [
+      {
+        "id": "k_juice",
+        "noun": "ジュース",
+        "counter": "dL",
+        "asset_key": null,
+        "countable": false
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_small",
+        "holder": "h_small",
+        "item_kind": "k_juice",
+        "at_event": null,
+        "value": {
+          "num": 6,
+          "den": 1
+        }
+      },
+      {
+        "id": "q_large",
+        "holder": "h_large",
+        "item_kind": "k_juice",
+        "at_event": null,
+        "value": null
+      }
+    ],
+    "relations": [
+      {
+        "id": "r_frac",
+        "operator": "fraction_of",
+        "subject": "q_small",
+        "reference": "q_large",
+        "reference_list": null,
+        "amount": {
+          "num": 3,
+          "den": 5
+        },
+        "other_description": null
+      }
+    ],
+    "events": [],
+    "question": {
+      "target_type": "quantity",
+      "target_id": "q_large"
+    },
+    "word_links": [
+      {
+        "phrase": "小さいびんのジュース",
+        "lang": "ja",
+        "element_id": "q_small"
+      },
+      {
+        "phrase": "大きいびんのジュース",
+        "lang": "ja",
+        "element_id": "q_large"
+      },
+      {
+        "phrase": "大きいびんのジュースをもとにすると3/5",
+        "lang": "ja",
+        "element_id": "r_frac"
+      }
+    ]
+  },
+  "consistency": "inconsistent",
+  "pair_id": null,
+  "source": "discriminating_bank",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.55,
+    "human_checked": false
+  },
+  "expected_answer": {
+    "num": 10,
+    "den": 1
+  },
+  "statements": [
+    {
+      "index": 0,
+      "text": "小さいびんのジュースは、大きいびんのジュースをもとにすると3/5です。",
+      "element_ids": [
+        "r_frac"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "小さいびん",
+        "の",
+        "ジュース",
+        "は",
+        "、",
+        "大きいびん",
+        "の",
+        "ジュース",
+        "を",
+        "もとにすると",
+        "3/5",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 1,
+      "text": "小さいびんのジュースは6dLです。",
+      "element_ids": [
+        "q_small"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "小さいびん",
+        "の",
+        "ジュース",
+        "は",
+        "6",
+        "dL",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 2,
+      "text": "大きいびんのジュースは何dLですか。",
+      "element_ids": [
+        "q_large"
+      ],
+      "is_question": true,
+      "speaker_holder_id": null,
+      "tokens": [
+        "大きいびん",
+        "の",
+        "ジュース",
+        "は",
+        "何",
+        "dL",
+        "ですか",
+        "。"
+      ]
+    }
+  ],
+  "syntax_marks": [
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_small",
+      "word": "小さいびん",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 5,
+      "token_end": 5,
+      "element_id": "h_large",
+      "word": "大きいびん",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "relation_word",
+      "statement_index": 0,
+      "token_start": 9,
+      "token_end": 9,
+      "element_id": "r_frac",
+      "word": "もとにすると",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "ratio_notation",
+      "statement_index": 0,
+      "token_start": 10,
+      "token_end": 10,
+      "element_id": "r_frac",
+      "word": "3/5",
+      "ratio_kind": [
+        "fraction",
+        "lt1"
+      ],
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 0,
+      "token_start": 8,
+      "token_end": 11,
+      "element_id": "r_frac",
+      "word": "をもとにすると3/5です",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_small",
+      "word": "小さいびん",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 1,
+      "token_start": 5,
+      "token_end": 5,
+      "element_id": "k_juice",
+      "word": "dL",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 2,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_large",
+      "word": "大きいびん",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 2,
+      "token_start": 5,
+      "token_end": 5,
+      "element_id": "k_juice",
+      "word": "dL",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 2,
+      "token_start": 4,
+      "token_end": 6,
+      "element_id": "q_large",
+      "word": "何dLですか",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    }
+  ],
+  "companion_ids": []
+}

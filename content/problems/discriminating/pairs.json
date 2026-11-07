@@ -1,0 +1,192 @@
+{
+  "p_disc_c_correct_s_unit_additive_1": {
+    "readingA": {
+      "id": "c_correct",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "no_change"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "reads the text as written"
+    },
+    "readingB": {
+      "id": "s_unit_additive",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "ratio_is_unit_fraction",
+            "args": []
+          },
+          "then": {
+            "action": "set_relation_type_additive",
+            "amount": "numerator"
+          }
+        },
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "no_change"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": ""
+    }
+  },
+  "p_disc_c_correct_s_unit_additive_2": {
+    "readingA": {
+      "id": "c_correct",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "no_change"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "reads the text as written"
+    },
+    "readingB": {
+      "id": "s_unit_additive",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "ratio_is_unit_fraction",
+            "args": []
+          },
+          "then": {
+            "action": "set_relation_type_additive",
+            "amount": "numerator"
+          }
+        },
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "no_change"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": ""
+    }
+  },
+  "p_disc_c_first_whole_s_motoni_plain_1": {
+    "readingA": {
+      "id": "c_first_whole",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "choose_reference",
+            "by": "first_mentioned"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "takes the holder mentioned first as 1"
+    },
+    "readingB": {
+      "id": "s_motoni_plain",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "word_in_statement",
+            "args": [
+              "もとにすると"
+            ]
+          },
+          "then": {
+            "action": "no_change"
+          }
+        },
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "choose_reference",
+            "by": "first_mentioned"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": ""
+    }
+  },
+  "p_disc_c_first_whole_s_motoni_plain_2": {
+    "readingA": {
+      "id": "c_first_whole",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "choose_reference",
+            "by": "first_mentioned"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": "takes the holder mentioned first as 1"
+    },
+    "readingB": {
+      "id": "s_motoni_plain",
+      "origin": "math",
+      "clauses": [
+        {
+          "when": {
+            "pred": "word_in_statement",
+            "args": [
+              "もとにすると"
+            ]
+          },
+          "then": {
+            "action": "no_change"
+          }
+        },
+        {
+          "when": {
+            "pred": "true",
+            "args": []
+          },
+          "then": {
+            "action": "choose_reference",
+            "by": "first_mentioned"
+          }
+        }
+      ],
+      "word_cues": [],
+      "note_for_adult": ""
+    }
+  }
+}

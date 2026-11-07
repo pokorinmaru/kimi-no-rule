@@ -1,0 +1,268 @@
+{
+  "schema_version": "1",
+  "world": {
+    "schema_version": "3",
+    "problem_id": "p_disc_c_correct_s_unit_additive_2",
+    "problem_type": "ratio",
+    "problem_text": "青い箱のおはじきは5こです。これは、赤い箱のおはじきの1/3です。赤い箱のおはじきは何こですか。",
+    "grade": 6,
+    "problem_lang": "ja",
+    "holders": [
+      {
+        "id": "h_blue",
+        "label": "青い箱"
+      },
+      {
+        "id": "h_red",
+        "label": "赤い箱"
+      }
+    ],
+    "item_kinds": [
+      {
+        "id": "k_ohajiki",
+        "noun": "おはじき",
+        "counter": "こ",
+        "asset_key": null,
+        "countable": true
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_blue",
+        "holder": "h_blue",
+        "item_kind": "k_ohajiki",
+        "at_event": null,
+        "value": {
+          "num": 5,
+          "den": 1
+        }
+      },
+      {
+        "id": "q_red",
+        "holder": "h_red",
+        "item_kind": "k_ohajiki",
+        "at_event": null,
+        "value": null
+      }
+    ],
+    "relations": [
+      {
+        "id": "r_frac",
+        "operator": "fraction_of",
+        "subject": "q_blue",
+        "reference": "q_red",
+        "reference_list": null,
+        "amount": {
+          "num": 1,
+          "den": 3
+        },
+        "other_description": null
+      }
+    ],
+    "events": [],
+    "question": {
+      "target_type": "quantity",
+      "target_id": "q_red"
+    },
+    "word_links": [
+      {
+        "phrase": "青い箱のおはじきは5こ",
+        "lang": "ja",
+        "element_id": "q_blue"
+      },
+      {
+        "phrase": "赤い箱のおはじきの1/3",
+        "lang": "ja",
+        "element_id": "r_frac"
+      },
+      {
+        "phrase": "赤い箱のおはじきは何こ",
+        "lang": "ja",
+        "element_id": "q_red"
+      }
+    ]
+  },
+  "consistency": "inconsistent",
+  "pair_id": null,
+  "source": "discriminating_bank",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.45,
+    "human_checked": false
+  },
+  "expected_answer": {
+    "num": 15,
+    "den": 1
+  },
+  "statements": [
+    {
+      "index": 0,
+      "text": "青い箱のおはじきは5こです。",
+      "element_ids": [
+        "q_blue"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "青い",
+        "箱",
+        "の",
+        "おはじき",
+        "は",
+        "5",
+        "こ",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 1,
+      "text": "これは、赤い箱のおはじきの1/3です。",
+      "element_ids": [
+        "r_frac"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "これ",
+        "は",
+        "、",
+        "赤い",
+        "箱",
+        "の",
+        "おはじき",
+        "の",
+        "1/3",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 2,
+      "text": "赤い箱のおはじきは何こですか。",
+      "element_ids": [
+        "q_red"
+      ],
+      "is_question": true,
+      "speaker_holder_id": null,
+      "tokens": [
+        "赤い",
+        "箱",
+        "の",
+        "おはじき",
+        "は",
+        "何",
+        "こ",
+        "です",
+        "か",
+        "。"
+      ]
+    }
+  ],
+  "syntax_marks": [
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 0,
+      "token_end": 1,
+      "element_id": "h_blue",
+      "word": "青い箱",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 0,
+      "token_start": 6,
+      "token_end": 6,
+      "element_id": "k_ohajiki",
+      "word": "こ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "demonstrative",
+      "statement_index": 1,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "q_blue",
+      "word": "これ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 3,
+      "token_end": 4,
+      "element_id": "h_red",
+      "word": "赤い箱",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "relation_word",
+      "statement_index": 1,
+      "token_start": 7,
+      "token_end": 7,
+      "element_id": "r_frac",
+      "word": "の",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "ratio_notation",
+      "statement_index": 1,
+      "token_start": 8,
+      "token_end": 8,
+      "element_id": "r_frac",
+      "word": "1/3",
+      "ratio_kind": [
+        "fraction",
+        "lt1"
+      ],
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 2,
+      "token_start": 0,
+      "token_end": 1,
+      "element_id": "h_red",
+      "word": "赤い箱",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 2,
+      "token_start": 6,
+      "token_end": 6,
+      "element_id": "k_ohajiki",
+      "word": "こ",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 2,
+      "token_start": 5,
+      "token_end": 8,
+      "element_id": "q_red",
+      "word": "何こですか",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    }
+  ],
+  "companion_ids": []
+}

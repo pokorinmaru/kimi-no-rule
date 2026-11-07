@@ -1,0 +1,283 @@
+{
+  "schema_version": "1",
+  "world": {
+    "schema_version": "3",
+    "problem_id": "p_disc_c_first_whole_s_motoni_plain_1",
+    "problem_type": "ratio",
+    "problem_text": "妹のおり紙の数は、姉のおり紙の数をもとにすると2/3です。姉のおり紙は12まいです。妹のおり紙は何まいですか。",
+    "grade": 6,
+    "problem_lang": "ja",
+    "holders": [
+      {
+        "id": "h_imouto",
+        "label": "妹"
+      },
+      {
+        "id": "h_ane",
+        "label": "姉"
+      }
+    ],
+    "item_kinds": [
+      {
+        "id": "k_origami",
+        "noun": "おり紙",
+        "counter": "まい",
+        "asset_key": null,
+        "countable": true
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_imouto",
+        "holder": "h_imouto",
+        "item_kind": "k_origami",
+        "at_event": null,
+        "value": null
+      },
+      {
+        "id": "q_ane",
+        "holder": "h_ane",
+        "item_kind": "k_origami",
+        "at_event": null,
+        "value": {
+          "num": 12,
+          "den": 1
+        }
+      }
+    ],
+    "relations": [
+      {
+        "id": "r_frac",
+        "operator": "fraction_of",
+        "subject": "q_imouto",
+        "reference": "q_ane",
+        "reference_list": null,
+        "amount": {
+          "num": 2,
+          "den": 3
+        },
+        "other_description": null
+      }
+    ],
+    "events": [],
+    "question": {
+      "target_type": "quantity",
+      "target_id": "q_imouto"
+    },
+    "word_links": [
+      {
+        "phrase": "妹のおり紙の数",
+        "lang": "ja",
+        "element_id": "q_imouto"
+      },
+      {
+        "phrase": "姉のおり紙の数をもとにすると2/3",
+        "lang": "ja",
+        "element_id": "r_frac"
+      },
+      {
+        "phrase": "姉のおり紙は12まい",
+        "lang": "ja",
+        "element_id": "q_ane"
+      }
+    ]
+  },
+  "consistency": "consistent",
+  "pair_id": null,
+  "source": "discriminating_bank",
+  "checks": {
+    "double_build_match": true,
+    "restate_match": true,
+    "misread_pass_rate": 0.85,
+    "human_checked": false
+  },
+  "expected_answer": {
+    "num": 8,
+    "den": 1
+  },
+  "statements": [
+    {
+      "index": 0,
+      "text": "妹のおり紙の数は、姉のおり紙の数をもとにすると2/3です。",
+      "element_ids": [
+        "q_imouto",
+        "r_frac"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "妹",
+        "の",
+        "おり紙",
+        "の",
+        "数",
+        "は",
+        "、",
+        "姉",
+        "の",
+        "おり紙",
+        "の",
+        "数",
+        "を",
+        "もとにすると",
+        "2/3",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 1,
+      "text": "姉のおり紙は12まいです。",
+      "element_ids": [
+        "q_ane"
+      ],
+      "is_question": false,
+      "speaker_holder_id": null,
+      "tokens": [
+        "姉",
+        "の",
+        "おり紙",
+        "は",
+        "12",
+        "まい",
+        "です",
+        "。"
+      ]
+    },
+    {
+      "index": 2,
+      "text": "妹のおり紙は何まいですか。",
+      "element_ids": [
+        "q_imouto"
+      ],
+      "is_question": true,
+      "speaker_holder_id": null,
+      "tokens": [
+        "妹",
+        "の",
+        "おり紙",
+        "は",
+        "何",
+        "まい",
+        "ですか",
+        "。"
+      ]
+    }
+  ],
+  "syntax_marks": [
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_imouto",
+      "word": "妹",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 0,
+      "token_start": 7,
+      "token_end": 7,
+      "element_id": "h_ane",
+      "word": "姉",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 0,
+      "token_start": 12,
+      "token_end": 13,
+      "element_id": "r_frac",
+      "word": "をもとにすると",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "relation_word",
+      "statement_index": 0,
+      "token_start": 13,
+      "token_end": 13,
+      "element_id": "r_frac",
+      "word": "もとにすると",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "ratio_notation",
+      "statement_index": 0,
+      "token_start": 14,
+      "token_end": 14,
+      "element_id": "r_frac",
+      "word": "2/3",
+      "ratio_kind": [
+        "fraction",
+        "lt1"
+      ],
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 1,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_ane",
+      "word": "姉",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 1,
+      "token_start": 5,
+      "token_end": 5,
+      "element_id": "k_origami",
+      "word": "まい",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "holder_mention",
+      "statement_index": 2,
+      "token_start": 0,
+      "token_end": 0,
+      "element_id": "h_imouto",
+      "word": "妹",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "unit_word",
+      "statement_index": 2,
+      "token_start": 5,
+      "token_end": 5,
+      "element_id": "k_origami",
+      "word": "まい",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    },
+    {
+      "kind": "sentence_pattern",
+      "statement_index": 2,
+      "token_start": 4,
+      "token_end": 6,
+      "element_id": "q_imouto",
+      "word": "何まいですか",
+      "ratio_kind": null,
+      "l1_pattern_id": null,
+      "native_checked": null
+    }
+  ],
+  "companion_ids": []
+}

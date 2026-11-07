@@ -1,4 +1,4 @@
-// pnpm make:discriminating [out dir] [--dry-run]: has Opus write discriminating problems for the reading pairs
+// pnpm make:discriminating [out dir] [--dry-run] [--misread-gate]: has Opus write discriminating problems for the reading pairs
 // the bank does not tell apart (指示書 第6.7節 手順3; Q33). Needs ANTHROPIC_API_KEY (BLOCKED B3) unless --dry-run.
 // It prints the pairs and the expected number of calls, and asks nothing. Records are written unchecked by a
 // person (human_checked false); the build log holds answers and is for adults only.
@@ -16,6 +16,12 @@ const PROGRESS_LOG = fileURLToPath(new URL("../../../evals/results/progress.log"
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
 const dryRun = args.includes("--dry-run");
+/**
+ * The child's flow is finger-only, so how well the listening model hears spoken misreadings does not decide
+ * whether a problem can be used there: by default it is measured and kept in checks.misread_pass_rate, not
+ * a gate (Q44). `--misread-gate` makes it a gate again (for problems meant for spoken answers).
+ */
+const misreadGate = args.includes("--misread-gate");
 const outDir = args.find((a) => !a.startsWith("--")) ?? DEFAULT_DIR;
 
 const stored = readStored(outDir);
@@ -37,7 +43,7 @@ const client = progress.client(anthropicClient());
 const made = await makeDiscriminating(
   { agent: progress.agent(anthropicAgentClient()), judge: client, listen: client },
   { pairs, bank: FRACTION_BANK, stored },
-  {},
+  misreadGate ? {} : { misreadThreshold: 0 },
   { onPair: (d) => progress.pairDone(`${d.pair.a.id} / ${d.pair.b.id}${d.noReply ? " (no reply from the writer)" : ""}`, d.kept, d.refused) },
 );
 writeMade(outDir, made);
