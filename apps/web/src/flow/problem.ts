@@ -4,6 +4,7 @@
 // or a world by itself: every value, world and verdict comes from a function of @kimi/core.
 import {
   COMMON_FRACTION_READINGS,
+  ensurePool,
   POOL_MAX,
   apply,
   judgeAnswer,
@@ -220,7 +221,8 @@ export function researched(state: ResearchState, pool: readonly Hypothesis[] | n
   if (pool !== null && Array.isArray(pool)) {
     try {
       const rev = revisePool(state, editsTo(state, pool), bank);
-      if (rev.rejected.length === 0 && rev.state.pool.length > 0) return rev.state;
+      // The floor under Claude's pool (Q43): readings the evidence supports stay, and at least two.
+      if (rev.rejected.length === 0 && rev.state.pool.length > 0) return ensurePool(rev.state, COMMON_FRACTION_READINGS, bank);
     } catch {
       // fall back below
     }

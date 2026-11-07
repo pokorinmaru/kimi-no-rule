@@ -199,7 +199,8 @@ describe("startSession", () => {
     const s = await startSession({ store: st, api, input: { maxProblems: 2 } });
     await solveCurrent(s);
     await flush();
-    expect(s.actor.getSnapshot().context.research.pool.map((e) => e.hypothesis.id).sort()).toEqual(["c_correct", "c_known_whole"]);
+    // The agent's two come back; the floor may add the common readings the reading supports (Q43).
+    expect(s.actor.getSnapshot().context.research.pool.map((e) => e.hypothesis.id)).toEqual(expect.arrayContaining(["c_correct", "c_known_whole"]));
     s.stop();
   });
 

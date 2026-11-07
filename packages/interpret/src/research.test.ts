@@ -136,6 +136,7 @@ function submitted(o: Outcome): Extract<Outcome, { kind: "submitted" }> {
   if (o.kind !== "submitted") throw new Error("not submitted: " + o.kind);
   return o;
 }
+// The pool as Claude handed it in comes first; the program's floor (Q43) may add common readings after it.
 const poolIds = (o: Outcome): string[] => submitted(o).revision.state.pool.map((e) => e.hypothesis.id);
 
 // ---------------------------------------------------------------------------------------------
@@ -338,7 +339,7 @@ describe("writeHypotheses: submit_pool", () => {
   it("a valid submission: submitted, the pool as handed in", async () => {
     const agent = new FakeAgent([submit(adds("c_correct", "c_known_whole")), done()]);
     const outcome = await writeHypotheses(agent, oneReading());
-    expect(poolIds(outcome)).toEqual(["c_correct", "c_known_whole"]);
+    expect(poolIds(outcome).slice(0, 2)).toEqual(["c_correct", "c_known_whole"]);
     expect(submitted(outcome).revision.merged).toEqual([]);
     expect(submitted(outcome).revision.rejected).toEqual([]);
     const r = resultsOf(agent)[0];
@@ -353,7 +354,7 @@ describe("writeHypotheses: submit_pool", () => {
     const outcome = await writeHypotheses(agent, oneReading());
     const rev = submitted(outcome).revision;
     expect(rev.merged).toEqual([{ kept: "c_known_whole", dropped: "h_copy_of_known" }]);
-    expect(poolIds(outcome)).toEqual(["c_correct", "c_known_whole"]);
+    expect(poolIds(outcome).slice(0, 2)).toEqual(["c_correct", "c_known_whole"]);
     expect(contentText(resultsOf(agent)[0])).toContain("h_copy_of_known");
   });
 
@@ -368,7 +369,7 @@ describe("writeHypotheses: submit_pool", () => {
     expect(isError(first)).toBe(true);
     expect(contentText(first)).toMatch(/invalid|action/);
     expect(isError(second)).toBe(false);
-    expect(poolIds(outcome)).toEqual(["c_correct", "c_known_whole"]);
+    expect(poolIds(outcome).slice(0, 2)).toEqual(["c_correct", "c_known_whole"]);
   });
 
   it("a hypothesis that fails the schema is refused; the corrected pool is accepted", async () => {
@@ -382,7 +383,7 @@ describe("writeHypotheses: submit_pool", () => {
     expect(isError(first)).toBe(true);
     expect(contentText(first).length).toBeGreaterThan(0);
     expect(isError(second)).toBe(false);
-    expect(poolIds(outcome)).toEqual(["c_correct", "c_swap"]);
+    expect(poolIds(outcome).slice(0, 2)).toEqual(["c_correct", "c_swap"]);
   });
 
   it("a refusal from core names its reason: deleting an id not in the pool says unknown_id", async () => {
@@ -433,13 +434,13 @@ describe("writeHypotheses: submit_pool", () => {
     const agent = new FakeAgent([submit(adds("c_correct", "c_swap")), submit(adds("c_correct", "c_known_whole")), done()]);
     const outcome = await writeHypotheses(agent, oneReading());
     for (const r of resultsOf(agent)) expect(isError(r)).toBe(false);
-    expect(poolIds(outcome)).toEqual(["c_correct", "c_known_whole"]);
+    expect(poolIds(outcome).slice(0, 2)).toEqual(["c_correct", "c_known_whole"]);
   });
 
   it("an accepted submit followed by a refused one keeps the accepted pool", async () => {
     const agent = new FakeAgent([submit(adds("c_correct", "c_known_whole")), submit([{ kind: "add", hypothesis: badAction() }]), done()]);
     const outcome = await writeHypotheses(agent, oneReading());
-    expect(poolIds(outcome)).toEqual(["c_correct", "c_known_whole"]);
+    expect(poolIds(outcome).slice(0, 2)).toEqual(["c_correct", "c_known_whole"]);
   });
 
   it("does not change the input", async () => {
@@ -545,5 +546,18 @@ describe("writeHypotheses: the child's words never reach the pool (review fix, Q
     expect(isError(r)).toBe(true);
     expect(contentText(r)).toContain("not in a problem text");
     expect(outcome.kind).toBe("agent_failed");
+  });
+});
+
+describe("writeHypotheses: the program's floor under Claude's pool (Q43)", () => {
+  it("a submitted pool of one gets the common readings the reading supports, and at least two candidates", async () => {
+    const input = oneReading();
+    const agent = new FakeAgent([submit([{ kind: "add", hypothesis: { ...reading("c_invert"), id: "h_new" } }]), done()]);
+    const out = await writeHypotheses(agent, input);
+    if (out.kind !== "submitted") throw new Error(out.kind);
+    const ids = out.revision.state.pool.map((e) => e.hypothesis.id);
+    expect(ids).toContain("h_new");
+    expect(ids).toContain("c_known_whole");
+    expect(ids.length).toBeGreaterThanOrEqual(2);
   });
 });

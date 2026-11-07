@@ -249,6 +249,41 @@ export function revisePool(state: ResearchState, edits: readonly PoolEdit[], pro
   return { state: { ...state, pool: statused, weights, unexpressible }, rejected, merged };
 }
 
+/**
+ * The floor under the pool Claude writes (Q43): every candidate reading that reproduces all the child's
+ * first readings so far stays in the pool, and the pool holds at least two, so a problem that tells them
+ * apart can always be chosen. Claude adds readings no list has; it cannot drop one the evidence still
+ * supports. Readings already represented (same worlds on every problem) are not added twice.
+ */
+export function ensurePool(state: ResearchState, candidates: readonly Hypothesis[], problems: readonly ProblemRecord[]): ResearchState {
+  const reproduces = (h: Hypothesis): boolean =>
+    state.readings.every((r) => {
+      try {
+        return sameReading(runRule(h, r.record), r.childWorld, r.referencePlaced);
+      } catch {
+        return false;
+      }
+    });
+  const represented = (h: Hypothesis, pool: readonly Hypothesis[]): boolean =>
+    pool.some((e) => e.id === h.id || groupHypotheses([e, h], problems).length === 1);
+  const pool = state.pool.map((e) => e.hypothesis);
+  const adds: Hypothesis[] = [];
+  for (const h of candidates) {
+    if (pool.length + adds.length >= POOL_MAX) break;
+    if (reproduces(h) && !represented(h, [...pool, ...adds])) adds.push(h);
+  }
+  for (const h of candidates) {
+    if (pool.length + adds.length >= 2) break;
+    if (!represented(h, [...pool, ...adds])) adds.push(h);
+  }
+  if (adds.length === 0) return state;
+  return revisePool(
+    state,
+    adds.map((hypothesis) => ({ kind: "add" as const, hypothesis })),
+    problems,
+  ).state;
+}
+
 export function chooseNext(
   state: ResearchState,
   bank: readonly ProblemRecord[],

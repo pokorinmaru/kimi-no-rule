@@ -3,6 +3,8 @@
 // written in the reading language. Its tools are core functions; the pool it hands in goes through
 // core's revisePool. Weights, the choice of the next problem and confirmation stay in core.
 import {
+  COMMON_FRACTION_READINGS,
+  ensurePool,
   infoGain,
   predict,
   revisePool,
@@ -281,6 +283,10 @@ export async function writeHypotheses(
     // the outcome below says the agent failed
   }
   const done = accepted as { revision: Revision; cueKinds: z.infer<typeof cueKind>[] } | null;
-  if (done !== null) return { kind: "submitted", revision: done.revision, cueKinds: done.cueKinds };
+  // The program keeps the common readings the evidence still supports and at least two candidates (Q43).
+  if (done !== null) {
+    const floored = ensurePool(done.revision.state, COMMON_FRACTION_READINGS, input.bank);
+    return { kind: "submitted", revision: { ...done.revision, state: floored }, cueKinds: done.cueKinds };
+  }
   return { kind: rejections >= opts.maxRejections ? "too_many_rejections" : "agent_failed", revision: null, cueKinds: [] };
 }
