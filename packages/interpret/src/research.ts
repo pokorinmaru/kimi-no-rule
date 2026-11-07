@@ -264,9 +264,11 @@ export async function writeHypotheses(
         }
         // A common reading that still reproduces every first reading cannot be changed or dropped (Q43): the
         // evidence supports it. Claude adds a new hypothesis instead.
-        const protectedIds = new Set(
-          COMMON_FRACTION_READINGS.filter((h) => supportedBy(h, input.readings)).map((h) => h.id),
-        );
+        // Any hypothesis in the pool that the readings support is protected too, not only the common ones.
+        const protectedIds = new Set([
+          ...COMMON_FRACTION_READINGS.filter((h) => supportedBy(h, input.readings)).map((h) => h.id),
+          ...input.state.pool.filter((e) => supportedBy(e.hypothesis, input.readings)).map((e) => e.hypothesis.id),
+        ]);
         const touchesProtected = parsed.edits.flatMap((e, index) => {
           const id = e.kind === "delete" ? e.id : e.kind === "modify" ? e.hypothesis.id : null;
           return id !== null && protectedIds.has(id) ? [`edit ${index}: ${id} reproduces every reading so far; keep it and add a new hypothesis instead`] : [];

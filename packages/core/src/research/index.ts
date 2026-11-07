@@ -94,11 +94,6 @@ export function initialState(): ResearchState {
 
 const isNoChange = (h: Hypothesis): boolean => h.clauses.every((c) => c.then.action === "no_change");
 
-function normalized(w: Weights): Weights {
-  const total = Object.values(w).reduce((a, b) => a + b, 0);
-  return Object.fromEntries(Object.entries(w).map(([k, v]) => [k, v / total]));
-}
-
 /** The status of every entry, and whether "other" weighs most, from the current weights. */
 function restated(pool: readonly PoolEntry[], weights: Weights): { pool: PoolEntry[]; unexpressible: boolean } {
   const otherWeight = weights[OTHER] ?? 0;
@@ -160,17 +155,6 @@ export function observeAgreement(state: ResearchState, o: AgreementObservation):
   return { ...state, pool, weights, unexpressible };
 }
 
-/** What one hypothesis alone says about the scored readings: its weight's catch-up factor and its split count. */
-function history(h: Hypothesis, others: readonly Hypothesis[], scored: readonly FirstReading[]): { factor: number; splits: number } {
-  let factor = 1;
-  let splits = 0;
-  for (const r of scored) {
-    const alone = constructiveLikelihoods(predict([h], r.record, r.referencePlaced), r.childWorld, r.referencePlaced);
-    factor *= (alone[h.id] as number) / (alone[OTHER] as number);
-    if (isSplit(predict([...others, h], r.record, r.referencePlaced))) splits++;
-  }
-  return { factor, splits };
-}
 
 export function revisePool(state: ResearchState, edits: readonly PoolEdit[], problems: readonly ProblemRecord[]): Revision {
   const rejected: Revision["rejected"] = [];
@@ -186,7 +170,6 @@ export function revisePool(state: ResearchState, edits: readonly PoolEdit[], pro
   const firstFill = state.pool.length === 0;
   let pool = [...state.pool];
   let weights: Weights = { ...state.weights };
-  const scored = state.readings.slice(state.unscored);
   const written = new Set<string>();
 
   edits.forEach((edit, index) => {
@@ -213,12 +196,11 @@ export function revisePool(state: ResearchState, edits: readonly PoolEdit[], pro
       return;
     }
     if (at < 0) return void rejected.push({ index, reason: "unknown_id" });
-    // A modified rule is judged again on every scored reading, as if it had been there from the start.
-    const others = pool.filter((_, i) => i !== at).map((e) => e.hypothesis);
-    const { factor, splits } = history(h, others, scored);
+    // A modified rule was written after seeing the readings so far, so they are no evidence for it (Q43,
+    // found in the live eval: a rewrite fitted to the readings took 0.9 of the weight before any test). It
+    // starts as a new hypothesis does: half of "other", no split observations yet.
     weights = addHypothesis(mergeHypotheses(weights, OTHER, h.id), h.id);
-    weights = normalized({ ...weights, [h.id]: (weights[h.id] as number) * factor });
-    pool[at] = { hypothesis: h, status: "hypothesis", splitObservations: splits };
+    pool[at] = { hypothesis: h, status: "hypothesis", splitObservations: 0 };
     written.add(h.id);
   });
 
@@ -254,7 +236,7 @@ export function revisePool(state: ResearchState, edits: readonly PoolEdit[], pro
 export function supportedBy(h: Hypothesis, readings: readonly FirstReading[]): boolean {
   let misses = 0;
   for (const r of readings) {
-    let ok = false;
+    let ok: boolean;
     try {
       ok = sameReading(runRule(h, r.record), r.childWorld, r.referencePlaced);
     } catch {

@@ -351,19 +351,16 @@ describe("revisePool", () => {
     const fits = (): Hypothesis => always("h_x", act.chooseBy("known_value"));
     const misses = (): Hypothesis => always("h_x", act.numberOp("divide_always"));
 
-    /** The weights after a modify: rejoin as a new hypothesis, then score it on the scored readings. */
+    /**
+     * The weights after a modify (Q43): the old weight goes back to other and the rewritten rule rejoins as
+     * a new hypothesis would. It was written after the readings, so they are no evidence for it.
+     */
     function expectedWeights(s: ResearchState, h: Hypothesis): Weights {
       const { [h.id]: old = 0, ...rest } = s.weights;
-      let w: Weights = addHypothesis({ ...rest, [OTHER]: (rest[OTHER] ?? 0) + old }, h.id);
-      for (const r of s.readings.slice(s.unscored)) {
-        const l = constructiveLikelihoods(predict([h], r.record, r.referencePlaced), r.childWorld, r.referencePlaced);
-        w = { ...w, [h.id]: (w[h.id] ?? 0) * ((l[h.id] as number) / (l[OTHER] as number)) };
-      }
-      const t = sum(w);
-      return Object.fromEntries(Object.entries(w).map(([k, v]) => [k, v / t]));
+      return addHypothesis({ ...rest, [OTHER]: (rest[OTHER] ?? 0) + old }, h.id);
     }
 
-    it("recomputes the weight of the modified rule from the scored readings", () => {
+    it("gives the modified rule the weight a new hypothesis gets, with no credit from the readings so far", () => {
       const s = before();
       expect(s.unscored).toBe(1);
       expect(s.readings).toHaveLength(3);
@@ -373,12 +370,11 @@ describe("revisePool", () => {
       for (const [k, v] of Object.entries(expected)) expect(rev.state.weights[k]).toBeCloseTo(v, CLOSE);
     });
 
-    it("a modified rule that reproduces the readings ends heavier than one that does not", () => {
+    it("a rewrite that fits the readings earns nothing over one that does not (no after-the-fact credit)", () => {
       const s = before();
       const good = revisePool(s, [modify(fits())], FRACTION_BANK).state;
       const bad = revisePool(s, [modify(misses())], FRACTION_BANK).state;
-      expect(good.weights.h_x as number).toBeGreaterThan(bad.weights.h_x as number);
-      expect(good.weights.h_x as number).toBeGreaterThan(s.weights.h_x as number);
+      expect(good.weights.h_x as number).toBeCloseTo(bad.weights.h_x as number, CLOSE);
     });
 
     it("keeps the ratios between the untouched hypotheses and sums to 1", () => {
@@ -389,7 +385,7 @@ describe("revisePool", () => {
       expect(sum(out.weights)).toBeCloseTo(1, CLOSE);
     });
 
-    it("replaces the rule, sends it back to a hypothesis and recounts its splitting observations", () => {
+    it("replaces the rule, sends it back to a hypothesis and starts its splitting observations again", () => {
       const s = before();
       const confirmed: ResearchState = {
         ...s,
@@ -399,8 +395,8 @@ describe("revisePool", () => {
       const x = out.pool.find((e) => e.hypothesis.id === "h_x");
       expect(x?.hypothesis).toEqual(fits());
       expect(x?.status).toBe("hypothesis");
-      // c_correct and c_swap build different worlds on every bank problem, so both scored readings count.
-      expect(x?.splitObservations).toBe(2);
+      // Only observations made after the rewrite can test it (Q43).
+      expect(x?.splitObservations).toBe(0);
       expect(ids(out)).toEqual(["c_correct", "c_swap", "h_x"]);
     });
   });
