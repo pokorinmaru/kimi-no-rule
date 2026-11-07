@@ -4,7 +4,7 @@ import type { SnapshotFrom } from "xstate";
 import type { GateContext, Rational, WorldScene } from "@kimi/core";
 import type { flowMachine } from "./machine.ts";
 import { gateContext } from "./problem.ts";
-import { AI_MARK, BUTTONS, CONSENT_LINES, FINISHED_LINES, HELPLINE, INTRO_LINES, RESEARCH_WAIT_LINE, STUCK, hardLines, restLines } from "./text.ts";
+import { AI_MARK, BUTTONS, CONSENT_LINES, FINISHED_LINES, HELPLINE, INTRO_LINES, RESEARCH_WAIT_LINE, STUCK, hardLines, helplineLine, restLines } from "./text.ts";
 
 export type FlowSnapshot = SnapshotFrom<typeof flowMachine>;
 
@@ -53,8 +53,8 @@ export type FlowView =
   | ProblemView
   | (Common & { screen: "research"; lines: string[] })
   | (Common & { screen: "stuck"; lines: string[]; resume: string; hold: string | null })
-  | (Common & { screen: "hard"; lines: string[]; helpline: { title: string; pending: string } })
-  | (Common & { screen: "rest"; lines: string[]; helpline: { title: string; pending: string } })
+  | (Common & { screen: "hard"; lines: string[]; helpline: typeof HELPLINE })
+  | (Common & { screen: "rest"; lines: string[]; helpline: typeof HELPLINE })
   | (Common & { screen: "finished"; lines: string[] })
   | (Common & { screen: "ended" });
 
@@ -64,8 +64,8 @@ export function viewOf(s: FlowSnapshot): FlowView {
   const c = s.context;
   const common: Common = { buttons: BUTTONS, highlightButtons: c.highlight, aiMark: AI_MARK };
   if (s.status === "done" || s.matches("ended")) return { ...common, screen: "ended" };
-  if (s.matches("hard")) return { ...common, screen: "hard", lines: hardLines(c.lang), helpline: { ...HELPLINE } };
-  if (s.matches("rest")) return { ...common, screen: "rest", lines: restLines(c.lang), helpline: { ...HELPLINE } };
+  if (s.matches("hard")) return { ...common, screen: "hard", lines: hardLines(c.lang), helpline: HELPLINE };
+  if (s.matches("rest")) return { ...common, screen: "rest", lines: restLines(c.lang), helpline: HELPLINE };
   if (s.matches("stuck")) {
     const open = c.problem !== null && !c.problem.logged;
     const wait = "ゆっくり考えていいですよ。待っています";
@@ -119,7 +119,7 @@ export function childTexts(v: FlowView): string[] {
       break;
     case "hard":
     case "rest":
-      out.push(...v.lines, v.helpline.title, v.helpline.pending);
+      out.push(...v.lines, v.helpline.title, v.helpline.pending, ...v.helpline.entries.map(helplineLine));
       break;
     case "ended":
       break;

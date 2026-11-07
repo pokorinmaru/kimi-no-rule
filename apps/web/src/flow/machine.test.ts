@@ -8,6 +8,10 @@ import { flowMachine, type FlowEvent, type FlowInput } from "./machine.ts";
 import { childTexts, viewOf } from "./view.ts";
 import { firstReading, judgeTotal, judgeUnit } from "./problem.ts";
 import { FORBIDDEN_CHILD_PHRASES } from "./text.ts";
+import { HELPLINES, helplineLine } from "./text.ts";
+
+/** The text with the checked helpline lines taken out (their numbers are allowed, nothing else). */
+const withoutHelplines = (t: string): string => HELPLINES.reduce((acc, h) => acc.replaceAll(helplineLine(h), ""), t);
 
 type Snap = SnapshotFrom<typeof flowMachine>;
 
@@ -585,9 +589,11 @@ describe("stopping, not knowing and hard (F8)", () => {
     expect(v.screen).toBe("hard");
     const text = childTexts(v).join("\n");
     expect(text).toMatch(/大人/);
-    // The helpline list is not yet checked by a person (B2): the child is told to say it to a grown-up nearby.
+    // The child is told to tell a grown-up nearby, and is shown the helplines checked against their
+    // operators' pages (B2); no other number appears on the screen.
     expect(text).toMatch(/近くにいる大人/);
-    expect(text).not.toMatch(/[0-9０-９]{2,}/);
+    for (const h of HELPLINES) expect(text).toContain(h.number);
+    expect(withoutHelplines(text)).not.toMatch(/[0-9０-９]{2,}/);
     // Nothing math-like is reachable from here.
     for (const e of [{ type: "NEXT" }, { type: "DONT_KNOW" }, { type: "RESUME" }, { type: "PLACE_ONE", quantityId: "q_ani" }] as FlowEvent[]) {
       actor.send(e);
@@ -610,7 +616,7 @@ describe("stopping, not knowing and hard (F8)", () => {
     actor.send({ type: "SAFETY_RESULT", flag: "unchecked" });
     v = viewOf(actor.getSnapshot());
     expect(v.screen).toBe("rest");
-    expect(childTexts(v).join("")).not.toMatch(/[0-9０-９]{2,}/);
+    expect(withoutHelplines(childTexts(v).join(" "))).not.toMatch(/[0-9０-９]{2,}/);
   });
 
   it("stop ends at once and logs the open problem without the child's words", () => {

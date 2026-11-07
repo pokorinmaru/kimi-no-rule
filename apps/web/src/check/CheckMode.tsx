@@ -3,7 +3,7 @@
 // answer was kept. The three buttons stay (原則7): "わからない" leaves the problem, "つらい" stops the math.
 import { useEffect, useRef, useState } from "react";
 import { FRACTION_BANK, type Lang, type ProblemRecord, type Rational } from "@kimi/core";
-import { HELPLINE, hardLines } from "../flow/text.ts";
+import { HELPLINE, hardLines, helplineLine } from "../flow/text.ts";
 import type { CheckItem, FlowStore } from "../store/store.ts";
 import { AlwaysNav, Button, NumberPad } from "../ui/controls.tsx";
 import { judgeCheck, pickCheckProblems } from "./check.ts";
@@ -102,6 +102,11 @@ export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_
           ))}
           <h2 style={{ fontSize: 20 }}>{HELPLINE.title}</h2>
           <p>{HELPLINE.pending}</p>
+          <ul data-testid="helplines">
+            {HELPLINE.entries.map((h) => (
+              <li key={h.number}>{helplineLine(h)}</li>
+            ))}
+          </ul>
           <Button onClick={onExit}>{CHECK_TEXT.close}</Button>
         </section>
       ) : (

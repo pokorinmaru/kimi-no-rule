@@ -10,6 +10,7 @@ import { openStore, type FlowStore } from "../store/store.ts";
 import { FORBIDDEN_CHILD_PHRASES, hardLines } from "../flow/text.ts";
 import { CheckMode } from "./CheckMode.tsx";
 import { CHECK_TEXT } from "./text.ts";
+import { HELPLINES, helplineLine } from "../flow/text.ts";
 
 let n = 0;
 const stores: FlowStore[] = [];
@@ -139,7 +140,10 @@ describe("the check screen", () => {
     expect(screen.queryByTestId("check-problem")).toBeNull();
     expect(screen.queryByTestId("btn-dont-know")).toBeNull();
     expect(screen.getByTestId("btn-stop")).toBeTruthy();
-    expect(hard.textContent ?? "").not.toMatch(/\d{2,4}-\d{2,4}-\d{3,4}|0120/);
+    // Only the checked helplines carry numbers (B2).
+    const others = HELPLINES.reduce((acc, h) => acc.replaceAll(helplineLine(h), ""), hard.textContent ?? "");
+    expect(others).not.toMatch(/\d{2,4}-\d{2,4}-\d{3,4}|0120/);
+    for (const h of HELPLINES) expect(hard.textContent).toContain(h.number);
     await vi.waitFor(async () => expect((await store.listSafety()).map((x) => x.kind)).toEqual(["hard_button"]));
     // What was answered before stays as a shorter check.
     await vi.waitFor(async () => expect((await store.listChecks())[0]?.items).toHaveLength(1));

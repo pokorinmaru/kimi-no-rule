@@ -7,6 +7,7 @@ import { SentenceList } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
 import { startSession, type Session } from "./flow/session.ts";
 import { viewOf, type FlowView, type ProblemView } from "./flow/view.ts";
+import { helplineLine } from "./flow/text.ts";
 import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
 import { CheckMode } from "./check/CheckMode.tsx";
 import { scoreOf } from "./check/check.ts";
@@ -249,6 +250,11 @@ function Screen({ view, send }: { view: FlowView; send: Session["send"] }) {
           <Lines lines={view.lines} />
           <h2 style={{ fontSize: 20 }}>{view.helpline.title}</h2>
           <p>{view.helpline.pending}</p>
+          <ul data-testid="helplines">
+            {view.helpline.entries.map((h) => (
+              <li key={h.number}>{helplineLine(h)}</li>
+            ))}
+          </ul>
           <Button onClick={() => send({ type: "CLOSE" })}>とじる</Button>
         </section>
       );

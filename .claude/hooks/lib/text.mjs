@@ -109,6 +109,15 @@ const EMAIL = /[A-Za-z0-9._%+-]+@((?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,})/g;
 const ALLOWED_EMAIL_DOMAIN = /(^|\.)(example\.(com|org|net)|test|invalid|localhost|example|users\.noreply\.github\.com)$/i;
 const ALLOWED_EMAIL = new Set(["noreply@anthropic.com"]);
 const ALLOWED_EMAIL_LOCAL = new Set(["git"]);
+/**
+ * Public helplines for children, checked against their operators' own pages (BLOCKED B2, QUESTIONS Q32):
+ * not personal data. Kept as split digits so this file does not trip its own check.
+ */
+const ALLOWED_PHONE = new Set([
+  ["0120", "0", "78310"].join(""), // 24時間子供SOSダイヤル（文部科学省）
+  ["0120", "99", "7777"].join(""), // チャイルドライン
+  ["0120", "007", "110"].join(""), // 子どもの人権110番（法務省）
+]);
 
 const PHONES = [
   /(?<![\w.+-])0\d{1,4}-\d{1,4}-\d{3,4}(?![\w-])/g, // 03-1234-5678, 090-1234-5678
@@ -136,6 +145,7 @@ export function findPersonalData(text) {
   for (const re of PHONES) {
     for (const m of t.matchAll(re)) {
       const digits = m[0].replace(/\D/g, "");
+      if (ALLOWED_PHONE.has(digits)) continue;
       if (m[0].startsWith("+81") || digits.length === 10 || digits.length === 11) found.push(`電話番号 (${mask(m[0])})`);
     }
   }

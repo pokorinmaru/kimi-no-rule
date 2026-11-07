@@ -60,7 +60,10 @@ test("つらい stops the math from a problem and shows no phone number", async 
   await page.getByTestId("btn-hard").click();
   await expect(page.getByTestId("screen-hard")).toBeVisible();
   await expect(page.locator('[data-role="tape"]')).toHaveCount(0);
-  await expect(page.getByTestId("screen-hard")).not.toContainText(/\d{2,4}-\d{2,4}-\d{3,4}|0120/);
+  // The helplines checked against their operators' pages are listed (B2), each with its number.
+  const lines = page.getByTestId("helplines").locator("li");
+  await expect(lines).toHaveCount(4);
+  await expect(page.getByTestId("helplines")).toContainText("0120-0-78310");
 });
 
 test("the three buttons stay on the parent screen too", async ({ page }) => {

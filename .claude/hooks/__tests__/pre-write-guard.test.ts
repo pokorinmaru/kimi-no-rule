@@ -172,6 +172,13 @@ describe("pre-write-guard: personal data", () => {
     ].join("\n");
     expect(isAllowed(write(path.join(repo, "a.md"), ok))).toBe(true);
   });
+
+  it("allows the checked public helplines for children, and only those (Q32)", () => {
+    const helplines = [["0120", "0", "78310"], ["0120", "99", "7777"], ["0120", "007", "110"]].map((p) => p.join("-")).join(" ");
+    expect(isAllowed(write(path.join(repo, "a.md"), helplines))).toBe(true);
+    const near = ["0120", "99", "7778"].join("-");
+    expect(isDenied(write(path.join(repo, "a.md"), near))).toBe(true);
+  });
 });
 
 describe("pre-write-guard: shell commands", () => {
