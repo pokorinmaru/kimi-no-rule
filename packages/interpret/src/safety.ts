@@ -30,6 +30,11 @@ export const DISTRESS_WORDS: { ja: string[]; en: string[] } = {
 };
 
 export const SAFETY_TIMEOUT_MS = 1500;
+/**
+ * The second try waits longer: the first request with a new output schema can take about 3 s while the
+ * schema is prepared, and an aborted first try still leaves it prepared for the second.
+ */
+export const SAFETY_RETRY_TIMEOUT_MS = 4000;
 
 export const SAFETY_SYSTEM = [
   "You read one thing a child said while doing arithmetic and decide only whether it shows distress (the child is hurt, afraid, sad or asks for help) or is inappropriate.",
@@ -57,7 +62,7 @@ export async function checkSafety(
   const schema = z.toJSONSchema(schemas.safety, { target: "draft-2020-12" }) as Record<string, unknown>;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await withDeadline(opts.timeoutMs ?? SAFETY_TIMEOUT_MS, (signal) =>
+      const res = await withDeadline(opts.timeoutMs ?? (attempt === 0 ? SAFETY_TIMEOUT_MS : SAFETY_RETRY_TIMEOUT_MS), (signal) =>
         client.complete({ model: MODELS.listen, system: SAFETY_SYSTEM, cachedContext: "", userText: transcript, schema, effort: "low", maxTokens: 200, signal }),
       );
       // Claude declining to judge often means the words are heavy: treat it as distress (Q24, safe side).

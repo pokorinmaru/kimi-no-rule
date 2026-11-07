@@ -20,18 +20,20 @@ export interface AgentStep {
 }
 
 export interface AgentClient {
-  step(req: { model: string; system: string; messages: unknown[]; tools: AgentTool[] }): Promise<AgentStep>;
+  step(req: { model: string; system: string; messages: unknown[]; tools: AgentTool[]; signal?: AbortSignal }): Promise<AgentStep>;
 }
 
 export async function runAgent(
   client: AgentClient,
-  opts: { model: string; system: string; prompt: string; tools: AgentTool[]; maxTurns: number },
+  opts: { model: string; system: string; prompt: string; tools: AgentTool[]; maxTurns: number; signal?: AbortSignal },
 ): Promise<{ text: string; turns: number; stopReason: string }> {
   const messages: unknown[] = [{ role: "user", content: opts.prompt }];
   let turns = 0;
   let last: AgentStep = { stopReason: "end_turn", text: "", toolCalls: [] };
   while (turns < opts.maxTurns) {
-    last = await client.step({ model: opts.model, system: opts.system, messages, tools: opts.tools });
+    // A caller that gave up (the device's deadline) stops the run before the next turn is paid for.
+    if (opts.signal?.aborted === true) return { text: last.text, turns, stopReason: "aborted" };
+    last = await client.step({ model: opts.model, system: opts.system, messages, tools: opts.tools, ...(opts.signal === undefined ? {} : { signal: opts.signal }) });
     turns++;
     if (last.stopReason === "refusal" || last.stopReason === "max_tokens") break;
     if (last.toolCalls.length === 0) break;
@@ -69,7 +71,7 @@ export function anthropicAgentClient(options: { apiKey?: string } = {}): AgentCl
         messages: req.messages as Anthropic.MessageParam[],
         tools: req.tools.map((t) => ({ name: t.name, description: t.description, input_schema: toStructuredSchema(t.inputSchema) as Anthropic.Tool.InputSchema, strict: true })),
         output_config: { effort: "high" },
-      });
+      }, req.signal === undefined ? {} : { signal: req.signal });
       const toolCalls = res.content.flatMap((b) => (b.type === "tool_use" ? [{ id: b.id, name: b.name, input: b.input }] : []));
       const text = res.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
       return { stopReason: (res.stop_reason ?? "end_turn") as ClaudeResponse["stopReason"], text, toolCalls, assistantContent: res.content };

@@ -1,7 +1,7 @@
 // The tool loop with a fake agent client (指示書 第11節 M1b).
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { runAgent, type AgentStep, type AgentTool } from "./agent.ts";
+import { runAgent, type AgentClient, type AgentStep, type AgentTool } from "./agent.ts";
 import { FakeAgent } from "./fake.ts";
 
 interface ToolResult {
@@ -167,5 +167,23 @@ describe("runAgent", () => {
       }),
       { numRuns: 20 },
     );
+  });
+});
+
+describe("runAgent: a caller that stops waiting (review fix)", () => {
+  it("starts no further turn once the signal is aborted, and passes the signal to the client", async () => {
+    const ctrl = new AbortController();
+    const seen: (AbortSignal | undefined)[] = [];
+    const client: AgentClient = {
+      step: async (req) => {
+        seen.push(req.signal);
+        ctrl.abort();
+        return { stopReason: "tool_use", text: "", toolCalls: [{ id: "t1", name: "noop", input: {} }] };
+      },
+    };
+    const tool: AgentTool = { name: "noop", description: "", inputSchema: { type: "object", properties: {}, additionalProperties: false }, run: async () => ({}) };
+    const out = await runAgent(client, { model: "m", system: "s", prompt: "p", tools: [tool], maxTurns: 5, signal: ctrl.signal });
+    expect(seen).toEqual([ctrl.signal]);
+    expect(out).toMatchObject({ turns: 1, stopReason: "aborted" });
   });
 });

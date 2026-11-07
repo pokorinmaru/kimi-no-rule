@@ -42,9 +42,11 @@ export interface ResearchOptions {
   maxTurns: number;
   maxRejections: number;
   model: string;
+  /** Aborts the run when the caller stops waiting (no further turn is started or paid for). */
+  signal?: AbortSignal;
 }
 
-export const DEFAULT_RESEARCH_OPTIONS: ResearchOptions = { maxTurns: 12, maxRejections: 3, model: MODELS.build };
+export const DEFAULT_RESEARCH_OPTIONS: Omit<ResearchOptions, "signal"> = { maxTurns: 12, maxRejections: 3, model: MODELS.build };
 
 /** The kinds of word cue Claude names; only the kind is kept, never the child's words. */
 const cueKind = z.enum([
@@ -274,7 +276,7 @@ export async function writeHypotheses(
   ];
 
   try {
-    await runAgent(agent, { model: opts.model, system: RESEARCH_SYSTEM, prompt: prompt(input), tools, maxTurns: opts.maxTurns });
+    await runAgent(agent, { model: opts.model, system: RESEARCH_SYSTEM, prompt: prompt(input), tools, maxTurns: opts.maxTurns, ...(opts.signal === undefined ? {} : { signal: opts.signal }) });
   } catch {
     // the outcome below says the agent failed
   }

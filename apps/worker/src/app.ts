@@ -208,9 +208,8 @@ export function createApp(deps: WorkerDeps): Hono {
       unscored: b.unscored,
       unexpressible: b.unexpressible,
     };
-    // The agent's turns cannot be cancelled: AgentClient.step and writeHypotheses take no AbortSignal, so a
-    // device that gave up (8 s) does not stop the run here; the cap above bounds what that can spend.
-    const out = await writeHypotheses(agent, { state, readings, bank: [...bank] });
+    // When the device gives up (8 s) and closes the request, the run stops before its next turn.
+    const out = await writeHypotheses(agent, { state, readings, bank: [...bank] }, { signal: c.req.raw.signal });
     if (out.kind !== "submitted") return c.json({ kind: "failed" });
     // Only the hypotheses go back; the device checks them again with core before it uses any.
     return c.json({ kind: "submitted", pool: out.revision.state.pool.map((e) => e.hypothesis) });

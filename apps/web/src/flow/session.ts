@@ -11,7 +11,8 @@ export type { FlowApi } from "./api.ts";
 export const KOHAI_TIMEOUT_MS = 4000;
 /** The research wait: past this the fallback pool is used, so the child never waits long between problems. 【仮】 */
 export const RESEARCH_TIMEOUT_MS = 8000;
-export const SAFETY_TIMEOUT_MS = 3000;
+/** Two tries on the server (1.5 s, then 4 s while a new schema is prepared) and some room. */
+export const SAFETY_TIMEOUT_MS = 6000;
 
 export interface SessionOptions {
   store: FlowStore;

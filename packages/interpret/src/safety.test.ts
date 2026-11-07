@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { MODELS } from "./client.ts";
-import { DISTRESS_WORDS, checkSafety } from "./safety.ts";
+import { DISTRESS_WORDS, SAFETY_RETRY_TIMEOUT_MS, SAFETY_TIMEOUT_MS, checkSafety } from "./safety.ts";
 import { FakeClaude, fails, json, stopped, text } from "./fake.ts";
 
 const flag = (f: "none" | "distress" | "inappropriate") => json({ schema_version: "1", safety_flag: f });
@@ -116,4 +116,21 @@ describe("checkSafety: the word list on the device", () => {
       { numRuns: 80 },
     );
   });
+});
+
+describe("checkSafety: the second try waits longer (a new schema takes about 3 s the first time)", () => {
+  it("a first try that times out and a slower second try that answers gives Claude's flag", async () => {
+    let calls = 0;
+    const client = {
+      complete: async (req: { signal?: AbortSignal }) => {
+        calls++;
+        const wait = calls === 1 ? SAFETY_TIMEOUT_MS + 200 : SAFETY_TIMEOUT_MS + 500;
+        await new Promise((r) => setTimeout(r, wait));
+        if (req.signal?.aborted === true) throw new Error("aborted");
+        return { stopReason: "end_turn" as const, text: JSON.stringify({ schema_version: "1", safety_flag: "none" }) };
+      },
+    };
+    expect(SAFETY_RETRY_TIMEOUT_MS).toBeGreaterThan(SAFETY_TIMEOUT_MS + 500);
+    expect(await checkSafety("きょうはたのしかった", client)).toEqual({ flag: "none", source: "claude" });
+  }, 15_000);
 });
