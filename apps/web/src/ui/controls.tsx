@@ -1,6 +1,6 @@
 // Controls shared by the junior's flow and the AI-free check: the big buttons, the three always-visible
 // buttons (原則7) and the number pad. They draw and report taps only; nothing here judges a number.
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { Rational } from "@kimi/core";
 import { BUTTONS } from "../flow/text.ts";
 
@@ -73,5 +73,42 @@ export function NumberPad({ label, onAnswer }: { label: string; onAnswer: (v: Ra
         </Button>
       </div>
     </div>
+  );
+}
+
+/**
+ * A button the grown-up holds down for `holdMs` (or holds Enter or Space): the parent screen's door, so a
+ * child does not open it by a tap (指示書 第7.4節). With holdMs 0 a press opens it at once (tests).
+ */
+export function HoldButton(props: { onHold: () => void; holdMs: number; children: ReactNode; testId?: string }) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancel = () => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  const start = () => {
+    cancel();
+    if (props.holdMs <= 0) return props.onHold();
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      props.onHold();
+    }, props.holdMs);
+  };
+  useEffect(() => cancel, []);
+  return (
+    <button
+      type="button"
+      style={big}
+      data-testid={props.testId}
+      onPointerDown={start}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !e.repeat) start();
+      }}
+      onKeyUp={cancel}
+    >
+      {props.children}
+    </button>
   );
 }

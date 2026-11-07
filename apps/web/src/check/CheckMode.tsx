@@ -142,7 +142,8 @@ export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_
           )}
         </section>
       )}
-      <AlwaysNav onStop={onStop} {...(mathOn ? { onDontKnow } : {})} onHard={onHard} />
+      {/* "Don't know" skips a problem, so it shows only while an answer can be given. */}
+      <AlwaysNav onStop={onStop} {...(mathOn && phase === "answer" ? { onDontKnow } : {})} onHard={onHard} />
     </>
   );
 }

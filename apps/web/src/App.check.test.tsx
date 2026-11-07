@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The way into the AI-free check and its result on the grown-up's screen (指示書 第7.3節・第7.4節, HANDOFF §3 F7).
 import "fake-indexeddb/auto";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { FRACTION_BANK } from "@kimi/core";
 import { App } from "./App.tsx";
@@ -10,7 +10,7 @@ afterEach(cleanup);
 
 describe("the AI-free check from the intro screen", () => {
   it("runs three problems with the AI mark and the three buttons, then the grown-up sees 3問中k問 with the date", async () => {
-    render(<App storeName="kimi-app-check" api={null} />);
+    render(<App storeName="kimi-app-check" api={null} parentHoldMs={0} />);
     fireEvent.click(await screen.findByRole("button", { name: "AIなしで ためしてみる" }));
     for (let i = 0; i < 3; i++) {
       const el = await screen.findByTestId("check-problem");
@@ -26,9 +26,30 @@ describe("the AI-free check from the intro screen", () => {
       fireEvent.click(await screen.findByTestId("btn-check-next"));
     }
     fireEvent.click(await screen.findByTestId("btn-check-back"));
-    fireEvent.click(await screen.findByTestId("btn-parent"));
+    fireEvent.pointerDown(await screen.findByTestId("btn-parent"));
     const results = await screen.findByTestId("check-results");
     const row = await within(results).findByText(/3問中2問/);
     expect(row.textContent).toMatch(/\d{4}\/\d{1,2}\/\d{1,2}/);
+  });
+});
+
+describe("the parent screen's door (safety review, Q31)", () => {
+  it("a tap does not open it; holding it does", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<App storeName="kimi-app-hold" api={null} parentHoldMs={2000} />);
+      const door = await screen.findByTestId("btn-parent");
+      fireEvent.click(door);
+      expect(screen.queryByTestId("check-results")).toBeNull();
+      fireEvent.pointerDown(door);
+      fireEvent.pointerUp(door);
+      await vi.advanceTimersByTimeAsync(2500);
+      expect(screen.queryByText("記録をすべて消す")).toBeNull();
+      fireEvent.pointerDown(door);
+      await vi.advanceTimersByTimeAsync(2100);
+      expect(await screen.findByText("記録をすべて消す")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

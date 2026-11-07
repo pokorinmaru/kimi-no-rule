@@ -65,7 +65,7 @@ test("つらい stops the math from a problem and shows no phone number", async 
 
 test("the three buttons stay on the parent screen too", async ({ page }) => {
   await page.goto("/");
-  await page.getByTestId("btn-parent").click();
+  await page.getByTestId("btn-parent").click({ delay: 2200 });
   await expect(page.getByTestId("btn-stop")).toBeVisible();
   await expect(page.getByTestId("btn-hard")).toBeVisible();
 });
@@ -135,6 +135,6 @@ test("the AI-free check: three problems, a neutral line after each, and the resu
   }
   await expect(page.getByTestId("check-done")).toBeVisible();
   await page.getByTestId("btn-check-back").click();
-  await page.getByTestId("btn-parent").click();
+  await page.getByTestId("btn-parent").click({ delay: 2200 });
   await expect(page.getByTestId("check-results")).toContainText(/\d{4}\/\d{1,2}\/\d{1,2} \d{2}:\d{2}：3問中3問/);
 });

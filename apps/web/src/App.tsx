@@ -11,7 +11,7 @@ import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
 import { CheckMode } from "./check/CheckMode.tsx";
 import { scoreOf } from "./check/check.ts";
 import { CHECK_TEXT } from "./check/text.ts";
-import { AlwaysNav, Button, NumberPad } from "./ui/controls.tsx";
+import { AlwaysNav, Button, HoldButton, NumberPad } from "./ui/controls.tsx";
 
 /** The heading the child sees. The work's name (君のルールで世界を作る) is not shown to the child: it would
  * attribute the reading to the child (原則10, 指示書 第11節 M7). */
@@ -261,7 +261,18 @@ function Screen({ view, send }: { view: FlowView; send: Session["send"] }) {
   }
 }
 
-export function App({ storeName = "kimi-no-rule", api }: { storeName?: string; api?: Parameters<typeof startSession>[0]["api"] }) {
+/** How long the grown-up holds 「おうちの人へ」 to open the parent screen (Q31). */
+export const PARENT_HOLD_MS = 2000;
+
+export function App({
+  storeName = "kimi-no-rule",
+  api,
+  parentHoldMs = PARENT_HOLD_MS,
+}: {
+  storeName?: string;
+  api?: Parameters<typeof startSession>[0]["api"];
+  parentHoldMs?: number;
+}) {
   const [store, setStore] = useState<FlowStore | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [view, setView] = useState<FlowView | null>(null);
@@ -338,9 +349,9 @@ export function App({ storeName = "kimi-no-rule", api }: { storeName?: string; a
               {CHECK_TEXT.entry}
             </Button>
           )}
-          <Button onClick={() => setParent(true)} testId="btn-parent">
-            おうちの人へ
-          </Button>
+          <HoldButton onHold={() => setParent(true)} holdMs={parentHoldMs} testId="btn-parent">
+            おうちの人へ（2びょう おしつづける）
+          </HoldButton>
         </p>
       )}
     </main>

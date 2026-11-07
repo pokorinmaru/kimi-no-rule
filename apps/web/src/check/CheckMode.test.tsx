@@ -166,3 +166,16 @@ describe("the check screen", () => {
     expect(await store.listChecks()).toEqual([]);
   });
 });
+
+describe("after an answer (safety review, Q31)", () => {
+  it("'don't know' is not offered while the answer is being kept, only while an answer can be given", async () => {
+    const store = fresh();
+    render(<CheckMode store={store} lang="ja" onExit={() => {}} />);
+    const r = await currentProblem();
+    expect(screen.getByTestId("btn-dont-know")).toBeTruthy();
+    typeNumber(answerOf(r));
+    await screen.findByTestId("btn-check-next");
+    expect(screen.queryByTestId("btn-dont-know")).toBeNull();
+    expect(screen.getByTestId("btn-hard")).toBeTruthy();
+  });
+});
