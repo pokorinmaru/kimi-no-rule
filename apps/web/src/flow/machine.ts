@@ -13,7 +13,9 @@ import {
   cardFits,
   checkScenePair,
   pickScenes,
+  readsBeyondWording,
   sceneAvoidValues,
+  transferOptions,
   gate,
   helpSentence,
   holderName,
@@ -39,6 +41,8 @@ import {
   type ScenePair,
   type SlotValues,
   type TemplateKey,
+  type TransferLink,
+  type TransferWording,
   type WordbookPageId,
   type WorldScene,
 } from "@kimi/core";
@@ -175,6 +179,8 @@ export interface ProblemState {
   voiceTurns: number;
   /** The child's first confirmed placement on this problem, before any fix (the research observation). */
   firstPlacement: string | null;
+  /** The word book had shown one of this problem's wordings before that first placement (core does not count it). */
+  firstAided: boolean;
   /** The ops of the last confirmed teaching (evidence always empty). */
   taughtOps: AnyOp[];
   fixes: number;
@@ -220,6 +226,20 @@ export interface ProblemLog {
   orderGuesses?: string[];
   /** How many times the word book opened on this problem. */
   bookOpens?: number;
+  /** On a transfer problem only: what it was offered after, and whether core kept the reading as not leaning on the wording. */
+  transfer?: TransferLog;
+}
+
+/**
+ * What the device keeps of a transfer problem (指示書 第6.7節 手順6, Q48): ids, the wording and core's yes/no only.
+ * Shown on the grown-up's screen, never to the child.
+ */
+export interface TransferLog {
+  fixedProblemId: string;
+  oldReadingId: string;
+  wording: TransferWording;
+  /** core readsBeyondWording: the other phrasing read without the old reading, before any help on it, and solved. */
+  beyondWording: boolean;
 }
 
 /**
@@ -281,6 +301,8 @@ export type SafetyFlagEvent = "none" | "distress" | "inappropriate" | "unchecked
 export interface FlowInput {
   lang?: Lang;
   bank?: readonly ProblemRecord[];
+  /** The stored transfer problems and their old readings (only those in `bank` are ever offered). */
+  transfers?: readonly TransferLink[];
   firstProblemId?: string;
   maxProblems?: number;
   introSeen?: boolean;
@@ -291,6 +313,7 @@ export interface FlowInput {
 export interface FlowContext {
   lang: Lang;
   bank: readonly ProblemRecord[];
+  transfers: readonly TransferLink[];
   firstProblemId: string;
   maxProblems: number;
   introSeen: boolean;
@@ -539,6 +562,24 @@ function voiceMiss(ctx: FlowContext, offline: boolean): Partial<FlowContext> {
   return { problem, line: lineOf({ ...ctx, problem }, "kohai.show_card", {}, null, null), voiceOff: ctx.voiceOff || offline };
 }
 
+/**
+ * A transfer problem (指示書 第6.7節 手順6, Q48) when the last problem was solved after the child fixed the junior's
+ * reading: core's options for that reading (another phrasing first), the first one the junior can misread there.
+ */
+function transferPick(ctx: FlowContext): ReturnType<typeof selectNext> {
+  const last = ctx.log.at(-1);
+  if (last === undefined || last.outcome !== "solved" || last.fixes === 0 || last.problemId !== ctx.done.at(-1)) return null;
+  const fixed = ctx.bank.find((r) => r.world.problem_id === last.problemId);
+  if (fixed === undefined) return null;
+  for (const o of transferOptions({ fixed, oldReadingId: last.readingId, links: ctx.transfers, bank: ctx.bank, done: ctx.done })) {
+    const junior = juniorFor(o.record, ctx.research, ctx.session, ctx.lang, ctx.taught);
+    // A junior whose world already fits leaves the child nothing to read there.
+    if (junior === null || junior.orderOnly) continue;
+    return { record: o.record, junior, reason: { kind: "transfer", fixedProblemId: last.problemId, oldReading: o.oldReading, wording: o.wording } };
+  }
+  return null;
+}
+
 /** Builds the state of a new problem from core's choice of problem and the junior's reading. */
 function loadProblem(ctx: FlowContext): Partial<FlowContext> {
   if (ctx.done.length >= ctx.maxProblems) return { problem: null, ...noLine(ctx) };
@@ -548,7 +589,17 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     const junior = first === undefined ? null : juniorFor(first, ctx.research, ctx.session, ctx.lang, ctx.taught);
     if (first !== undefined && junior !== null) pick = { record: first, junior, reason: { kind: "first" } };
   }
-  pick ??= selectNext(ctx.bank, ctx.done, ctx.research, ctx.session, ctx.lang, ctx.taught);
+  pick ??= transferPick(ctx);
+  // A transfer problem is offered only right after a fix, never as an ordinary pick.
+  const transferIds = new Set(ctx.transfers.map((l) => l.problemId));
+  pick ??= selectNext(
+    ctx.bank.filter((r) => !transferIds.has(r.world.problem_id)),
+    ctx.done,
+    ctx.research,
+    ctx.session,
+    ctx.lang,
+    ctx.taught,
+  );
   if (pick === null) return { problem: null, ...noLine(ctx) };
   const { record, junior, reason } = pick;
   const rel = relationOf(record);
@@ -584,6 +635,7 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     listening: false,
     voiceTurns: 0,
     firstPlacement: null,
+    firstAided: false,
     taughtOps: [],
     fixes: 0,
     unitTries: 0,
@@ -694,9 +746,10 @@ function confirmFirst(ctx: FlowContext): Partial<FlowContext> {
   const p = ctx.problem;
   if (p === null || p.placement === null || p.firstPlacement !== null) return {};
   // A reading after the word book showed one of this problem's wordings is not counted by core (countsAsObservation).
-  const reading = firstReading(p.record, p.relationId, p.placement, p.pages.some((pg) => ctx.wordbookOpened.includes(pg)));
+  const aided = p.pages.some((pg) => ctx.wordbookOpened.includes(pg));
+  const reading = firstReading(p.record, p.relationId, p.placement, aided);
   const research = reading === null ? ctx.research : observe(ctx.research, reading);
-  const problem = { ...p, firstPlacement: p.placement };
+  const problem = { ...p, firstPlacement: p.placement, firstAided: aided };
   const firstOfSession = ctx.done.length === 1 && ctx.researchRequest === null && !ctx.researchApplied;
   // The worker takes the most recent readings only; the device keeps every one (第7.5節).
   const recent = research.readings.slice(-MAX_RESEARCH_READINGS);
@@ -750,7 +803,19 @@ function teach(ctx: FlowContext): Partial<FlowContext> {
   return { problem: { ...p, shown: shown ?? p.shown, taughtOps: ops, fixes: p.fixes + 1, placement: null, heard: null, listening: false } };
 }
 
-function logOf(p: ProblemState, outcome: Outcome): ProblemLog {
+/** core's verdict on a transfer problem, from the child's first world there; undefined on any other problem. */
+function transferLog(ctx: FlowContext, p: ProblemState, outcome: Outcome): TransferLog | undefined {
+  const why = p.pickedBy;
+  if (why.kind !== "transfer") return undefined;
+  const fixed = ctx.bank.find((r) => r.world.problem_id === why.fixedProblemId);
+  const childWorld = p.firstPlacement === null ? null : (firstReading(p.record, p.relationId, p.firstPlacement)?.childWorld ?? null);
+  const beyondWording =
+    fixed !== undefined &&
+    readsBeyondWording({ fixed, record: p.record, oldReading: why.oldReading, childWorld, solved: outcome === "solved", unaided: !p.firstAided });
+  return { fixedProblemId: why.fixedProblemId, oldReadingId: why.oldReading.id, wording: why.wording, beyondWording };
+}
+
+function logOf(p: ProblemState, outcome: Outcome, transfer?: TransferLog): ProblemLog {
   const pending = p.placement === null ? [] : [referenceOp(p.relationId, p.placement), ...p.words.map((w) => wordCueOp(w.statementIndex, w.token))];
   const ops = (p.taughtOps.length > 0 ? p.taughtOps : pending).map((o) => ({ ...o, evidence: "" }));
   return {
@@ -769,13 +834,14 @@ function logOf(p: ProblemState, outcome: Outcome): ProblemLog {
     outcome,
     orderGuesses: [...p.orderGuesses],
     bookOpens: p.bookOpens,
+    ...(transfer === undefined ? {} : { transfer }),
   };
 }
 
 function close(ctx: FlowContext, outcome: Outcome): Partial<FlowContext> {
   const p = ctx.problem;
   if (p === null || p.logged) return {};
-  return { problem: { ...p, logged: true }, log: [...ctx.log, logOf(p, outcome)] };
+  return { problem: { ...p, logged: true }, log: [...ctx.log, logOf(p, outcome, transferLog(ctx, p, outcome))] };
 }
 
 /** The solved problems of this session, in order: the rule card's gallery. */
@@ -1084,6 +1150,7 @@ export const flowMachine = setup({
   context: ({ input }) => ({
     lang: input?.lang ?? "ja",
     bank: input?.bank ?? FRACTION_BANK,
+    transfers: input?.transfers ?? [],
     firstProblemId: input?.firstProblemId ?? FIRST_PROBLEM_ID,
     maxProblems: input?.maxProblems ?? DEFAULT_MAX_PROBLEMS,
     introSeen: input?.introSeen ?? false,

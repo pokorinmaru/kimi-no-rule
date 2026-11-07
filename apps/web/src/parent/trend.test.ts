@@ -5,7 +5,8 @@
 // the implementation.
 import { describe, expect, it } from "vitest";
 import type { AttemptRow, ResearchLogRow } from "../store/store.ts";
-import { trendOf } from "./trend.ts";
+import { readingLine, COMMON_FRACTION_READINGS } from "@kimi/core";
+import { trendOf, wordingFreeOf } from "./trend.ts";
 
 const attempt = (at: string, outcome: AttemptRow["outcome"], fixes = 0): AttemptRow => ({
   at,
@@ -74,5 +75,29 @@ describe("trendOf", () => {
     const [d] = trendOf([], log, "ja", dayOf);
     expect(d?.settled).toEqual(["aの読み方"]);
     expect(d?.backToGuess).toEqual(["aの読み方"]);
+  });
+});
+
+// A reading that does not lean on the wording (指示書 第6.7節 手順6, Q48): the transfer rows core said yes to, oldest
+// first, each with the junior's reading in core's words (looked up by its id; the device keeps only ids).
+describe("wordingFreeOf", () => {
+  const transfer = (beyondWording: boolean, oldReadingId = "c_swap") => ({ fixedProblemId: "p_fraction_c", oldReadingId, wording: "different" as const, beyondWording });
+  const swap = COMMON_FRACTION_READINGS.find((h) => h.id === "c_swap");
+  if (swap === undefined) throw new Error("no c_swap");
+
+  it("lists only the solved transfer rows core kept, by day, in core's words", () => {
+    const rows: AttemptRow[] = [
+      attempt("2026-11-07T10:00", "solved", 1),
+      { ...attempt("2026-11-07T10:05", "solved", 1), transfer: transfer(true) },
+      { ...attempt("2026-11-07T10:09", "solved", 2), transfer: transfer(false) },
+      { ...attempt("2026-11-08T09:00", "stopped", 0), transfer: transfer(true) },
+    ];
+    expect(wordingFreeOf(rows, "ja", "?", dayOf).map((w) => [w.date, w.line])).toEqual([["2026-11-07", readingLine(swap, "ja")]]);
+    expect(wordingFreeOf(rows, "en", "?", dayOf)[0]?.line).toBe(readingLine(swap, "en"));
+  });
+
+  it("uses the given words for a reading core has no line for", () => {
+    const rows: AttemptRow[] = [{ ...attempt("2026-11-07T10:05", "solved", 1), transfer: transfer(true, "h_unknown") }];
+    expect(wordingFreeOf(rows, "ja", "前の読み方", dayOf)[0]?.line).toBe("前の読み方");
   });
 });

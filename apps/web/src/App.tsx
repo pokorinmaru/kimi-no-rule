@@ -7,7 +7,7 @@ import { SceneView } from "./draw/SceneView.tsx";
 import { SentenceList } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
 import { startSession, type Session } from "./flow/session.ts";
-import { bankFor } from "./flow/bank.ts";
+import { TRANSFER_LINKS, bankFor } from "./flow/bank.ts";
 import { viewOf, type CardScreenView, type FlowSnapshot, type FlowView, type GuessView, type HelpView, type ProblemView, type WordbookView } from "./flow/view.ts";
 import { helplineLine, ui, type UiText } from "./flow/text.ts";
 import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
@@ -736,7 +736,7 @@ function Screen({
 /** How long the grown-up holds 「おうちの人へ」 to open the parent screen (Q31). */
 export const PARENT_HOLD_MS = 2000;
 
-/** The child's bank: the prepared problems and the discriminating problems a person has checked (Q33). */
+/** The child's bank: the prepared problems and the stored (discriminating and transfer) problems a person has checked (Q33・Q48). */
 const CHILD_BANK = bankFor({ includeUnchecked: false });
 
 /** The running session and its store, handed to the adults' try route (never drawn on the child's screens). */
@@ -784,7 +784,8 @@ export function App({
       const st = await openStore(storeName);
       const settings = await st.getSettings();
       const furiganaOn = await st.getFurigana();
-      const started = await startSession({ store: st, input: { bank }, ...(api === undefined ? {} : { api }) });
+      // A transfer problem is offered only when it is in the bank (on the child's route: once a person has checked it).
+      const started = await startSession({ store: st, input: { bank, transfers: TRANSFER_LINKS }, ...(api === undefined ? {} : { api }) });
       if (!live) {
         started.stop();
         return;

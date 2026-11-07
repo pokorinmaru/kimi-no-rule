@@ -6,6 +6,7 @@ import { COMMON_FRACTION_READINGS, FRACTION_BANK, apply, initialState, runRule }
 import type { AgentClient, AgentStep, ClaudeClient, ClaudeRequest } from "@kimi/interpret";
 import { RATE_LIMITS, createApp, type WorkerDeps } from "./app.ts";
 import { app as envApp } from "./index.ts";
+import { workerBank } from "./stored.ts";
 
 const signboard = FRACTION_BANK.find((r) => r.world.problem_id === "p_signboard");
 if (signboard === undefined) throw new Error("no signboard");
@@ -338,5 +339,38 @@ describe("POST /interpret", () => {
     const plain = await a.request("/interpret", { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify(body()) });
     expect(plain.status).toBe(415);
     expect((await post(a, "/interpret", { transcript: "x".repeat(100_000) })).status).toBe(413);
+  });
+});
+
+// The stored problems the device may send (Q33・Q48): the worker looks them up as it does the prepared ones, and
+// still refuses an id it does not know.
+describe("stored problems", () => {
+  const bank = workerBank();
+  const transfer = bank.find((r) => r.world.problem_id === "p_transfer_c_swap_different_1");
+  const disc = bank.find((r) => r.source === "discriminating_bank");
+  if (transfer === undefined || disc === undefined) throw new Error("no stored problems");
+
+  it("/interpret takes a stored transfer or discriminating problem's id and sends that record to Claude", async () => {
+    for (const record of [transfer, disc]) {
+      const fake = new Fake({ text: "{}" });
+      const res = await post(createApp(deps({ bank, client: () => fake })), "/interpret", { problem_id: record.world.problem_id, transcript: "こっちが1", lang: "ja" });
+      expect(res.status).toBe(200);
+      // A reply that does not pass core is asked once more; either way the record went to Claude.
+      expect(fake.requests.length).toBeGreaterThanOrEqual(1);
+      expect(fake.requests[0]?.cachedContext).toContain(record.world.quantities[0]?.id ?? "?");
+    }
+  });
+
+  it("/kohai takes a stored problem with the junior's world on it", async () => {
+    const fake = new Fake({ text: "{}" });
+    const res = await post(createApp(deps({ bank, client: () => fake })), "/kohai", { ...kohaiBody(), problem_id: transfer.world.problem_id, kohaiWorld: runRule(swap, transfer) });
+    expect(res.status).toBe(200);
+  });
+
+  it("refuses an id in neither the prepared nor the stored problems, and a stored id the bank was not given", async () => {
+    const fake = new Fake({ text: "{}" });
+    expect((await post(createApp(deps({ bank, client: () => fake })), "/interpret", { problem_id: "p_transfer_nope_1", transcript: "あ", lang: "ja" })).status).toBe(400);
+    expect((await post(createApp(deps({ client: () => fake })), "/interpret", { problem_id: transfer.world.problem_id, transcript: "あ", lang: "ja" })).status).toBe(400);
+    expect(fake.requests).toHaveLength(0);
   });
 });

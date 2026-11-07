@@ -1,7 +1,7 @@
 // The grown-up's trend across days (指示書 第7.4節): read from the records the device already keeps (the
 // problems' outcomes and the research pool's changes). Nothing here is sent anywhere. The lines are core's
 // (readingLine, kept with each change); this only groups them by day.
-import type { Lang } from "@kimi/core";
+import { COMMON_FRACTION_READINGS, readingLine, type Lang } from "@kimi/core";
 import type { AttemptRow, ResearchLogRow } from "../store/store.ts";
 
 export interface TrendDay {
@@ -79,4 +79,26 @@ function dayKey(date: string): string {
     .split(/[/-]/)
     .map((p) => p.padStart(4, "0"))
     .join("-");
+}
+
+/** One reading that did not lean on the wording, as the grown-up's screen lists it. */
+export interface WordingFree {
+  key: string;
+  date: string;
+  /** The junior's reading the child had fixed, in core's words (readingLine), or `unknownLine` when core has none. */
+  line: string;
+}
+
+/**
+ * The transfer problems core kept as "does not lean on the wording" (指示書 第6.7節 手順6, Q48), oldest first. The
+ * device keeps only the old reading's id; its words come from core's common readings.
+ */
+export function wordingFreeOf(attempts: readonly AttemptRow[], lang: Lang, unknownLine: string, dayOf: (at: string) => string = localDay): WordingFree[] {
+  const out: WordingFree[] = [];
+  attempts.forEach((a, i) => {
+    if (a.outcome !== "solved" || a.transfer?.wording !== "different" || !a.transfer.beyondWording) return;
+    const h = COMMON_FRACTION_READINGS.find((x) => x.id === a.transfer?.oldReadingId);
+    out.push({ key: `${String(a.id ?? i)}-${a.problemId}`, date: dayOf(a.at), line: h === undefined ? unknownLine : readingLine(h, lang) });
+  });
+  return out;
 }

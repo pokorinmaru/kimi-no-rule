@@ -78,6 +78,12 @@ export function TryPanel({ note }: { note: NoteView | null }) {
             {note.choice === null && <p style={small}>問題はまだ開いていません。</p>}
             {note.choice?.kind === "first" && <p>最初の問題は決まっています（{note.choice.problemId}）。</p>}
             {note.choice?.kind === "bank_order" && <p>見分ける問題が無いので、銀行の順に出しました（{note.choice.problemId}）。</p>}
+            {note.choice?.kind === "transfer" && (
+              <p data-testid="note-transfer">
+                転移の問題：{note.choice.fixedProblemId} で後輩の『{note.choice.oldReadingLine}』が直ったので、その読み方では合わなくなる問題を
+                {note.choice.wording === "different" ? "別の言い回し" : "同じ言い回し"}で出しました（{note.choice.problemId}）。別の言い回しで、最初の「1」が文のとおりに置かれて解けた時だけ、保護者の画面に「ことばに頼らない読み方」として残ります。
+              </p>
+            )}
             {note.choice?.kind === "chosen" && (
               <>
                 <p>

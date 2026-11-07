@@ -25,4 +25,12 @@ export const PROBLEM_READINGS: Readonly<Record<string, Readings>> = {
   p_disc_c_correct_s_unit_additive_2: { 青い: "あお", 赤い: "あか", 箱: "はこ", 何: "なん" },
   p_disc_c_first_whole_s_motoni_plain_1: { ...SISTERS, おり紙: "がみ", 数: "かず", 何: "なん" },
   p_disc_c_first_whole_s_motoni_plain_2: { 大きい: "おお", 小さい: "ちい", 何: "なん" },
+  // The transfer problems (content/problems/transfer, Q48). p_transfer_c_additive_different_1 is still to be written.
+  p_transfer_c_additive_same_1: { 小さい: "ちい", 大きい: "おお", 何: "なん" },
+  p_transfer_c_first_whole_different_1: { 祖父: "そふ", 父: "ちち", 数: "かず", 何: "なん" },
+  p_transfer_c_first_whole_same_1: { 折り: "お", 折っ: "お", 姉: "あね", 母: "はは", 数: "かず", "10羽": "わ", 何羽: "なん|わ" },
+  p_transfer_c_known_whole_different_1: { 小さい: "ちい", 大きい: "おお", 箱: "はこ", 数: "かず", 対して: "たい", 何: "なん" },
+  p_transfer_c_known_whole_same_1: { 祖母: "そぼ", 母: "はは", 数: "かず", 何: "なん" },
+  p_transfer_c_swap_different_1: { 青い: "あお", 赤い: "あか", 水: "みず", 量: "りょう", 何: "なん" },
+  p_transfer_c_swap_same_1: { 大きい: "おお", 小さい: "ちい", 水そう: "すい", 水: "みず", 何: "なん" },
 };

@@ -30,6 +30,7 @@ import { predictionUpdate, type PredictionObservation } from "./prediction.ts";
 export { COMMON_FRACTION_READINGS, COMMON_MISREADINGS, CORRECT_READING_ID } from "./common.ts";
 export { CARD_RULE_IDS, CARD_RULES } from "./card-rules.ts";
 export { TRANSFER_CUES, wordingCues, wordingTag, type WordingCueId, type WordingTag } from "./wording.ts";
+export { readsBeyondWording, transferLinks, transferOptions, type TransferLink, type TransferOption, type TransferWording } from "./transfer.ts";
 export { guessAnswers, guessLikelihoods, guessOf, type FirstGuess, type GuessFields, type PredictionObservation } from "./prediction.ts";
 
 export const OTHER = "other";

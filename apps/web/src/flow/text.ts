@@ -178,6 +178,13 @@ export interface UiText {
     trendSettled: (line: string) => string;
     trendBack: (line: string) => string;
     trendDropped: (line: string) => string;
+    /** A reading that does not lean on the wording (指示書 第6.7節 手順6, Q48): from the device's transfer records only. */
+    wordingTitle: string;
+    wordingLines: readonly string[];
+    wordingNone: string;
+    wordingRow: (date: string, line: string) => string;
+    /** The junior's reading when core has no words for it. */
+    wordingUnknown: string;
     deleteAsk: string;
     deleteWarn: string;
     deleteYes: string;
@@ -345,6 +352,14 @@ const JA: UiText = {
     trendSettled: (line) => `『${line}』が、今のところの読み方になりました`,
     trendBack: (line) => `『${line}』は、仮説にもどりました`,
     trendDropped: (line) => `『${line}』は、考えから外れました`,
+    wordingTitle: "ことばに頼らない読み方",
+    wordingLines: [
+      "後輩の世界を直したあとに、同じ関係を別の言い回し（「に対して」「をもとにすると」など）で書いた問題が出ることがあります。",
+      "その問題で、直す前の後輩の読み方にもどらずに最初の「1」を置き、最後まで解けた時だけ、ここに残します。言い回しの手がかりだけで直したのではないことの、ひとつの手がかりです。",
+    ],
+    wordingNone: "まだありません。",
+    wordingUnknown: "前の読み方",
+    wordingRow: (date, line) => `${date}：後輩の『${line}』を直したあと、別の言い回しの問題でも、その読み方にもどらずに読みました`,
     deleteAsk: "記録をすべて消す",
     deleteWarn: "この端末の記録と同意を、すべて消します。元には戻せません。",
     deleteYes: "消す",
@@ -480,6 +495,14 @@ const EN: UiText = {
     trendSettled: (line) => `"${line}" became the way of reading for now`,
     trendBack: (line) => `"${line}" went back to being a guess`,
     trendDropped: (line) => `"${line}" is no longer considered`,
+    wordingTitle: "Reading that does not lean on the wording",
+    wordingLines: [
+      "After the junior's world is fixed, a problem may come that says the same relation with another of the known Japanese phrasings for which amount is the base.",
+      'Only when the "1" card first went where the sentence puts it there, without going back to the junior\'s earlier way of reading, and the problem was solved, is it kept here. It is one sign that the fix did not rest on the words alone.',
+    ],
+    wordingNone: "None yet.",
+    wordingUnknown: "the earlier way of reading",
+    wordingRow: (date, line) => `${date}: after the junior's "${line}" was fixed, a problem in another phrasing was read without going back to that way of reading`,
     deleteAsk: "Delete all records",
     deleteWarn: "This deletes every record and the consent on this device. It cannot be undone. The language choice stays.",
     deleteYes: "Delete",

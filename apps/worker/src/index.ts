@@ -2,6 +2,7 @@
 // so a key set after start is used, and no key answers 503.
 import { anthropicAgentClient, anthropicClient } from "@kimi/interpret";
 import { createApp } from "./app.ts";
+import { workerBank } from "./stored.ts";
 
 export const PACKAGE = "@kimi/worker";
 
@@ -10,7 +11,11 @@ const key = (): string | null => {
   return k === undefined || k.trim() === "" ? null : k;
 };
 
+/** The prepared problems and the stored ones core accepts, read once at start (the device may send any of them). */
+export const WORKER_BANK = workerBank();
+
 export const app = createApp({
+  bank: WORKER_BANK,
   client: () => {
     const k = key();
     return k === null ? null : anthropicClient({ apiKey: k });

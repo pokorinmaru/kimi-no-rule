@@ -148,6 +148,12 @@ export {
   type ResearchState,
   type Revision,
   TRANSFER_CUES,
+  readsBeyondWording,
+  transferLinks,
+  transferOptions,
+  type TransferLink,
+  type TransferOption,
+  type TransferWording,
   wordingCues,
   wordingTag,
   type WordingCueId,
@@ -169,6 +175,7 @@ export {
 } from "./wordbook/index.ts";
 export { countsAsObservation } from "./rules/weights.ts";
 export { FRACTION_BANK } from "../fixtures/problems/fraction-bank.ts";
+export { acceptStored, withStored } from "./problems/stored.ts";
 export { judgeAnswer, judgeUnitValue } from "./answers/index.ts";
 export {
   SCENE_MATERIALS,

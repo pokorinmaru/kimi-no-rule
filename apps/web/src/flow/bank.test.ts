@@ -3,7 +3,7 @@
 // add the unchecked ones behind a toggle. A stored record that core does not accept never joins.
 import { describe, expect, it } from "vitest";
 import { FRACTION_BANK, type ProblemRecord } from "@kimi/core";
-import { STORED_DISCRIMINATING, bankFor, discriminatingFrom } from "./bank.ts";
+import { STORED_DISCRIMINATING, STORED_PROBLEMS, STORED_TRANSFER, TRANSFER_LINKS, bankFor, discriminatingFrom, uncheckedCount } from "./bank.ts";
 
 const base = FRACTION_BANK[0] as ProblemRecord;
 const made = (id: string, checked: boolean): ProblemRecord => ({
@@ -47,5 +47,26 @@ describe("bankFor", () => {
 
   it("the stored folder reads as records core accepts (whatever is in it now)", () => {
     for (const r of STORED_DISCRIMINATING) expect(r.source).toBe("discriminating_bank");
+  });
+});
+
+// The transfer problems (指示書 第6.7節 手順6, Q48): read the same way from content/problems/transfer with the list
+// of the old readings they were written for. None is checked by a person yet, so the child's bank stays as it was.
+describe("the stored transfer problems", () => {
+  it("are records core accepts with the transfer source, each linked to its old reading", () => {
+    expect(STORED_TRANSFER.length).toBeGreaterThan(0);
+    for (const r of STORED_TRANSFER) expect(r.source).toBe("research");
+    expect(TRANSFER_LINKS.map((l) => l.problemId).sort()).toEqual(STORED_TRANSFER.map((r) => r.world.problem_id).sort());
+  });
+
+  it("join the try route's bank behind the toggle, and the child's bank only once a person has checked them", () => {
+    const child = bankFor({ includeUnchecked: false }).map((r) => r.world.problem_id);
+    const tryIds = bankFor({ includeUnchecked: true }).map((r) => r.world.problem_id);
+    for (const r of STORED_TRANSFER) {
+      expect(tryIds).toContain(r.world.problem_id);
+      expect(child.includes(r.world.problem_id)).toBe(r.checks.human_checked);
+    }
+    expect(STORED_PROBLEMS).toEqual([...STORED_DISCRIMINATING, ...STORED_TRANSFER]);
+    expect(uncheckedCount()).toBe(STORED_PROBLEMS.filter((r) => !r.checks.human_checked).length);
   });
 });

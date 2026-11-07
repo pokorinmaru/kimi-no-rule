@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { initialState, researchSummary, type Lang, type ResearchState } from "@kimi/core";
 import { ui } from "../flow/text.ts";
 import type { AttemptRow, FlowStore, ResearchLogRow } from "../store/store.ts";
-import { trendOf } from "./trend.ts";
+import { trendOf, wordingFreeOf } from "./trend.ts";
 
 const small = { fontSize: 16 } as const;
 
@@ -29,6 +29,7 @@ export function ParentNote({ store, lang, reload }: { store: FlowStore; lang: La
 
   const summary = researchSummary(research, lang);
   const days = trendOf(attempts, log, lang);
+  const wordingFree = wordingFreeOf(attempts, lang, t.wordingUnknown);
   return (
     <>
       <div data-testid="research-note">
@@ -78,6 +79,25 @@ export function ParentNote({ store, lang, reload }: { store: FlowStore; lang: La
           </ul>
         )}
         <p style={small}>{t.trendNote}</p>
+      </div>
+      <div data-testid="wording-note">
+        <h3 style={{ fontSize: 20 }}>{t.wordingTitle}</h3>
+        {t.wordingLines.map((l) => (
+          <p key={l} style={small}>
+            {l}
+          </p>
+        ))}
+        {wordingFree.length === 0 ? (
+          <p>{t.wordingNone}</p>
+        ) : (
+          <ul>
+            {wordingFree.map((w) => (
+              <li key={w.key} data-testid="wording-entry">
+                {t.wordingRow(w.date, w.line)}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </>
   );

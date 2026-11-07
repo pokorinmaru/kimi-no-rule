@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { ProblemRecord } from "@kimi/core";
 import { App, type SessionHandle } from "../App.tsx";
-import { STORED_DISCRIMINATING, bankFor } from "../flow/bank.ts";
+import { STORED_PROBLEMS, bankFor } from "../flow/bank.ts";
 import type { FlowApi } from "../flow/session.ts";
 import type { FlowSnapshot } from "../flow/view.ts";
 import { openStore } from "../store/store.ts";
@@ -15,7 +15,7 @@ import { runSim } from "./sim.ts";
 import { TryPanel } from "./TryPanel.tsx";
 
 export const TRY_DB_NAME = "kimi-no-rule-try";
-/** The toggle that adds the discriminating problems AI wrote and no person has checked yet (Q33). Off by default. */
+/** The toggle that adds the discriminating and transfer problems AI wrote and no person has checked yet (Q33・Q48). Off by default. */
 export const UNCHECKED_TOGGLE_LABEL = "AIが作った未確認の問題も使う";
 
 /** The pause between the simulated child's taps, so the adult can watch the flow and the note move. */
@@ -37,11 +37,11 @@ const banner: CSSProperties = {
 export function TryApp({
   api,
   simDelayMs = SIM_DELAY_MS,
-  stored = STORED_DISCRIMINATING,
+  stored = STORED_PROBLEMS,
 }: {
   api?: FlowApi | null;
   simDelayMs?: number;
-  /** The stored discriminating problems (content/problems/discriminating); tests pass their own. */
+  /** The stored discriminating and transfer problems (content/problems/discriminating, content/problems/transfer); tests pass their own. */
   stored?: readonly ProblemRecord[];
 }) {
   const [ready, setReady] = useState(false);

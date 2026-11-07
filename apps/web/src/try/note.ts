@@ -43,6 +43,7 @@ export interface NotePrediction {
 export type NoteChoice =
   | { kind: "first"; problemId: string }
   | { kind: "bank_order"; problemId: string }
+  | { kind: "transfer"; problemId: string; fixedProblemId: string; oldReadingLine: string; wording: "same" | "different" }
   | { kind: "chosen"; problemId: string; gain: number; predictions: NotePrediction[] };
 
 export interface NoteObservation {
@@ -140,7 +141,9 @@ export function researchNote(c: FlowContext, gateKinds: readonly string[]): Note
     choice =
       why.kind === "chosen"
         ? { kind: "chosen", problemId, gain: why.choice.gain, predictions: predictionsOf(p, why.hypotheses, why.choice.predictions) }
-        : { kind: why.kind, problemId };
+        : why.kind === "transfer"
+          ? { kind: "transfer", problemId, fixedProblemId: why.fixedProblemId, oldReadingLine: lineOf(why.oldReading), wording: why.wording }
+          : { kind: why.kind, problemId };
   }
 
   const observations: NoteObservation[] = c.log

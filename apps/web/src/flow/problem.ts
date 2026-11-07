@@ -28,6 +28,7 @@ import {
   type ProblemRecord,
   type Rational,
   type ResearchState,
+  type TransferWording,
   type WorldScene,
 } from "@kimi/core";
 
@@ -256,7 +257,9 @@ export function lockSession(state: ResearchState, first: ProblemRecord, provisio
 export type PickReason =
   | { kind: "first" }
   | { kind: "chosen"; choice: Choice; hypotheses: Hypothesis[] }
-  | { kind: "bank_order" };
+  | { kind: "bank_order" }
+  /** A transfer problem after the child fixed the junior's reading on fixedProblemId (指示書 第6.7節 手順6, Q48). */
+  | { kind: "transfer"; fixedProblemId: string; oldReading: Hypothesis; wording: TransferWording };
 
 /** The next problem: core chooseNext over the problems the junior can misread (or read with the taught reading), else the first of them. */
 export function selectNext(
