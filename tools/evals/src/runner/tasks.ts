@@ -14,6 +14,8 @@ export interface Task<P> {
   attempt: number;
   /** Whether the item calls Claude (counted in the planned calls; the fail-fast looks only at these). */
   claude: boolean;
+  /** Claude calls the item plans to make (default 1), for the start line only. */
+  plannedCalls?: number;
   run(log: CallLog): Promise<P>;
   /** What stands in when run throws. */
   fallback(): P;
@@ -44,7 +46,7 @@ export async function runTasks<P>(section: string, tasks: readonly Task<P>[], ct
   const failFast = ctx.failFast ?? DEFAULT_FAIL_FAST;
   const progress = createProgress({ section, total: tasks.length, sink: ctx.sink, now });
   const planned = new Map<string, number>();
-  for (const t of tasks) if (t.claude) planned.set(t.system, (planned.get(t.system) ?? 0) + 1);
+  for (const t of tasks) if (t.claude) planned.set(t.system, (planned.get(t.system) ?? 0) + (t.plannedCalls ?? 1));
   const plannedTotal = [...planned.values()].reduce((a, b) => a + b, 0);
   progress.start(
     `planned calls ${plannedTotal}${planned.size === 0 ? "" : ` (${[...planned].map(([s, n]) => `${s} ${n}`).join(", ")})`}; concurrency ${ctx.concurrency}`,

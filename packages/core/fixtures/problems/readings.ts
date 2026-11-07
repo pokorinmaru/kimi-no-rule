@@ -1,0 +1,28 @@
+// The furigana of the prepared problems (指示書 第8.4b節 読みの配慮): for each problem, its kanji words and their
+// readings in hiragana, written for these exact sentences. A key may carry plain context around its kanji
+// (「8本」: the reading is for 本 after 8, はっぽん); a reading with "|" gives one part per kanji (「何本」 is
+// written 何 and 本, two words a child can tap). Every key is a word of the problem's own sentences, so a
+// reading never holds the answer. They are display data: nothing here judges or computes.
+
+export type Readings = Readonly<Record<string, string>>;
+
+const SISTERS: Readings = { 姉: "あね", 妹: "いもうと" };
+const BROTHERS: Readings = { 兄: "あに", 弟: "おとうと" };
+
+export const PROBLEM_READINGS: Readonly<Record<string, Readings>> = {
+  // 姉のリボンは8本です。妹のリボンは、姉のリボンの3/4です。妹のリボンは何本ですか。
+  p_fraction_c: { ...SISTERS, "8本": "ぽん", 何本: "なん|ぼん" },
+  // 兄の金魚は6匹。これは、弟の金魚の数の3/4です。弟の金魚は何匹ですか。
+  p_signboard: { ...BROTHERS, 金魚: "きんぎょ", "6匹": "ぴき", 数: "かず", 何匹: "なん|びき" },
+  p_bank_sticker: { ...SISTERS, 何: "なん" },
+  p_bank_tulip: { 赤組: "あかぐみ", 学年: "がくねん", "10本": "ぽん", 何本: "なん|ぼん" },
+  p_bank_fish_more: { 子ども: "こ", "8匹": "ぴき", 父: "ちち", 倍: "ばい", 何匹: "なん|びき" },
+  p_bank_fish_back: { 父: "ちち", "15匹": "ひき", 子ども: "こ", 数: "かず", 倍: "ばい", 何匹: "なん|びき" },
+  p_bank_motoni: { 白い: "しろ", 赤い: "あか", 花: "はな", 数: "かず", "9本": "ほん", 何本: "なん|ぼん" },
+  p_bank_taishite: { 数: "かず", 対して: "たい", 何: "なん" },
+  p_bank_card: { ...BROTHERS, 何: "なん" },
+  p_disc_c_correct_s_unit_additive_1: { 大きい: "おお", 小さい: "ちい", 水そう: "すい", 金魚: "きんぎょ", "24匹": "ひき", 何匹: "なん|びき" },
+  p_disc_c_correct_s_unit_additive_2: { 青い: "あお", 赤い: "あか", 箱: "はこ", 何: "なん" },
+  p_disc_c_first_whole_s_motoni_plain_1: { ...SISTERS, おり紙: "がみ", 数: "かず", 何: "なん" },
+  p_disc_c_first_whole_s_motoni_plain_2: { 大きい: "おお", 小さい: "ちい", 何: "なん" },
+};

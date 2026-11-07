@@ -35,7 +35,14 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   await expect(page.getByTestId("junior-line")).not.toHaveText("…");
   await expect(page.locator("main")).not.toContainText("8匹");
   // Before any sentence lights, the child says whether the junior's world fits (指示書 第7.1節 手順4).
-  await expect(page.getByTestId("predict-question")).toHaveText("この世界、問題とぴったり？ へん？");
+  // The line as written (the furigana over it aside, 指示書 第8.4b節).
+  await expect(page.getByTestId("predict-question")).toBeVisible();
+  const question = await page.getByTestId("predict-question").evaluate((el) => {
+    const c = el.cloneNode(true) as Element;
+    for (const rt of c.querySelectorAll("rt")) rt.remove();
+    return c.textContent;
+  });
+  expect(question).toBe("この世界、問題とぴったり？ へん？");
   await expect(page.locator('[data-glow="true"]')).toHaveCount(0);
   const first = await page.getByTestId("predict").getByRole("button").allTextContents();
   await page.getByTestId("btn-predict-fits").click();

@@ -5,7 +5,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { FRACTION_BANK, type ProblemRecord } from "@kimi/core";
+import { FRACTION_BANK, readingsFor, type ProblemRecord } from "@kimi/core";
 import { App } from "./App.tsx";
 import { CheckMode } from "./check/CheckMode.tsx";
 import { openStore, type FlowStore } from "./store/store.ts";
@@ -30,14 +30,24 @@ function allowedFrom(records: readonly ProblemRecord[]): string[] {
   for (const r of records) {
     for (const st of r.statements) out.push(st.text, ...st.tokens);
     out.push(...r.world.holders.map((h) => h.label), ...r.world.item_kinds.flatMap((k) => [k.noun, k.counter]));
+    // The furigana over the problem's kanji are part of the problem as written (指示書 第8.4b節).
+    out.push(...Object.values(readingsFor(r.world.problem_id)).flatMap((v) => v.split("|")));
   }
   return out.filter((x) => x !== "").sort((a, b) => b.length - a.length);
 }
 
-/** Every word on the page, visible or spoken (text and aria labels). */
+/** The page's text with the ruby readings taken out (pageWords lists them on their own). */
+function bodyText(): string {
+  const c = document.body.cloneNode(true) as Element;
+  for (const rt of c.querySelectorAll("rt")) rt.remove();
+  return c.textContent ?? "";
+}
+
+/** Every word on the page, visible or spoken (text, ruby readings and aria labels). */
 function pageWords(): string {
   const labels = [...document.querySelectorAll("[aria-label]")].map((e) => e.getAttribute("aria-label") ?? "");
-  return [document.body.textContent ?? "", ...labels].join("\n");
+  const rubies = [...document.querySelectorAll("rt")].map((e) => e.textContent ?? "");
+  return [bodyText(), ...rubies, ...labels].join("\n");
 }
 
 function expectEnglishOnly(records: readonly ProblemRecord[] = FRACTION_BANK): void {
@@ -74,7 +84,7 @@ describe("the language switch", () => {
     fireEvent.click(screen.getByTestId("btn-consent-yes"));
     expect(await screen.findByText("The problem is written in Japanese.")).toBeTruthy();
     const sign = FRACTION_BANK.find((r) => r.world.problem_id === "p_signboard") as ProblemRecord;
-    for (const s of sign.statements) expect(document.body.textContent).toContain(s.text);
+    for (const s of sign.statements) expect(bodyText()).toContain(s.text);
     expectEnglishOnly([sign]);
     // The prediction about the junior's world, in English, before any sentence lights.
     expect(screen.getByTestId("predict-question").textContent).toBe("Does this world fit the problem?");

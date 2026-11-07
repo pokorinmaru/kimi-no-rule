@@ -2,12 +2,17 @@
 // pad: no junior, no world, no hint. core judges each answer (judgeCheck); the child hears only that the
 // answer was kept. The three buttons stay (原則7): "わからない" leaves the problem, "つらい" stops the math.
 import { useEffect, useRef, useState } from "react";
-import { FRACTION_BANK, type Lang, type ProblemRecord, type Rational } from "@kimi/core";
+import { FRACTION_BANK, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational } from "@kimi/core";
 import { hardLines, helplineLine, ui } from "../flow/text.ts";
 import type { CheckItem, FlowStore } from "../store/store.ts";
 import { AlwaysNav, Button, NumberPad } from "../ui/controls.tsx";
 import { judgeCheck, pickCheckProblems } from "./check.ts";
 import { checkText } from "./text.ts";
+import { ReadingTools } from "../ui/ReadAloud.tsx";
+import { RubyText } from "../ui/Ruby.tsx";
+import { createSpeaker, type Speaker } from "../voice/speaker.ts";
+
+const browserSpeaker: Speaker = createSpeaker();
 
 export interface CheckModeProps {
   store: FlowStore;
@@ -18,11 +23,19 @@ export interface CheckModeProps {
    * same lines with the math stopped. */
   onSessionHard?: () => void;
   bank?: readonly ProblemRecord[];
+  /** 「読み上げ」 (指示書 第8.4b節): the browser's speech synthesis; a fake in the tests. */
+  speaker?: Speaker;
+  /** Ruby over the problem's kanji, and its switch (the app keeps the choice on the device). */
+  furigana?: boolean;
+  onFurigana?: (on: boolean) => void;
 }
 
 type Phase = "loading" | "answer" | "kept" | "done" | "hard";
 
-export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_BANK }: CheckModeProps) {
+export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_BANK, speaker = browserSpeaker, furigana = true, onFurigana }: CheckModeProps) {
+  const [readingIndex, setReadingIndex] = useState<number | null>(null);
+  const [localFurigana, setLocalFurigana] = useState(furigana);
+  const rubyOn = onFurigana === undefined ? localFurigana : furigana;
   const [problems, setProblems] = useState<ProblemRecord[]>([]);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("loading");
@@ -122,9 +135,24 @@ export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_
               <p>{CHECK_TEXT.lead}</p>
               <p>{CHECK_TEXT.progress(index + 1, problems.length)}</p>
               {t.problem.note !== null && <p data-testid="problem-note">{t.problem.note}</p>}
+              <ReadingTools
+                lang={lang}
+                // Only the problem's sentences: the check has no junior and no hint.
+                lines={current.statements.map((s) => ({ text: spokenText(s.text, readingsFor(current.world.problem_id)), lang: "ja-JP" }))}
+                speaker={speaker}
+                onReading={setReadingIndex}
+                furigana={rubyOn}
+                onFurigana={onFurigana ?? setLocalFurigana}
+              />
               <ol data-testid="check-problem" data-problem-id={current.world.problem_id} aria-label={t.problem.sentences} style={{ paddingLeft: 24 }}>
                 {current.statements.map((s) => (
-                  <li key={s.index}>{s.text}</li>
+                  <li
+                    key={s.index}
+                    data-reading={readingIndex === s.index ? "true" : "false"}
+                    style={readingIndex === s.index ? { outline: "4px solid #1f2933", outlineOffset: 2, background: "#fff6d5" } : {}}
+                  >
+                    <RubyText text={s.text} on={rubyOn} readings={readingsFor(current.world.problem_id)} />
+                  </li>
                 ))}
               </ol>
               {phase === "answer" && <NumberPad key={current.world.problem_id} label={CHECK_TEXT.pad} onAnswer={onAnswer} lang={lang} />}

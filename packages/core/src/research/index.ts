@@ -28,6 +28,7 @@ import { checkStatements } from "../statements/index.ts";
 
 export { COMMON_FRACTION_READINGS, COMMON_MISREADINGS, CORRECT_READING_ID } from "./common.ts";
 export { CARD_RULE_IDS, CARD_RULES } from "./card-rules.ts";
+export { TRANSFER_CUES, wordingCues, wordingTag, type WordingCueId, type WordingTag } from "./wording.ts";
 
 export const OTHER = "other";
 export const POOL_MAX = 5;

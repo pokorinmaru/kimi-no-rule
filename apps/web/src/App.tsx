@@ -1,7 +1,7 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { gate, type Lang, type ProblemRecord, type Rational, type StatementCheck } from "@kimi/core";
+import { gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { SceneView } from "./draw/SceneView.tsx";
 import { SentenceList } from "./draw/SentenceList.tsx";
@@ -17,9 +17,22 @@ import { checkText } from "./check/text.ts";
 import { AlwaysNav, Button, HoldButton, NumberPad } from "./ui/controls.tsx";
 import { VoicePanel, type RecognizerFactory } from "./voice/VoicePanel.tsx";
 import { createRecognizer } from "./voice/recognizer.ts";
+import { createSpeaker, type Speaker } from "./voice/speaker.ts";
+import { ReadingTools, type ReadLine } from "./ui/ReadAloud.tsx";
+import { RubyText } from "./ui/Ruby.tsx";
 
 /** The browser's own speech recognition, in the screen's language (the user chose the Web Speech API). */
 const browserSpeech: RecognizerFactory = (lang) => createRecognizer(lang);
+
+/** The browser's own speech synthesis for 「読み上げ」 (指示書 第8.4b節). */
+const browserSpeaker: Speaker = createSpeaker();
+
+/** Reading support on the problem screen and the check: read aloud and the furigana switch (kept on the device). */
+interface ReadingHooks {
+  speaker: Speaker;
+  furigana: boolean;
+  onFurigana: (on: boolean) => void;
+}
 
 /** What the problem screen needs for the child's voice: the recognizer, whether the session can hear, and where the final words go. */
 interface VoiceHooks {
@@ -58,8 +71,18 @@ function Lines({ lines }: { lines: readonly string[] }) {
   );
 }
 
-function ProblemScreen({ view, send, voice }: { view: ProblemView; send: Session["send"]; voice: VoiceHooks | null }) {
+function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send: Session["send"]; voice: VoiceHooks | null; reading: ReadingHooks }) {
   const t = view.text.problem;
+  const [readingIndex, setReadingIndex] = useState<number | null>(null);
+  // The problem is written in Japanese on both screens; its readings are data next to the problem (core).
+  const problemReadings = readingsFor(view.problemId);
+  const ruby = reading.furigana;
+  const rubyUi = reading.furigana && view.lang === "ja";
+  // Read aloud: the problem's sentences, then the junior's line already on the screen (it has passed the gates).
+  const readLines: ReadLine[] = [
+    ...view.statements.map((s) => ({ text: spokenText(s.text, problemReadings), lang: "ja-JP" })),
+    ...(view.line === null ? [] : [{ text: view.lang === "ja" ? spokenText(view.line, {}) : view.line, lang: view.lang === "ja" ? "ja-JP" : "en-US" }]),
+  ];
   const checks: StatementCheck[] = view.statements.map((s) => ({ index: s.index, verdict: s.lit ? "fails" : "holds", cues: [] }) as StatementCheck);
   const rel = view.world.relations.find((r) => r.id === view.relationId);
   const ends = rel === undefined ? [] : [rel.subject, rel.reference].filter((x): x is string => x !== null);
@@ -87,8 +110,11 @@ function ProblemScreen({ view, send, voice }: { view: ProblemView; send: Session
           {view.card}
         </p>
       )}
+      <ReadingTools lang={view.lang} lines={readLines} speaker={reading.speaker} onReading={setReadingIndex} furigana={reading.furigana} onFurigana={reading.onFurigana} />
       <SentenceList
         statements={view.statements}
+        readings={ruby ? problemReadings : null}
+        readingIndex={readingIndex}
         checks={view.step === "reading" ? null : checks}
         {...(view.canPlace ? { onTapWord: (i: number, t: number) => send({ type: "TAP_WORD", statementIndex: i, token: t }) } : {})}
         label={t.sentences}
@@ -96,7 +122,12 @@ function ProblemScreen({ view, send, voice }: { view: ProblemView; send: Session
       />
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
         <AiBadge />
-        <p data-testid="junior-line" aria-live="polite" style={{ margin: 0 }}>
+        <p
+          data-testid="junior-line"
+          aria-live="polite"
+          data-reading={readingIndex !== null && readingIndex === view.statements.length ? "true" : "false"}
+          style={{ margin: 0, ...(readingIndex !== null && readingIndex === view.statements.length ? { outline: "4px solid #1f2933", outlineOffset: 2, background: "#fff6d5" } : {}) }}
+        >
           {view.line ?? "…"}
         </p>
       </div>
@@ -123,7 +154,7 @@ function ProblemScreen({ view, send, voice }: { view: ProblemView; send: Session
           // The buttons look alike and none is chosen beforehand; their order changes on every problem.
           <div role="group" aria-label={view.predict.label} data-testid="predict" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <p style={{ margin: 0 }} data-testid="predict-question">
-              {view.predict.question}
+              <RubyText text={view.predict.question} on={rubyUi} />
             </p>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               {view.predict.choices.map((c) => (
@@ -134,7 +165,11 @@ function ProblemScreen({ view, send, voice }: { view: ProblemView; send: Session
             </div>
           </div>
         )}
-        {view.step === "looking" && <p>{t.looking}</p>}
+        {view.step === "looking" && (
+          <p data-testid="looking-line">
+            <RubyText text={t.looking} on={rubyUi} />
+          </p>
+        )}
         {view.step === "placed" && (
           <>
             <Button kind="primary" onClick={() => send({ type: "CONFIRM_YES" })} testId="btn-confirm-yes">
@@ -381,7 +416,19 @@ function ParentScreen({
   );
 }
 
-function Screen({ view, send, onLang, voice }: { view: FlowView; send: Session["send"]; onLang: (l: Lang) => void; voice: VoiceHooks | null }) {
+function Screen({
+  view,
+  send,
+  onLang,
+  voice,
+  reading,
+}: {
+  view: FlowView;
+  send: Session["send"];
+  onLang: (l: Lang) => void;
+  voice: VoiceHooks | null;
+  reading: ReadingHooks;
+}) {
   const t = view.text;
   switch (view.screen) {
     case "intro":
@@ -405,7 +452,7 @@ function Screen({ view, send, onLang, voice }: { view: FlowView; send: Session["
         </section>
       );
     case "problem":
-      return <ProblemScreen view={view} send={send} voice={voice} />;
+      return <ProblemScreen view={view} send={send} voice={voice} reading={reading} />;
     case "card":
       return <CardScreen view={view} send={send} />;
     case "research":
@@ -474,6 +521,7 @@ export function App({
   onSession,
   bank = CHILD_BANK,
   speech = browserSpeech,
+  speaker = browserSpeaker,
 }: {
   storeName?: string;
   api?: Parameters<typeof startSession>[0]["api"];
@@ -484,6 +532,8 @@ export function App({
   bank?: readonly ProblemRecord[];
   /** The speech recognizer for the child's voice (the browser's own; a fake in the tests). */
   speech?: RecognizerFactory;
+  /** The speech synthesis for 「読み上げ」 (the browser's own; a fake in the tests). */
+  speaker?: Speaker;
 }) {
   const onSessionRef = useRef(onSession);
   onSessionRef.current = onSession;
@@ -494,6 +544,7 @@ export function App({
   const [parent, setParent] = useState(false);
   const [restart, setRestart] = useState(0);
   const [check, setCheck] = useState(false);
+  const [furigana, setFurigana] = useState(true);
 
   useEffect(() => {
     let live = true;
@@ -501,6 +552,7 @@ export function App({
     void (async () => {
       const st = await openStore(storeName);
       const settings = await st.getSettings();
+      const furiganaOn = await st.getFurigana();
       const started = await startSession({ store: st, input: { bank }, ...(api === undefined ? {} : { api }) });
       if (!live) {
         started.stop();
@@ -509,6 +561,7 @@ export function App({
       s = started;
       setStore(st);
       setLang(settings.lang);
+      setFurigana(furiganaOn);
       setSession(started);
       setSnap(started.actor.getSnapshot());
       started.actor.subscribe((x) => setSnap(x));
@@ -530,6 +583,17 @@ export function App({
   // The screen's words follow the device's choice; the session takes it while no problem is open.
   const view = useMemo(() => (snap === null ? null : viewOf(snap, lang)), [snap, lang]);
   const t = ui(lang);
+  const reading = useMemo<ReadingHooks>(
+    () => ({
+      speaker,
+      furigana,
+      onFurigana: (on) => {
+        setFurigana(on);
+        void store?.setFurigana(on);
+      },
+    }),
+    [speaker, furigana, store],
+  );
   const changeLang = (l: Lang): void => {
     setLang(l);
     session?.send({ type: "SET_LANG", lang: l });
@@ -563,6 +627,9 @@ export function App({
           store={store}
           lang={lang}
           bank={bank}
+          speaker={reading.speaker}
+          furigana={reading.furigana}
+          onFurigana={reading.onFurigana}
           onExit={() => setCheck(false)}
           // The session's hard screen is reachable while it is still running (not on the ended screen).
           {...(view.screen !== "ended"
@@ -575,7 +642,7 @@ export function App({
             : {})}
         />
       )}
-      {view !== null && !parent && !check && <Screen view={view} send={send} onLang={changeLang} voice={voice} />}
+      {view !== null && !parent && !check && <Screen view={view} send={send} onLang={changeLang} voice={voice} reading={reading} />}
       {view !== null && !check && view.screen !== "ended" && <Always view={view} send={send} />}
       {!parent && !check && (view?.screen === "intro" || view?.screen === "consent" || view?.screen === "ended") && (
         <p style={{ marginTop: 24, display: "flex", gap: 12, flexWrap: "wrap" }}>

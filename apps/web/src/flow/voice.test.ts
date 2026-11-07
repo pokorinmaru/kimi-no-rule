@@ -340,6 +340,82 @@ describe("the session: what the child said goes to /safety and /interpret togeth
   });
 });
 
+describe("the session: safety review of the voice (Q46)", () => {
+  it("words not yet checked by /safety never go into the research request (the child confirms before /safety answers)", async () => {
+    const st = await readyStore();
+    const { api: a } = api({ safety: () => never<SafetyReply>(), interpret: () => never<InterpretReply>() });
+    let sent: unknown = null;
+    a.research = (req) => {
+      sent = req;
+      return never();
+    };
+    const s = await startSession({ store: st, api: a });
+    s.send({ type: "PREDICT", answer: "fits" });
+    const rel = s.actor.getSnapshot().context.problem?.record.world.relations.find((r) => r.id === s.actor.getSnapshot().context.problem?.relationId);
+    s.send({ type: "PLACE_ONE", quantityId: rel?.reference as string });
+    void s.hear("zzunchecked 弟が1");
+    await flush();
+    expect(s.actor.getSnapshot().context.problem?.listening).toBe(true);
+    s.send({ type: "CONFIRM_YES" });
+    await flush();
+    const req = s.actor.getSnapshot().context.researchRequest;
+    expect(req).not.toBeNull();
+    expect(JSON.stringify(req)).not.toContain("zzunchecked");
+    expect(JSON.stringify(sent)).not.toContain("zzunchecked");
+    s.stop();
+  });
+
+  it("a fixed stop word is handled on the device: STOP, with no /interpret and no /safety", async () => {
+    for (const said of ["やめる", "やめたい。", "おわり", "Stop", "quit."]) {
+      const st = await readyStore();
+      const { api: a, calls } = api();
+      const s = await startSession({ store: st, api: a });
+      s.send({ type: "PREDICT", answer: "fits" });
+      await s.hear(said);
+      expect(s.actor.getSnapshot().matches("ended"), said).toBe(true);
+      expect(calls.interpret).toEqual([]);
+      expect(calls.safety).toEqual([]);
+      s.stop();
+    }
+  });
+
+  it("a fixed don't-know word is handled on the device: the don't-know screen, with no /interpret", async () => {
+    for (const said of ["わからない", "分からない", "I don't know"]) {
+      const st = await readyStore();
+      const { api: a, calls } = api();
+      const s = await startSession({ store: st, api: a });
+      s.send({ type: "PREDICT", answer: "fits" });
+      await s.hear(said);
+      expect(s.actor.getSnapshot().matches("stuck"), said).toBe(true);
+      expect(calls.interpret).toEqual([]);
+      s.stop();
+    }
+  });
+
+  it("longer words that hold a stop word are not taken as one (they go on as usual)", async () => {
+    const st = await readyStore();
+    const { api: a, calls } = api();
+    const s = await startSession({ store: st, api: a });
+    s.send({ type: "PREDICT", answer: "fits" });
+    await s.hear("弟が1だからやめるのはまだ");
+    expect(s.actor.getSnapshot().matches("ended")).toBe(false);
+    expect(calls.interpret.length).toBe(1);
+    s.stop();
+  });
+
+  it("final words the flow refuses still go through the safety check only", async () => {
+    const st = await readyStore();
+    const { api: a, calls } = api({ safety: () => Promise.resolve({ flag: "distress" }) });
+    const s = await startSession({ store: st, api: a });
+    // Before the prediction the flow does not hear (the step does not take the voice).
+    await s.hear("もういやだ");
+    expect(calls.interpret).toEqual([]);
+    expect(calls.safety).toEqual(["もういやだ"]);
+    expect(s.actor.getSnapshot().matches("hard")).toBe(true);
+    s.stop();
+  });
+});
+
 describe("the consent and intro say where the child's voice goes (ja and en)", () => {
   it("the words are made text by the browser, sent to Claude to understand them, and not kept on the device", async () => {
     const { ui } = await import("./text.ts");
@@ -350,12 +426,18 @@ describe("the consent and intro say where the child's voice goes (ja and en)", (
     expect(consentJa).toMatch(/文字/);
     expect(consentJa).toMatch(/Claude/);
     expect(consentJa).toMatch(/残しません|のこしません/);
+    // What the words are sent for (safety review, Q46): understanding, the safety check, and the session's research.
+    const voiceJa = ja.consent.lines.find((l) => l.includes("話して教える")) ?? "";
+    expect(voiceJa).toMatch(/安全/);
+    expect(voiceJa).toMatch(/研究/);
     expect(consentJa).not.toMatch(/声、自由に書いた言葉は送りません/);
     const consentEn = en.consent.lines.join(" ");
     expect(consentEn).toMatch(/browser/i);
     expect(consentEn).toMatch(/text/i);
     expect(consentEn).toMatch(/Claude/);
     expect(consentEn).toMatch(/not kept on this device/i);
+    expect(consentEn).toMatch(/safety check/i);
+    expect(consentEn).toMatch(/research on that session/i);
     expect(consentEn).not.toMatch(/name, voice or anything/);
     expect(ja.intro.lines.join("")).toMatch(/ブラウザ/);
     expect(ja.intro.lines.join("")).toMatch(/のこりません|のこしません/);

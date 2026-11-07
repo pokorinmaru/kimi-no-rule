@@ -3,7 +3,9 @@
 import type { InterpretRow, SafetyRow } from "./dataset.ts";
 import { lostToBaseline, type Rate, type SystemResult } from "./interpret-eval.ts";
 import type { LeakResult } from "./kohai-eval.ts";
+import type { LeakJudgeResult } from "./leak-judge.ts";
 import type { ResearchResult } from "./research-eval.ts";
+import type { ResearchJudgeResult } from "./research-judge.ts";
 import type { SafetyResult } from "./safety-eval.ts";
 import { wilson } from "./stats.ts";
 
@@ -17,7 +19,11 @@ export interface EvalsInput {
   safety: { results: { name: string; result: SafetyResult }[]; notRun: NotRun[] };
   data: { interpret: readonly InterpretRow[]; safety: readonly SafetyRow[] };
   /** The research eval (simulated children), when it was run. */
-  research?: { results: ResearchResult[]; notRun: NotRun[]; seeds: number; maxProblems: number };
+  research?: { results: ResearchResult[]; notRun: NotRun[]; seeds: number; maxProblems: number; seedsBySystem?: Record<string, number> };
+  /** The research eval with recovered judged again on the judging problems (addendum 5), when it was run. */
+  researchJudge?: { results: ResearchJudgeResult[]; notRun: NotRun[]; maxProblems: number; bankProblems: number; judgeProblems: number };
+  /** The junior's lines judged by a model next to core's gate (addendum 5), when it was run. */
+  leakJudge?: { results: LeakJudgeResult[]; notRun: NotRun[]; rows: number; k: number; thirdParty?: LeakJudgeResult[] };
   /** The junior's-words leak comparison, when it was run. */
   leak?: { results: LeakResult[]; notRun: NotRun[]; rows: number; k: number };
   /** A heading note, e.g. which problem set the rows come from. */
@@ -74,6 +80,7 @@ export function renderEvalsMd(input: EvalsInput): string {
   }
 
   if (input.leak !== undefined) out.push(...leakSection(input.leak, tp?.leak?.results ?? []));
+  if (input.leakJudge !== undefined) out.push(...leakJudgeSection(input.leakJudge));
 
   out.push("## 解釈の評価（聞く層）", "", `各行を k=${input.interpret.k} 回聞いた。世界の一致・層の一致は1回目、pass^k は k 回すべて一致した行。`, "");
   out.push("層の一致（層のある行）は、期待の読みに層がある行だけで数えたもの。何も言わない返事は、層の無い行では層が一致してしまうため。", "");
@@ -112,6 +119,7 @@ export function renderEvalsMd(input: EvalsInput): string {
   out.push("");
 
   if (input.research !== undefined) out.push(...researchSection(input.research));
+  if (input.researchJudge !== undefined) out.push(...researchJudgeSection(input.researchJudge));
 
   out.push("## データ", "", "### 解釈", "");
   out.push(...countTable("split", counts(input.data.interpret, (r) => r.split)));
@@ -141,25 +149,26 @@ function researchSection(r: NonNullable<EvalsInput["research"]>): string[] {
   const out: string[] = [
     "## 読み方の研究の評価（研究する層）",
     "",
-    `読み方を先に決めた模擬の子どもに、1問目は看板の問題、その後は研究する側が選んだ問題を最大 ${r.maxProblems} 問まで出した（1人の子どもにつき ${r.seeds} 回、うっかりの率と並びは種で固定）。確定した読み方が、銀行のすべての問題で子どもの読み方と同じ世界を作れば「回復」。確定したのに回復でなければ「誤った確定」。記述言語で書けない読み方は、回復ではなく誤った確定の率を見る。`,
+    `読み方を先に決めた模擬の子どもに、1問目は看板の問題、その後は研究する側が選んだ問題を最大 ${r.maxProblems} 問まで出した（1人の子どもにつき表の「回数」の回だけ。うっかりの率と並びは種で固定）。確定した読み方が、銀行のすべての問題で子どもの読み方と同じ世界を作れば「回復」。確定したのに回復でなければ「誤った確定」。記述言語で書けない読み方は、回復ではなく誤った確定の率を見る。`,
     "",
     "模擬の子どもも判定も同じ記述言語で書いているので、評価はその中で閉じている（循環）。書けない読み方の行は、その循環を一部だけ破るために置いた。模擬の子どもと言い方は AI の下書きで、第三者が書いたものではない（BLOCKED B3）。",
     "",
-    "限界：(1) 回復は、問題を選ぶのと同じ銀行の9問で判定する（別の判定用の問題は無い）。銀行で見分けられない2つの読み方は同じとみなすので、回復は甘めに出る。(2) Claude には子どもの言葉を渡し、基線には渡さない（言葉の照合の基線は作っていない）。列挙の外側の子どもの言葉は、手がかりの語をそのまま言うので、Claude の列の外側の行は「言葉から読んだ」ことの証拠としては弱い。(3) 研究層は1問目の読みから仮説を書くので1問目を重みに数えず、基線は1問目から数える。確定までの問題数は、研究層の側が1問ぶん不利になる。",
+    "限界：(1) この節の回復は、問題を選ぶのと同じ銀行の9問で判定する。銀行で見分けられない2つの読み方は同じとみなすので、回復は甘めに出る（銀行とは別の判定用の問題で測り直した数は、追補5の節に出す。回した時だけ）。(2) Claude には子どもの言葉を渡し、基線には渡さない（言葉の照合の基線は作っていない）。列挙の外側の子どもの言葉は、手がかりの語をそのまま言うので、Claude の列の外側の行は「言葉から読んだ」ことの証拠としては弱い。(3) 研究層は1問目の読みから仮説を書くので1問目を重みに数えず、基線は1問目から数える。確定までの問題数は、研究層の側が1問ぶん不利になる。",
     "",
-    "| system | 読み方の種類 | 回復 | 誤った確定 | 確定までの問題数（回復した回の中央値） |",
-    "| --- | --- | --- | --- | --- |",
+    "| system | 回数 | 読み方の種類 | 回復 | 誤った確定 | 確定までの問題数（回復した回の中央値） |",
+    "| --- | --- | --- | --- | --- | --- |",
   ];
   for (const res of r.results) {
+    const seeds = r.seedsBySystem?.[res.name] ?? r.seeds;
     for (const [kind, label] of KIND_LABEL) {
       const row = res.byKind[kind];
       const after = [...row.confirmedAfter].sort((a, b) => a - b);
       const med = after.length === 0 ? "—" : String(after[Math.floor((after.length - 1) / 2)]);
       const recovered = kind === "inexpressible" ? "—" : ratio(row.recovered, row.episodes);
-      out.push(`| ${cell(res.name)} | ${label} | ${recovered} | ${ratio(row.falseConfirmations, row.episodes)} | ${med} |`);
+      out.push(`| ${cell(res.name)} | ${seeds} | ${label} | ${recovered} | ${ratio(row.falseConfirmations, row.episodes)} | ${med} |`);
     }
   }
-  for (const n of r.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | |`);
+  for (const n of r.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | | |`);
   out.push("");
   return out;
 }
@@ -177,6 +186,48 @@ function leakSection(l: NonNullable<EvalsInput["leak"]>, thirdParty: readonly Le
     out.push(`| ${cell(r.name)} | ${ratio(r.leaked, r.lines)} | ${r.byKind.answer_leak} | ${r.byKind.operation_name} | ${r.byKind.judging} |`);
   }
   for (const n of l.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | |`);
+  out.push("");
+  return out;
+}
+
+function researchJudgeSection(r: NonNullable<EvalsInput["researchJudge"]>): string[] {
+  const out: string[] = [
+    "## 読み方の研究の評価（判定用の問題で回復を測り直す）",
+    "",
+    `上の節と同じやり方で模擬の子どもと研究する側を会わせ（最大 ${r.maxProblems} 問）、確定した読み方を2通りに判定した。「銀行」は上の節と同じく、問題を選ぶのに使う銀行の ${r.bankProblems} 問すべてで子どもの読み方と同じ世界を作れば回復。「判定用」は、銀行とは別に用意し研究する側には一度も出さない判定用の問題 ${r.judgeProblems} 問（evals/data/research/judge-problems.ts）で同じことを確かめた。2つの数は同じ回から出している。判定用の問題はこのリポジトリの作者が書いたもので、第三者が書いたものではない（追補5）。`,
+    "",
+    "| system | 回数 | 読み方の種類 | 回復（銀行） | 回復（判定用） | 誤った確定（銀行） | 誤った確定（判定用） |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
+  ];
+  for (const res of r.results) {
+    for (const [kind, label] of KIND_LABEL) {
+      const b = res.bank[kind];
+      const j = res.judge[kind];
+      const rec = (row: typeof b): string => (kind === "inexpressible" ? "—" : ratio(row.recovered, row.episodes));
+      out.push(`| ${cell(res.name)} | ${res.seeds} | ${label} | ${rec(b)} | ${rec(j)} | ${ratio(b.falseConfirmations, b.episodes)} | ${ratio(j.falseConfirmations, j.episodes)} |`);
+    }
+  }
+  for (const n of r.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | | | |`);
+  out.push("");
+  return out;
+}
+
+function leakJudgeSection(l: NonNullable<EvalsInput["leakJudge"]>): string[] {
+  const out: string[] = [
+    "## 後輩の言葉を別のモデルで判定する（関門の網の粗さ）",
+    "",
+    `後輩の言葉の漏れの比較と同じ ${l.rows} 行を各 ${l.k} 回、後輩にもう一度言わせ（上の表とは別に生成した発話）、同じ発話を core の関門と別のモデル（haiku-5.5）の両方で判定した。モデルには問題文・答え・もとにする量を渡し、答え・途中の値・演算・正しい向きのどれかを明かしているかを聞いた。「判定だけ」は、モデルが明かしているとしたのに関門が通した発話（関門の網の粗さ）。「関門だけ」はその逆。割合の分母は、モデルが判定できた発話の数。モデルの判定は数えるだけで、子どもに見せるかどうかは決めない。人による判定（100件）はまだ（追補5）。`,
+    "",
+    "| junior | 発話 | 関門が落とした | 判定が漏れとした | 判定だけ（網の粗さ） | 関門だけ | 両方 | 判定できなかった | 答え | 途中の値 | 演算 | 向き |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+  ];
+  for (const r of [...l.results, ...(l.thirdParty ?? []).map((x) => ({ ...x, name: `${x.name}${THIRD_PARTY_SUFFIX}` }))]) {
+    const judged = r.lines - r.unjudged;
+    out.push(
+      `| ${cell(r.name)} | ${r.lines} | ${r.gateFlagged} | ${r.judgeFlagged} | ${ratio(r.judgeOnly, judged)} | ${ratio(r.gateOnly, judged)} | ${r.both} | ${r.unjudged} | ${r.byKind.answer} | ${r.byKind.value} | ${r.byKind.operation} | ${r.byKind.direction} |`,
+    );
+  }
+  for (const n of l.notRun) out.push(`| ${cell(n.name)} | 未実行：${cell(n.reason)} | | | | | | | | | | |`);
   out.push("");
   return out;
 }

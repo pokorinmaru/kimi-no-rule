@@ -56,7 +56,10 @@ describe("the check screen", () => {
     const store = fresh();
     render(<CheckMode store={store} lang="ja" onExit={() => {}} />);
     const r = await currentProblem();
-    for (const s of r.statements) expect(screen.getByTestId("check-problem").textContent).toContain(s.text);
+    // The sentences as written (the ruby readings over them aside).
+    const list = screen.getByTestId("check-problem").cloneNode(true) as Element;
+    for (const rt of list.querySelectorAll("rt")) rt.remove();
+    for (const s of r.statements) expect(list.textContent).toContain(s.text);
     expect(screen.getByTestId("pad-ok")).toBeTruthy();
     expect(screen.queryByTestId("junior-line")).toBeNull();
     expect(document.querySelector("svg")).toBeNull();

@@ -35,7 +35,7 @@ for (const j of jobs) {
   }
   if (j.result.rows.length > 0 && frozen.has(j.out)) {
     failed = true;
-    console.error(`${j.out} is frozen by a lock; it is not overwritten. Changing frozen rows needs a new addendum (addendum 5).`);
+    console.error(`${j.out} is frozen by a lock; it is not overwritten. Changing frozen rows needs a new addendum (the next free number; 5 is taken by the judge sections).`);
   }
 }
 if (failed) process.exit(1);

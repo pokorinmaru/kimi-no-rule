@@ -3,8 +3,9 @@
 // server for the junior's words; a late or failed reply is dropped and the template stays. The child's voice
 // (hear) goes to /safety and /interpret together; the words heard stay in memory and never reach the store.
 import { createActor, type Actor } from "xstate";
-import { flowMachine, type FlowEvent, type FlowInput, type Line, type ResearchRequest, type ScenesRequest } from "./machine.ts";
+import { MAX_HEARD_CHARS, flowMachine, type FlowEvent, type FlowInput, type Line, type ResearchRequest, type ScenesRequest } from "./machine.ts";
 import { WorkerError, createHttpApi, type FlowApi } from "./api.ts";
+import { spokenCommand } from "./spoken.ts";
 import type { AnyOp, Hypothesis } from "@kimi/core";
 import type { FlowStore } from "../store/store.ts";
 
@@ -46,6 +47,8 @@ export interface Session {
    * The browser's final words for what the child said: the junior acknowledges at once, and the words go to
    * /safety and /interpret together. Only a "none" safety result lets the ops be used (Q26: on unchecked the
    * junior does not answer what was said; distress goes to the hard screen). Resolves when both are handled.
+   * A whole utterance from a short fixed list (stop, I don't know) is handled on the device and sends nothing;
+   * words the flow does not take go through the safety check only (Q46).
    */
   hear(text: string): Promise<void>;
   /** Resolves when every record so far is on the device. */
@@ -203,23 +206,36 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
   });
   actor.start();
 
+  const checkWords = async (text: string): Promise<void> => {
+    const flag = await safetyOf(text);
+    if (!stopped) actor.send({ type: "SAFETY_RESULT", flag });
+    await writes;
+  };
+
   return {
     actor,
     send: (e) => actor.send(e),
-    async checkWords(text) {
-      const flag = await safetyOf(text);
-      if (!stopped) actor.send({ type: "SAFETY_RESULT", flag });
-      await writes;
-    },
+    checkWords,
     canHear: api !== null && api.interpret !== undefined,
     async hear(text) {
+      if (stopped || typeof text !== "string" || text.trim() === "") return;
+      // A short fixed list (stop, I don't know) is handled here on the device: nothing is sent (Q46).
+      const command = spokenCommand(text);
+      if (command !== null) {
+        actor.send({ type: command === "stop" ? "STOP" : "DONT_KNOW" });
+        await writes;
+        return;
+      }
       const before = actor.getSnapshot().context;
       const p = before.problem;
-      if (stopped || p === null || typeof text !== "string") return;
       actor.send({ type: "VOICE_HEARD", transcript: text });
       const now = actor.getSnapshot().context.problem;
-      // The machine refused it (not the step, too many turns, or already waiting): nothing is sent.
-      if (now === null || !now.listening || now.heard === null) return;
+      // The machine refused it (no problem, not the step, too many turns, or already waiting): the words go
+      // through the safety check only, so words of distress are never missed (Q46); /interpret is not called.
+      if (p === null || now === null || !now.listening || now.heard === null) {
+        await checkWords(text.trim().slice(0, MAX_HEARD_CHARS));
+        return;
+      }
       const heard = now.heard;
       const [flag, out] = await Promise.all([safetyOf(heard), interpretOf(p.record.world.problem_id, heard, before.lang)]);
       if (stopped) return;

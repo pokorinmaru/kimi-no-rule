@@ -26,4 +26,14 @@ describe("makeProgress", () => {
     p.pairDone("c_swap / c_known", 1, 1);
     expect(lines.at(-1)).toBe("[make:discriminating] pair 1/2 (50.0%) c_swap / c_known: kept 1, refused 1; elapsed 01:00 eta 01:00 failures 1");
   });
+
+  it("takes another tag and unit for make:transfer", () => {
+    const lines: string[] = [];
+    let t = 0;
+    const p = makeProgress({ sink: { write: (l) => void lines.push(l) }, now: () => t, pairs: 8, plannedCalls: "Opus about 112", tag: "[make:transfer]", unit: "problem" });
+    expect(lines[0]).toBe("[make:transfer] start: 8 problems; planned calls Opus about 112");
+    t = 10_000;
+    p.pairDone("c_swap / same", 1, 0);
+    expect(lines.at(-1)).toBe("[make:transfer] problem 1/8 (12.5%) c_swap / same: kept 1, refused 0; elapsed 00:10 eta 01:10 failures 0");
+  });
 });

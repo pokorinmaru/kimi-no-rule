@@ -29,5 +29,17 @@ export {
   type DiscriminateRefusal,
   type DiscriminateResult,
 } from "./discriminate.ts";
+export {
+  TRANSFER_SOURCE,
+  TRANSFER_SYSTEM,
+  oldReadingFails,
+  writeTransfer,
+  type TransferInput,
+  type TransferItem,
+  type TransferOptions,
+  type TransferRefusal,
+  type TransferResult,
+  type TransferWording,
+} from "./transfer.ts";
 export * from "./research.ts";
 export { SCENES_SYSTEM, SCENES_TIMEOUT_MS, WORD_KINDS, proposeScenes, type ScenesInput, type ScenesResult, type WordKind } from "./scenes.ts";

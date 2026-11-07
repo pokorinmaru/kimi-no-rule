@@ -99,6 +99,8 @@ export interface UiText {
   preparing: string;
   /** The language switch: its group name and each language in its own words. */
   langSwitch: { label: string; ja: string; en: string };
+  /** Reading support (指示書 第8.4b節): the group's name, read aloud and its stop, and the furigana switch. */
+  reading: { label: string; aloud: string; stop: string; furigana: string };
   buttons: { stop: string; dontKnow: string; hard: string };
   alwaysLabel: string;
   intro: { label: string; lines: readonly string[]; start: string };
@@ -210,6 +212,7 @@ const JA: UiText = {
   title: "後輩と問題を読もう",
   preparing: "じゅんびしています…",
   langSwitch: { label: "ことば", ja: "日本語", en: "English" },
+  reading: { label: "読むのを手伝う", aloud: "読み上げ", stop: "止める", furigana: "ふりがな" },
   buttons: { stop: "やめる", dontKnow: "わからない", hard: "つらい" },
   alwaysLabel: "いつでも使えるボタン",
   intro: {
@@ -229,7 +232,7 @@ const JA: UiText = {
     lines: [
       "保護者の方へ",
       "後輩の言葉と読み方の研究のために、問題、子どもが置いた「1」の札（この端末に残っている前の回の置き方も含みます）、子どもがタップした問題文の言葉、子どもが直したルールカードの読み方（後輩の世界として）を、Anthropic の Claude に送ります。",
-      "子どもが「話して教える」で話したことは、ブラウザの音声認識が文字にし、後輩がその意味をわかるために、その文字を Claude に送ります。Claude に送るのは文字だけで、声の録音は送りません。話したことの文字は、この端末には残しません。",
+      "子どもが「話して教える」で話したことは、ブラウザの音声認識が文字にし、その文字を Claude に送ります。送るのは、後輩がその意味をわかるため、安全の確認（つらい気持ちの言葉がないかを見ること）のため、その回の読み方の研究のためです。Claude に送るのは文字だけで、声の録音は送りません。話したことの文字は、この端末には残しません。",
       "子どもの名前や、自由に書いた言葉は送りません。送ったものは、Anthropic の方針に従って Anthropic 側に一定の期間残ることがあります。",
       "このアプリの記録はこの端末の中にだけしまい、保護者の画面からいつでも消せます。2問目からの後輩は、1問目の子どもの置き方から作った読み方や、子どもが直したルールカードの読み方で読むことがあります。",
       "「同意する」は、保護者の方が押してください。",
@@ -324,6 +327,7 @@ const EN: UiText = {
   title: "Read problems with the junior",
   preparing: "Getting ready…",
   langSwitch: { label: "Language", ja: "日本語", en: "English" },
+  reading: { label: "Reading help", aloud: "Read aloud", stop: "Stop reading", furigana: "Furigana" },
   buttons: { stop: "Stop", dontKnow: "I don't know", hard: "I feel bad" },
   alwaysLabel: "Buttons you can use any time",
   intro: {
@@ -343,7 +347,7 @@ const EN: UiText = {
     lines: [
       "For parents and guardians",
       'For the junior\'s words and for research on ways of reading, this app sends the problem, where the child put the "1" card (including earlier placements kept on this device) the words of the problem the child tapped, and the way of reading on the rule card the child fixed (as the junior world) to Anthropic\'s Claude.',
-      'What the child says with "Tell by talking" is turned into text by the browser\'s speech recognition, and that text is sent to Claude so the junior can understand it. Only text is sent to Claude, not a recording of the voice. The text of what the child said is not kept on this device.',
+      'What the child says with "Tell by talking" is turned into text by the browser\'s speech recognition, and that text is sent to Claude: so the junior can understand it, for the safety check (looking for words of distress), and for research on that session\'s way of reading. Only text is sent to Claude, not a recording of the voice. The text of what the child said is not kept on this device.',
       "It does not send the child's name or anything the child wrote freely. What is sent may be kept by Anthropic for some time under Anthropic's policies.",
       "This app keeps its records only on this device, and you can delete them at any time from the parent screen. From the second problem, the junior may read with a way of reading made from how the child placed the card on the first problem, or with the rule card the child fixed.",
       'Please have a parent or guardian press "I agree".',

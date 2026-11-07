@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "build:problems": "node src/cli.ts",
     "make:discriminating": "node src/make-cli.ts",
-    "check:discriminating": "node src/check-cli.ts"
+    "check:discriminating": "node src/check-cli.ts",
+    "make:transfer": "node src/make-transfer-cli.ts",
+    "check:transfer": "node src/check-transfer-cli.ts"
   },
   "dependencies": {
     "@kimi/core": "workspace:*",

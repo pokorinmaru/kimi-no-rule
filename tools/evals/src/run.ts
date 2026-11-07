@@ -2,6 +2,9 @@
 //   pnpm eval       the keyword baseline and the device dictionary only (no Claude, no key needed)
 //   pnpm eval:live  also Haiku, Sonnet and Opus (needs ANTHROPIC_API_KEY in the environment)
 // Options (runner/args.ts): --only interpret,safety,leak,research  --concurrency 8  --resume <runId>  --fail-fast 10
+// Addendum 5 (run only when named): --only leak-judge (Haiku judges the junior's lines next to core's gate) and
+// --only research-judge (recovered judged again on the judging problems); --seeds N gives the Opus researcher N
+// episodes per child (default 1), in both research sections.
 // Items run through a bounded pool; each finished item prints a progress line, appended also to
 // evals/results/progress.log, and is saved to evals/results/<runId>/<section>.jsonl (gitignored). EVALS.md takes
 // the sections run now and, for the others, the latest finished run of each, and says which run each came from.
@@ -11,7 +14,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FRACTION_BANK, type AnyOp, type ProblemRecord } from "@kimi/core";
 import { parseKeywords } from "@kimi/baseline-parser";
-import { MODELS, anthropicAgentClient, anthropicClient, checkSafety, interpret, writeHypotheses, type ClaudeClient } from "@kimi/interpret";
+import { MODELS, anthropicAgentClient, anthropicClient, checkSafety, interpret, writeHypotheses, type AgentClient, type ClaudeClient } from "@kimi/interpret";
 import { PROVISIONAL } from "../../../packages/core/fixtures/problems/provisional.ts";
 import { interpretRow, loadJsonl, safetyRow } from "./dataset.ts";
 import type { EvalSystem } from "./interpret-eval.ts";
@@ -19,13 +22,24 @@ import { renderEvalsMd, type NotRun } from "./report.ts";
 import { SIM_CHILDREN } from "./research-children.ts";
 import { appJunior, kohaiRow, shushedJunior, silentClient, type Junior } from "./kohai-eval.ts";
 import { THIRD_PARTY } from "./third-party.ts";
-import { MAX_PROBLEMS, RESEARCH_SEEDS, RESEARCH_SEEDS_CLAUDE, baselineResearchers, poolResearcher, type Researcher } from "./research-eval.ts";
+import { MAX_PROBLEMS, RESEARCH_SEEDS, baselineResearchers, poolResearcher, type Researcher } from "./research-eval.ts";
+import { JUDGE_PROBLEMS } from "./judge-problems.ts";
 import type { Flag } from "./safety-eval.ts";
 import { parseArgs, type EvalArgs } from "./runner/args.ts";
-import { recordingAgent, recordingClient } from "./runner/errors.ts";
+import { recordingAgent, recordingClient, type CallLog } from "./runner/errors.ts";
 import { fileSink } from "./runner/progress.ts";
 import { buildEvalsInput, SECTION_LABEL, type Picked } from "./runner/render.ts";
-import { interpretSection, leakSection, researchSection, safetySection, type Named, type SectionContext, type SectionOutcome } from "./runner/sections.ts";
+import {
+  interpretSection,
+  leakJudgeSection,
+  leakSection,
+  researchJudgeSection,
+  researchSection,
+  safetySection,
+  type Named,
+  type SectionContext,
+  type SectionOutcome,
+} from "./runner/sections.ts";
 import { formatLocal, latestSection, newRunId, runStore, SECTIONS, type SectionFile, type SectionName } from "./runner/store.ts";
 
 const root = new URL("../../../", import.meta.url);
@@ -63,6 +77,39 @@ export function claudeSystem(name: string, model: string, client: ClaudeClient):
 }
 
 const NO_KEY = "API キー待ち（BLOCKED B3）";
+
+type SeededResearcher = Named<Researcher> & { seeds: readonly number[] };
+
+/** Seeds 1..n. */
+export const seedsUpTo = (n: number): number[] => Array.from({ length: n }, (_, i) => i + 1);
+
+/** The researchers of both research sections: the baselines (5 seeds) and, live, Opus writing the pool (`seeds` seeds). */
+function researchers(agent: AgentClient | null, seeds: number): { list: SeededResearcher[]; notRun: NotRun[] } {
+  const list: SeededResearcher[] = baselineResearchers(FRACTION_BANK).map((r) => ({ name: r.name, claude: false, seeds: RESEARCH_SEEDS, make: () => r }));
+  const notRun: NotRun[] = [];
+  const opusName = `opus-5.5 が仮説を書く（研究層、1人${seeds}回）`;
+  if (agent === null) notRun.push({ name: "opus-5.5 が仮説を書く（研究層）", reason: NO_KEY });
+  else {
+    list.push({
+      name: opusName,
+      claude: true,
+      seeds: seedsUpTo(seeds),
+      make: (log) => {
+        const recording = recordingAgent(agent, log);
+        return poolResearcher(opusName, FRACTION_BANK, async (state, seen) => {
+          const out = await writeHypotheses(recording, {
+            state,
+            readings: seen.map((x) => ({ record: x.record, childWorld: x.world, referencePlaced: true, afterFix: false, wordbookOpenedBefore: false, words: x.words })),
+            bank: FRACTION_BANK,
+          });
+          return out.kind === "submitted" ? out.revision.state : state;
+        });
+      },
+    });
+  }
+  notRun.push({ name: "sonnet-5.5・haiku-5.5 が仮説を書く", reason: "費用を抑えるため提出版では回さない" });
+  return { list, notRun };
+}
 
 async function main(args: EvalArgs): Promise<number> {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -159,39 +206,39 @@ async function main(args: EvalArgs): Promise<number> {
         );
       }
       keep(section, await leakSection(ctxFor(section), { rows, tpRows: tpText === null ? [] : loadJsonl(tpText, kohaiRow), juniors, k: args.live ? 5 : 1, notRun }));
-    } else {
-      const researchers: (Named<Researcher> & { seeds: readonly number[] })[] = baselineResearchers(FRACTION_BANK).map((r) => ({
-        name: r.name,
-        claude: false,
-        seeds: RESEARCH_SEEDS,
-        make: () => r,
-      }));
-      const notRun: NotRun[] = [];
-      const opusName = "opus-5.5 が仮説を書く（研究層、1人1回）";
-      if (agent === null) notRun.push({ name: "opus-5.5 が仮説を書く（研究層）", reason: NO_KEY });
-      else {
-        researchers.push({
-          name: opusName,
-          claude: true,
-          seeds: RESEARCH_SEEDS_CLAUDE,
-          make: (log) => {
-            const recording = recordingAgent(agent, log);
-            return poolResearcher(opusName, FRACTION_BANK, async (state, seen) => {
-              const out = await writeHypotheses(recording, {
-                state,
-                readings: seen.map((x) => ({ record: x.record, childWorld: x.world, referencePlaced: true, afterFix: false, wordbookOpenedBefore: false, words: x.words })),
-                bank: FRACTION_BANK,
-              });
-              return out.kind === "submitted" ? out.revision.state : state;
-            });
-          },
-        });
-      }
-      notRun.push({ name: "sonnet-5.5・haiku-5.5 が仮説を書く", reason: "費用を抑えるため提出版では回さない" });
+    } else if (section === "research") {
+      const r = researchers(agent, args.seeds);
       keep(
         section,
-        await researchSection(ctxFor(section), { researchers, children: SIM_CHILDREN, bank: FRACTION_BANK, notRun, seedsShown: RESEARCH_SEEDS.length, maxProblems: MAX_PROBLEMS }),
+        await researchSection(ctxFor(section), { researchers: r.list, children: SIM_CHILDREN, bank: FRACTION_BANK, notRun: r.notRun, seedsShown: RESEARCH_SEEDS.length, maxProblems: MAX_PROBLEMS }),
       );
+    } else if (section === "research-judge") {
+      const r = researchers(agent, args.seeds);
+      keep(
+        section,
+        await researchJudgeSection(ctxFor(section), { researchers: r.list, children: SIM_CHILDREN, bank: FRACTION_BANK, judgeSet: JUDGE_PROBLEMS, notRun: r.notRun, maxProblems: MAX_PROBLEMS }),
+      );
+    } else {
+      // leak-judge: the two Claude juniors of the leak section, each line judged by Haiku as well.
+      const rows = loadJsonl(read("evals/data/kohai/test.jsonl"), kohaiRow);
+      const tpText = tune ? null : readIfAny(THIRD_PARTY.kohaiJsonl);
+      const shushed = "口止めした Claude（sonnet-5.5、答えを渡す）";
+      const app = "この作品の後輩（sonnet-5.5＋関門）";
+      const notRun: NotRun[] = [];
+      const juniors: Named<Junior>[] = [];
+      if (client === null) notRun.push({ name: shushed, reason: NO_KEY }, { name: app, reason: NO_KEY });
+      else {
+        juniors.push(
+          { name: shushed, claude: true, make: (log) => shushedJunior(shushed, recordingClient(client, log)) },
+          { name: app, claude: true, make: (log) => appJunior(app, recordingClient(client, log)) },
+        );
+      }
+      notRun.push({ name: "この作品の後輩（Claude なし、定型文だけ）", reason: "生成ではなく固定の文なので判定しない（追補5）" });
+      const judge = (log: CallLog): ClaudeClient => {
+        if (client === null) throw new Error("no Claude in this run");
+        return recordingClient(client, log);
+      };
+      keep(section, await leakJudgeSection(ctxFor(section), { rows, tpRows: tpText === null ? [] : loadJsonl(tpText, kohaiRow), juniors, judge, k: 5, notRun }));
     }
   }
 

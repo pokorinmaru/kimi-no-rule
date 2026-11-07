@@ -97,6 +97,9 @@ export interface FlowStore {
   setConsent(v: boolean): Promise<void>;
   setIntroSeen(v: boolean): Promise<void>;
   setLang(lang: Lang): Promise<void>;
+  /** Ruby readings over the kanji (指示書 第8.4b節); on until switched off. A display setting like the language. */
+  getFurigana(): Promise<boolean>;
+  setFurigana(on: boolean): Promise<void>;
   addAttempt(log: ProblemLog): Promise<void>;
   listAttempts(): Promise<AttemptRow[]>;
   saveResearch(state: ResearchState): Promise<void>;
@@ -111,8 +114,8 @@ export interface FlowStore {
   /** The junior's rule card the child left: which rule, how many picks, whether every gallery world fit. */
   addCard(card: CardLog): Promise<void>;
   listCards(): Promise<CardRow[]>;
-  /** Removes every record and setting on this device (the grown-up's screen), except the screen's language:
-   * it is how the screen reads, not a record of the child. */
+  /** Removes every record and setting on this device (the grown-up's screen), except the screen's language and
+   * the furigana switch: they are how the screen reads, not a record of the child. */
   deleteAll(): Promise<void>;
   close(): Promise<void>;
 }
@@ -149,6 +152,15 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
       return null;
     }
   };
+  const furiganaKey = `${name}:furigana`;
+  const localFurigana = (): boolean | null => {
+    try {
+      const v = globalThis.localStorage?.getItem(furiganaKey);
+      return v === "on" ? true : v === "off" ? false : null;
+    } catch {
+      return null;
+    }
+  };
   return {
     async getSettings() {
       const lang = localLang() ?? ((await db.settings.get("lang"))?.value === "en" ? "en" : "ja");
@@ -167,6 +179,19 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
         // the IndexedDB copy below still keeps it
       }
       await db.settings.put({ key: "lang", value: lang });
+    },
+    async getFurigana() {
+      const local = localFurigana();
+      if (local !== null) return local;
+      return (await db.settings.get("furigana"))?.value !== false;
+    },
+    async setFurigana(on) {
+      try {
+        globalThis.localStorage?.setItem(furiganaKey, on ? "on" : "off");
+      } catch {
+        // the IndexedDB copy below still keeps it
+      }
+      await db.settings.put({ key: "furigana", value: on });
     },
     async addAttempt(log) {
       await db.attempts.add({
@@ -233,8 +258,10 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
       const tables = [db.settings, db.attempts, db.research, db.gateLog, db.safetyEvents, db.checks, db.cards];
       await db.transaction("rw", tables, async () => {
         const lang = await db.settings.get("lang");
+        const furigana = await db.settings.get("furigana");
         await Promise.all(tables.map((t) => t.clear()));
         if (lang !== undefined) await db.settings.put(lang);
+        if (furigana !== undefined) await db.settings.put(furigana);
       });
     },
     async close() {

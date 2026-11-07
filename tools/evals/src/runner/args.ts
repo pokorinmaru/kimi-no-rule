@@ -1,13 +1,15 @@
 // The eval CLI's options.
 //   --live                  also the Claude systems (needs ANTHROPIC_API_KEY)
-//   --only a,b              sections to run now (interpret, safety, leak, research); default all
+//   --only a,b              sections to run now (interpret, safety, leak, research, leak-judge, research-judge);
+//                           default the first four (the judge sections of addendum 5 run only when named)
 //   --concurrency N         Claude calls in flight at once (default 8)
 //   --resume <runId>        continue that run: finished items are skipped, failed ones run again
+//   --seeds N               simulated-child episodes per child for the Claude researcher (default 1; addendum 5 runs 3)
 //   --fail-fast N           stop a system when its first N calls all fail (default 10)
 //   --split tune            the tuning rows (printed, never written to EVALS.md)
 //   --out <path>            where EVALS.md goes (default the repository's EVALS.md)
 //   --results <dir>         where results and progress.log go (default evals/results)
-import { SECTIONS, type SectionName } from "./store.ts";
+import { DEFAULT_SECTIONS, SECTIONS, type SectionName } from "./store.ts";
 import { DEFAULT_FAIL_FAST } from "./tasks.ts";
 
 export interface EvalArgs {
@@ -16,6 +18,8 @@ export interface EvalArgs {
   concurrency: number;
   resume: string | null;
   failFast: number;
+  /** Episodes per simulated child for the Claude researcher (seeds 1..N). */
+  seeds: number;
   split: "test" | "tune";
   out: string | null;
   results: string | null;
@@ -28,7 +32,7 @@ const positiveInt = (name: string, v: string | undefined): number => {
 };
 
 export function parseArgs(argv: readonly string[]): EvalArgs {
-  const a: EvalArgs = { live: false, only: [...SECTIONS], concurrency: 8, resume: null, failFast: DEFAULT_FAIL_FAST, split: "test", out: null, results: null };
+  const a: EvalArgs = { live: false, only: [...DEFAULT_SECTIONS], concurrency: 8, resume: null, failFast: DEFAULT_FAIL_FAST, seeds: 1, split: "test", out: null, results: null };
   const args = argv.filter((x) => x !== "--");
   for (let i = 0; i < args.length; i++) {
     const x = args[i];
@@ -55,6 +59,9 @@ export function parseArgs(argv: readonly string[]): EvalArgs {
         break;
       case "--fail-fast":
         a.failFast = positiveInt("--fail-fast", value());
+        break;
+      case "--seeds":
+        a.seeds = positiveInt("--seeds", value());
         break;
       case "--split": {
         const v = value();

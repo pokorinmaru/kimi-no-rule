@@ -622,9 +622,12 @@ function confirmFirst(ctx: FlowContext): Partial<FlowContext> {
   return { problem, research, researchRequest };
 }
 
-/** The words heard when they fit the worker's limit for one word, otherwise the problem words tapped or heard. */
+/**
+ * The words heard when they fit the worker's limit for one word, otherwise the problem words tapped or heard.
+ * Words still waiting (listening) have not passed /safety yet, so they are never sent (safety review, Q46).
+ */
 function researchWords(p: ProblemState): string[] {
-  return p.heard !== null && p.heard.length <= MAX_HEARD_ECHO_CHARS ? [p.heard] : wordsOf(p);
+  return p.heard !== null && !p.listening && p.heard.length <= MAX_HEARD_ECHO_CHARS ? [p.heard] : wordsOf(p);
 }
 
 function tapWord(ctx: FlowContext, statementIndex: number, token: number): Partial<FlowContext> {

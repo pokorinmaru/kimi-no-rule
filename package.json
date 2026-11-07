@@ -19,7 +19,9 @@
     "check:protocol": "node tools/evals/src/check-protocol.ts",
     "build:problems": "pnpm --filter @kimi/world-builder build:problems",
     "make:discriminating": "pnpm --filter @kimi/world-builder make:discriminating",
-    "check:discriminating": "pnpm --filter @kimi/world-builder check:discriminating"
+    "check:discriminating": "pnpm --filter @kimi/world-builder check:discriminating",
+    "make:transfer": "pnpm --filter @kimi/world-builder make:transfer",
+    "check:transfer": "pnpm --filter @kimi/world-builder check:transfer"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -291,4 +291,14 @@ describe("parseArgs", () => {
     expect(() => parseArgs(["--only", "nope"])).toThrow(/unknown section/);
     expect(() => parseArgs(["--concurrency", "0"])).toThrow();
   });
+
+  it("the judge sections (addendum 5) run only when named; --seeds sets Claude's research seeds (default 1)", () => {
+    expect(parseArgs([]).only).not.toContain("leak-judge");
+    expect(parseArgs([]).only).not.toContain("research-judge");
+    expect(parseArgs(["--only", "research-judge,leak-judge"]).only).toEqual(["leak-judge", "research-judge"]);
+    expect(parseArgs([]).seeds).toBe(1);
+    expect(parseArgs(["--seeds", "3"]).seeds).toBe(3);
+    expect(() => parseArgs(["--seeds", "0"])).toThrow();
+    expect(() => parseArgs(["--seeds"])).toThrow(/needs a value/);
+  });
 });

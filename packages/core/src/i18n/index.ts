@@ -184,7 +184,7 @@ export const TEMPLATES = {
   "kohai.listening": {
     slots: [],
     ja: ["うん、聞いています", "はい、聞いていますよ", "うん、ちゃんと聞いています"],
-    en: ["Okay, I am listening.", "Mm-hm, I am listening.", "I hear you. One moment."],
+    en: ["Okay, I am listening.", "Mm-hm, I am listening.", "I am listening. One moment."],
   },
   "kohai.show_card": {
     slots: [],

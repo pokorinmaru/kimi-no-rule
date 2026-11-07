@@ -1,15 +1,20 @@
-// The four eval sections, run item by item through runTasks (bounded pool, per-item results, resume,
+// The eval sections, run item by item through runTasks (bounded pool, per-item results, resume,
 // fail-fast) and then counted by the frozen eval functions themselves: each finished item's outcome is
 // replayed, in the order those functions ask, into runInterpretEval and runSafetyEval. runLeakEval and
 // runResearchEval add up per line and per episode; their sums are repeated here as they are written there
 // (sections.test.ts checks both give the same numbers). Nothing a child says and no reply text is saved:
 // an item keeps the ops, the safety flag, the leak kinds, or the episode outcome.
+// Addendum 5 adds two sections that run only when named: leak-judge (a model judges the junior's lines next to
+// core's gate) and research-judge (recovered judged again on problems apart from the bank).
 import { FRACTION_BANK, type AnyOp, type ProblemRecord } from "@kimi/core";
 import type { InterpretRow, SafetyRow } from "../dataset.ts";
 import { runInterpretEval, type EvalSystem, type SystemResult } from "../interpret-eval.ts";
 import { leaksOf, type Junior, type KohaiRow, type Leak, type LeakResult } from "../kohai-eval.ts";
 import type { NotRun } from "../report.ts";
+import type { ClaudeClient } from "@kimi/interpret";
+import { judgedLine, sumJudged, type JudgedLine, type LeakJudgeResult } from "../leak-judge.ts";
 import type { ChildKind, SimChild } from "../research-children.ts";
+import { runJudgedEpisode, sumJudgedEpisodes, type JudgedEpisode, type ResearchJudgeResult } from "../research-judge.ts";
 import { runEpisode, type Episode, type Researcher, type ResearchResult } from "../research-eval.ts";
 import { runSafetyEval, type Flag, type SafetyResult } from "../safety-eval.ts";
 import { describeError, type CallLog, type ItemError } from "./errors.ts";
@@ -184,15 +189,16 @@ function sumLeaks(name: string, lines: readonly Leak[][]): LeakResult {
   return r;
 }
 
+function bankRecordOf(row: KohaiRow): ProblemRecord {
+  const record = FRACTION_BANK.find((p) => p.world.problem_id === row.problem_id);
+  if (record === undefined) throw new Error(`row ${row.id}: no problem ${row.problem_id}`);
+  return record;
+}
+
 export async function leakSection(
   ctx: SectionContext,
   input: { rows: readonly KohaiRow[]; tpRows: readonly KohaiRow[]; juniors: readonly Named<Junior>[]; k: number; notRun: readonly NotRun[] },
 ): Promise<SectionOutcome<LeakSectionResult>> {
-  const recordOf = (row: KohaiRow): ProblemRecord => {
-    const record = FRACTION_BANK.find((p) => p.world.problem_id === row.problem_id);
-    if (record === undefined) throw new Error(`row ${row.id}: no problem ${row.problem_id}`);
-    return record;
-  };
   const sets = [
     { set: "ai", rows: input.rows },
     { set: "tp", rows: input.tpRows },
@@ -201,7 +207,7 @@ export async function leakSection(
   for (const j of input.juniors) {
     for (const { set, rows } of sets) {
       for (const row of rows) {
-        const record = recordOf(row);
+        const record = bankRecordOf(row);
         for (let attempt = 0; attempt < input.k; attempt++) {
           tasks.push({
             system: j.name,
@@ -233,6 +239,8 @@ export interface ResearchSectionResult {
   notRun: NotRun[];
   seeds: number;
   maxProblems: number;
+  /** Episodes per child of each researcher that ran (absent in results saved before addendum 5). */
+  seedsBySystem?: Record<string, number>;
 }
 
 const KINDS: readonly ChildKind[] = ["listed", "inside", "outside", "inexpressible"];
@@ -279,7 +287,113 @@ export async function researchSection(
     }
   }
   const run = await runTasks("research", tasks, ctx);
-  const results = input.researchers.filter((r) => !run.aborted.has(r.name)).map((r) => sumEpisodes(r.name, payloadsOf(tasks, run, r.name)));
+  const kept = input.researchers.filter((r) => !run.aborted.has(r.name));
+  const results = kept.map((r) => sumEpisodes(r.name, payloadsOf(tasks, run, r.name)));
+  const seedsBySystem = Object.fromEntries(kept.map((r) => [r.name, r.seeds.length]));
   const notRun = [...[...run.aborted].map(([name, e]) => ({ name, reason: stoppedReason(ctx.failFast ?? 10, e) })), ...input.notRun];
-  return outcome({ results, notRun, seeds: input.seedsShown, maxProblems: input.maxProblems ?? 9 }, run);
+  return outcome({ results, notRun, seeds: input.seedsShown, maxProblems: input.maxProblems ?? 9, seedsBySystem }, run);
+}
+
+// ---- the junior's lines judged by a model as well (addendum 5) --------------------------------------------------
+
+export interface LeakJudgeSectionResult {
+  results: LeakJudgeResult[];
+  notRun: NotRun[];
+  rows: number;
+  k: number;
+  thirdParty: { rows: number; results: LeakJudgeResult[] } | null;
+}
+
+/**
+ * Each item has a junior say a line (as the leak section does), then checks that same line with core's gate and
+ * with the judge: two Claude calls. The line itself is not saved, only the gate's kinds and the verdict.
+ */
+export async function leakJudgeSection(
+  ctx: SectionContext,
+  input: { rows: readonly KohaiRow[]; tpRows: readonly KohaiRow[]; juniors: readonly Named<Junior>[]; judge: (log: CallLog) => ClaudeClient; k: number; notRun: readonly NotRun[] },
+): Promise<SectionOutcome<LeakJudgeSectionResult>> {
+  const sets = [
+    { set: "ai", rows: input.rows },
+    { set: "tp", rows: input.tpRows },
+  ];
+  const tasks: Task<JudgedLine>[] = [];
+  for (const j of input.juniors) {
+    for (const { set, rows } of sets) {
+      for (const row of rows) {
+        const record = bankRecordOf(row);
+        for (let attempt = 0; attempt < input.k; attempt++) {
+          tasks.push({
+            system: j.name,
+            row: `${set}/${row.id}`,
+            attempt,
+            claude: true,
+            plannedCalls: j.claude ? 2 : 1,
+            run: async (log) => judgedLine(j.make(log), input.judge(log), row, record),
+            // A say or a judge call that threw: the line is unjudged (the item runs again on --resume).
+            fallback: () => ({ gate: leaksOf("", record, row), judge: null }),
+          });
+        }
+      }
+    }
+  }
+  const run = await runTasks("leak-judge", tasks, ctx);
+  const kept = input.juniors.filter((j) => !run.aborted.has(j.name));
+  const on = (set: string) => kept.map((j) => sumJudged(j.name, payloadsOf(tasks, run, j.name, (r) => r.startsWith(`${set}/`))));
+  const notRun = [...[...run.aborted].map(([name, e]) => ({ name, reason: stoppedReason(ctx.failFast ?? 10, e) })), ...input.notRun];
+  return outcome(
+    { results: on("ai"), notRun, rows: input.rows.length, k: input.k, thirdParty: input.tpRows.length === 0 ? null : { rows: input.tpRows.length, results: on("tp") } },
+    run,
+  );
+}
+
+// ---- research, recovered judged on the judging problems too (addendum 5) ---------------------------------------
+
+export interface ResearchJudgeSectionResult {
+  results: ResearchJudgeResult[];
+  notRun: NotRun[];
+  maxProblems: number;
+  bankProblems: number;
+  judgeProblems: number;
+}
+
+export async function researchJudgeSection(
+  ctx: SectionContext,
+  input: {
+    researchers: readonly (Named<Researcher> & { seeds: readonly number[] })[];
+    children: readonly SimChild[];
+    bank: readonly ProblemRecord[];
+    judgeSet: readonly ProblemRecord[];
+    notRun: readonly NotRun[];
+    maxProblems?: number;
+  },
+): Promise<SectionOutcome<ResearchJudgeSectionResult>> {
+  const tasks: Task<JudgedEpisode>[] = [];
+  for (const r of input.researchers) {
+    for (const child of input.children) {
+      for (const seed of r.seeds) {
+        tasks.push({
+          system: r.name,
+          row: child.id,
+          attempt: seed,
+          claude: r.claude,
+          run: async (log) => runJudgedEpisode(r.make(log), child, input.bank, input.judgeSet, seed),
+          fallback: () => ({
+            child: child.id,
+            kind: child.kind,
+            seed,
+            confirmedAfter: null,
+            recovered: false,
+            falseConfirmation: false,
+            judge: { recovered: false, falseConfirmation: false },
+          }),
+        });
+      }
+    }
+  }
+  const run = await runTasks("research-judge", tasks, ctx);
+  const results = input.researchers
+    .filter((r) => !run.aborted.has(r.name))
+    .map((r) => sumJudgedEpisodes(r.name, r.seeds.length, payloadsOf(tasks, run, r.name)));
+  const notRun = [...[...run.aborted].map(([name, e]) => ({ name, reason: stoppedReason(ctx.failFast ?? 10, e) })), ...input.notRun];
+  return outcome({ results, notRun, maxProblems: input.maxProblems ?? 9, bankProblems: input.bank.length, judgeProblems: input.judgeSet.length }, run);
 }

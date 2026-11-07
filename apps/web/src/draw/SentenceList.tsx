@@ -1,10 +1,11 @@
 // The problem's sentences, numbered (指示書 第8.5節 文と世界の結び). The verdicts come from core's
 // checkStatements; this list never judges. A sentence glows only when core says it fails.
 import { useRef } from "react";
-import type { Lang, StatementCheck } from "@kimi/core";
+import { rubySegments, rubyTokens, type Lang, type Readings, type StatementCheck } from "@kimi/core";
 import { ui } from "../flow/text.ts";
 import { useAnimation, useReducedMotion } from "./motion.ts";
 import { COLORS, FONT } from "./theme.ts";
+import { rubyNodes } from "../ui/Ruby.tsx";
 
 export interface SentenceItem {
   index: number;
@@ -24,6 +25,10 @@ export interface SentenceListProps {
   label?: string;
   /** The language of the words the list adds (the sentences stay as written). */
   lang?: Lang;
+  /** Ruby readings over the kanji (指示書 第8.4b節); absent or null = none. The words stay the problem's own. */
+  readings?: Readings | null;
+  /** The sentence being read aloud (its index), lit with a fixed outline; absent or null = none. */
+  readingIndex?: number | null;
 }
 
 const srOnly = {
@@ -41,19 +46,26 @@ function Sentence({
   reduced,
   onTapWord,
   glowText,
+  readings,
+  reading,
 }: {
   s: SentenceItem;
   glow: boolean;
   reduced: boolean;
   onTapWord: SentenceListProps["onTapWord"];
   glowText: string;
+  readings: Readings | null;
+  reading: boolean;
 }) {
+  const perToken = readings === null ? null : rubyTokens(s.tokens, readings);
   const halo = useRef<HTMLSpanElement>(null);
   useAnimation(halo, "pulse", [{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }], glow && !reduced, `${String(s.index)}`, true);
   return (
     <li
       data-statement={s.index}
       data-glow={glow ? "true" : "false"}
+      data-reading={reading ? "true" : "false"}
+      {...(reading ? { "aria-current": "true" as const } : {})}
       style={{
         position: "relative",
         display: "flex",
@@ -64,6 +76,10 @@ function Sentence({
         borderRadius: 12,
         border: glow ? `3px dashed ${COLORS.accent}` : "3px solid transparent",
         listStyle: "none",
+        // The sentence being read aloud: a fixed solid outline and a light ground (no motion).
+        outline: reading ? `4px solid ${COLORS.ink}` : "none",
+        outlineOffset: 2,
+        background: reading ? "#fff6d5" : "transparent",
       }}
     >
       {glow && (
@@ -99,7 +115,9 @@ function Sentence({
         }}
       >
         {onTapWord === undefined
-          ? s.tokens.join("")
+          ? readings === null
+            ? s.tokens.join("")
+            : rubyNodes(rubySegments(s.tokens.join(""), readings))
           : s.tokens.map((t, i) => (
               <button
                 key={i}
@@ -119,7 +137,7 @@ function Sentence({
                   cursor: "pointer",
                 }}
               >
-                {t}
+                {perToken === null ? t : rubyNodes(perToken[i] ?? [{ text: t, ruby: null }])}
               </button>
             ))}
       </span>
@@ -128,14 +146,32 @@ function Sentence({
   );
 }
 
-export function SentenceList({ statements, checks, onTapWord, reducedMotion, lang = "ja", label = ui(lang).draw.sentences }: SentenceListProps) {
+export function SentenceList({
+  statements,
+  checks,
+  onTapWord,
+  reducedMotion,
+  lang = "ja",
+  label = ui(lang).draw.sentences,
+  readings = null,
+  readingIndex = null,
+}: SentenceListProps) {
   const glowText = ui(lang).draw.glow;
   const reduced = useReducedMotion(reducedMotion);
   const failing = new Set((checks ?? []).filter((c) => c.verdict === "fails").map((c) => c.index));
   return (
     <ol aria-label={label} style={{ padding: 0, margin: 0, isolation: "isolate" }}>
       {statements.map((s) => (
-        <Sentence key={s.index} s={s} glow={failing.has(s.index)} reduced={reduced} onTapWord={onTapWord} glowText={glowText} />
+        <Sentence
+          key={s.index}
+          s={s}
+          glow={failing.has(s.index)}
+          reduced={reduced}
+          onTapWord={onTapWord}
+          glowText={glowText}
+          readings={readings}
+          reading={readingIndex === s.index}
+        />
       ))}
     </ol>
   );

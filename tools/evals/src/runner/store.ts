@@ -6,8 +6,10 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, write
 import { join } from "node:path";
 import type { ItemError } from "./errors.ts";
 
-export const SECTIONS = ["interpret", "safety", "leak", "research"] as const;
+export const SECTIONS = ["interpret", "safety", "leak", "research", "leak-judge", "research-judge"] as const;
 export type SectionName = (typeof SECTIONS)[number];
+/** What a run without --only runs: the judge sections (addendum 5) cost more and run only when named. */
+export const DEFAULT_SECTIONS: readonly SectionName[] = ["interpret", "safety", "leak", "research"];
 
 export interface ItemRecord<P = unknown> {
   key: string;
