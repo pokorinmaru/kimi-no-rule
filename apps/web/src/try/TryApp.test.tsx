@@ -74,7 +74,7 @@ describe("the child's route", () => {
     render(<Root api={null} />);
     fireEvent.click(await screen.findByTestId("btn-next"));
     fireEvent.click(await screen.findByTestId("btn-consent-yes"));
-    await screen.findByTestId("predict");
+    await screen.findByTestId("guess");
     expect(screen.queryByTestId("research-note")).toBeNull();
     expect(screen.queryByTestId("try-banner")).toBeNull();
     expect(screen.queryByTestId("btn-sim-play")).toBeNull();

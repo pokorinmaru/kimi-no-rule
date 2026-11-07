@@ -111,6 +111,7 @@ describe("researchNote", () => {
 
     // After the adult's prediction and first placement, the correct world may be drawn (still with ？ for the asked value).
     const rel = record.world.relations[0];
+    s.send({ type: "GUESS", larger: null });
     s.send({ type: "PREDICT", answer: "odd" });
     s.send({ type: "PLACE_ONE", quantityId: rel?.reference as string });
     s.send({ type: "CONFIRM_YES" });

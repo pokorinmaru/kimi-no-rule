@@ -51,6 +51,7 @@ describe("the junior's staged questions on the screen", () => {
     const name = await ready(lang);
     const sp = new FakeSpeaker();
     render(<App storeName={name} api={null} speaker={sp} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-odd"));
     fireEvent.click(screen.getByTestId("btn-dont-know"));
     // (a) Only the relation words of the failing sentence are lit, all the same way.
@@ -91,6 +92,7 @@ describe("the junior's staged questions on the screen", () => {
   it("the word book opens by itself after the first fix on the session's first wording", async () => {
     const name = await ready();
     render(<App storeName={name} api={null} speaker={new FakeSpeaker()} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-odd"));
     const card = await screen.findByRole("button", { name: /「1」/ });
     await act(async () => {

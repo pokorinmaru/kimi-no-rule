@@ -27,6 +27,7 @@ function run(input: FlowInput = { introSeen: true, consented: true }) {
 
 function looking(input?: FlowInput) {
   const actor = run(input);
+  actor.send({ type: "GUESS", larger: null });
   actor.send({ type: "PREDICT", answer: "odd" });
   expect(actor.getSnapshot().matches({ active: { problem: "looking" } })).toBe(true);
   return actor;
@@ -41,6 +42,7 @@ describe("the machine: the child's voice on the problem", () => {
     actor.send({ type: "VOICE_HEARD", transcript: SAID });
     // Before the prediction nothing is heard (the sentences have not been checked yet).
     expect(actor.getSnapshot().context.problem?.heard ?? null).toBeNull();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     actor.send({ type: "VOICE_HEARD", transcript: SAID });
     const s = actor.getSnapshot();
@@ -233,6 +235,7 @@ describe("the session: what the child said goes to /safety and /interpret togeth
     let release: (r: InterpretReply) => void = () => undefined;
     const { api: a, calls } = api({ interpret: () => new Promise<InterpretReply>((r) => (release = r)) });
     const s = await startSession({ store: st, api: a });
+    s.send({ type: "GUESS", larger: null });
     s.send({ type: "PREDICT", answer: "fits" });
     expect(s.canHear).toBe(true);
     const done = s.hear(SAID);
@@ -252,6 +255,7 @@ describe("the session: what the child said goes to /safety and /interpret togeth
     const st = await readyStore();
     const { api: a } = api({ safety: () => Promise.resolve({ flag: "distress" }) });
     const s = await startSession({ store: st, api: a });
+    s.send({ type: "GUESS", larger: null });
     s.send({ type: "PREDICT", answer: "fits" });
     await s.hear("もういやだ");
     expect(s.actor.getSnapshot().matches("hard")).toBe(true);
@@ -262,6 +266,7 @@ describe("the session: what the child said goes to /safety and /interpret togeth
     const st = await readyStore();
     const { api: a } = api({ safety: () => Promise.reject(new Error("down")) });
     const s = await startSession({ store: st, api: a, safetyTimeoutMs: 50 });
+    s.send({ type: "GUESS", larger: null });
     s.send({ type: "PREDICT", answer: "fits" });
     await s.hear(SAID);
     const snap = s.actor.getSnapshot();
@@ -276,6 +281,7 @@ describe("the session: what the child said goes to /safety and /interpret togeth
       const st = await readyStore();
       const { api: a } = api({ interpret });
       const s = await startSession({ store: st, api: a, interpretTimeoutMs: 30 });
+      s.send({ type: "GUESS", larger: null });
       s.send({ type: "PREDICT", answer: "fits" });
       await s.hear(SAID);
       const snap = s.actor.getSnapshot();
@@ -290,6 +296,7 @@ describe("the session: what the child said goes to /safety and /interpret togeth
     const st = await readyStore();
     const { api: a } = api({ interpret: () => Promise.reject(new WorkerError(503)) });
     const s = await startSession({ store: st, api: a });
+    s.send({ type: "GUESS", larger: null });
     s.send({ type: "PREDICT", answer: "fits" });
     await s.hear(SAID);
     expect(s.actor.getSnapshot().context.voiceOff).toBe(true);
@@ -304,6 +311,7 @@ describe("the session: what the child said goes to /safety and /interpret togeth
     await st.setLang("en");
     const { api: a, calls } = api();
     const s = await startSession({ store: st, api: a });
+    s.send({ type: "GUESS", larger: null });
     s.send({ type: "PREDICT", answer: "fits" });
     await s.hear("the little brother is one");
     expect(calls.interpret).toEqual([{ problem_id: "p_signboard", transcript: "the little brother is one", lang: "en" }]);
@@ -326,6 +334,7 @@ describe("the session: what the child said goes to /safety and /interpret togeth
     const heard = "zzheard 弟が1だよ";
     const { api: a } = api();
     const s = await startSession({ store: spied, api: a, input: { maxProblems: 1 } });
+    s.send({ type: "GUESS", larger: null });
     s.send({ type: "PREDICT", answer: "fits" });
     await s.hear(heard);
     expect(s.actor.getSnapshot().context.line?.text).toContain("zzheard");
@@ -353,6 +362,7 @@ describe("the session: safety review of the voice (Q46)", () => {
       return never();
     };
     const s = await startSession({ store: st, api: a });
+    s.send({ type: "GUESS", larger: null });
     s.send({ type: "PREDICT", answer: "fits" });
     const rel = s.actor.getSnapshot().context.problem?.record.world.relations.find((r) => r.id === s.actor.getSnapshot().context.problem?.relationId);
     s.send({ type: "PLACE_ONE", quantityId: rel?.reference as string });
@@ -374,6 +384,7 @@ describe("the session: safety review of the voice (Q46)", () => {
       const st = await readyStore();
       const { api: a, calls } = api();
       const s = await startSession({ store: st, api: a });
+      s.send({ type: "GUESS", larger: null });
       s.send({ type: "PREDICT", answer: "fits" });
       await s.hear(said);
       expect(s.actor.getSnapshot().matches("ended"), said).toBe(true);
@@ -388,6 +399,7 @@ describe("the session: safety review of the voice (Q46)", () => {
       const st = await readyStore();
       const { api: a, calls } = api();
       const s = await startSession({ store: st, api: a });
+      s.send({ type: "GUESS", larger: null });
       s.send({ type: "PREDICT", answer: "fits" });
       await s.hear(said);
       expect(s.actor.getSnapshot().matches({ active: { problem: "help" } }), said).toBe(true);
@@ -400,6 +412,7 @@ describe("the session: safety review of the voice (Q46)", () => {
     const st = await readyStore();
     const { api: a, calls } = api();
     const s = await startSession({ store: st, api: a });
+    s.send({ type: "GUESS", larger: null });
     s.send({ type: "PREDICT", answer: "fits" });
     await s.hear("弟が1だからやめるのはまだ");
     expect(s.actor.getSnapshot().matches("ended")).toBe(false);

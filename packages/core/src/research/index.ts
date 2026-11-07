@@ -25,10 +25,12 @@ import { COMMON_MISREADINGS } from "./common.ts";
 import { hasOperationName, numbersIn } from "../gates/index.ts";
 import { apply } from "../apply/index.ts";
 import { checkStatements } from "../statements/index.ts";
+import { predictionUpdate, type PredictionObservation } from "./prediction.ts";
 
 export { COMMON_FRACTION_READINGS, COMMON_MISREADINGS, CORRECT_READING_ID } from "./common.ts";
 export { CARD_RULE_IDS, CARD_RULES } from "./card-rules.ts";
 export { TRANSFER_CUES, wordingCues, wordingTag, type WordingCueId, type WordingTag } from "./wording.ts";
+export { guessAnswers, guessLikelihoods, guessOf, type FirstGuess, type GuessFields, type PredictionObservation } from "./prediction.ts";
 
 export const OTHER = "other";
 export const POOL_MAX = 5;
@@ -156,6 +158,19 @@ export function observeAgreement(state: ResearchState, o: AgreementObservation):
   return { ...state, pool, weights, unexpressible };
 }
 
+/**
+ * The child's own first prediction, before the junior's world (指示書 第7.1節 手順2, 第6.7節 手順2 (i)): which holder has
+ * more, and the "1" card when the child placed it. A constructive observation: the weights move by the likelihood of
+ * the answer the pool's worlds imply (prediction.ts). It never adds to the split count toward confirming: the first
+ * placement on the same problem counts that problem already (Q52). "Not yet known" with no card observes nothing. A placed 1 also keeps the child's world from it as a first
+ * reading (so the research request carries it); the larger holder alone fixes no world and keeps none.
+ */
+export function observePrediction(state: ResearchState, o: PredictionObservation): ResearchState {
+  const { state: next, changed } = predictionUpdate(state, o);
+  if (!changed || next.pool.length === 0) return next;
+  const { pool, unexpressible } = restated(next.pool, next.weights);
+  return { ...next, pool, unexpressible };
+}
 
 export function revisePool(state: ResearchState, edits: readonly PoolEdit[], problems: readonly ProblemRecord[]): Revision {
   const rejected: Revision["rejected"] = [];

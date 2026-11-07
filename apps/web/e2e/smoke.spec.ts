@@ -31,6 +31,12 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   await page.goto("/");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
+  // The child's own first prediction comes first (指示書 第7.1節 手順2): plain outlines, no junior's world or line yet.
+  await expect(page.getByTestId("screen-guess")).toBeVisible();
+  await expect(page.getByTestId("junior-line")).toHaveCount(0);
+  await expect(page.locator('[data-role="tape"]')).toHaveCount(0);
+  await expect(page.locator("main")).not.toContainText("8匹");
+  await page.getByTestId("btn-guess-h_otouto").click();
   // The junior's world: the younger brother's tape is asked, so it shows ？ and never the answer.
   await expect(page.getByTestId("junior-line")).not.toHaveText("…");
   await expect(page.locator("main")).not.toContainText("8匹");
@@ -64,6 +70,7 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   await page.getByTestId("pad-ok").click();
   await expect(page.locator("main")).toContainText("8匹");
   await page.getByTestId("btn-next").click();
+  await page.getByTestId("btn-guess-unknown").click();
   await expect(page.getByTestId("reading-card")).toContainText("後輩の読み方：");
   // On the second problem the two prediction buttons come in the other order (指示書 第11節 M7).
   const second = await page.getByTestId("predict").getByRole("button").allTextContents();
@@ -101,6 +108,9 @@ test("axe-core finds no violation on the intro, consent, prediction and number-p
   await expect(page.getByTestId("btn-consent-yes")).toBeVisible();
   await expectNoAxeViolations(page, "consent");
   await page.getByTestId("btn-consent-yes").click();
+  await expect(page.getByTestId("btn-guess-unknown")).toBeVisible();
+  await expectNoAxeViolations(page, "first prediction");
+  await page.getByTestId("btn-guess-unknown").click();
   await expect(page.getByTestId("btn-predict-fits")).toBeVisible();
   await expectNoAxeViolations(page, "prediction");
   await page.getByTestId("btn-predict-odd").click();
@@ -119,6 +129,7 @@ test("a wrong unit gets the junior's words, never the right number; a second wro
   await page.goto("/");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
+  await page.getByTestId("btn-guess-unknown").click();
   await page.getByTestId("btn-predict-unknown").click();
   await page.locator('[data-role="reference_mark"]').click();
   await page.locator('[data-drop-target="h_otouto"]').first().click();
@@ -179,6 +190,8 @@ test("in English: switch on the intro, then the first problem with taps; the cho
   await page.getByTestId("btn-consent-yes").click();
   // The problem stays as written, with a note in English; the junior's words are English.
   await expect(page.getByText("The problem is written in Japanese.")).toBeVisible();
+  await expect(page.getByTestId("guess-question")).toHaveText("Who has more, do you think?");
+  await page.getByTestId("btn-guess-unknown").click();
   await expect(page.getByTestId("junior-line")).not.toHaveText("…");
   await expect(page.getByTestId("junior-line")).not.toContainText(/[\u3040-\u30ff]/);
   await expect(page.locator("main")).not.toContainText("8匹");
@@ -199,6 +212,7 @@ test("in English: switch on the intro, then the first problem with taps; the cho
   await page.getByTestId("pad-ok").click();
   await expect(page.getByTestId("btn-next")).toHaveText("Next problem");
   await page.getByTestId("btn-next").click();
+  await page.getByTestId("btn-guess-unknown").click();
   await expect(page.getByTestId("reading-card")).toContainText("Junior's reading: ");
   await expect(page.locator("main")).not.toContainText(/your rule|wrong|correct|mistake/i);
 });

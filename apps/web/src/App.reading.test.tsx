@@ -45,6 +45,8 @@ describe("「読み上げ」 on the problem screen", () => {
     const { name } = await ready();
     const sp = new FakeSpeaker();
     render(<App storeName={name} api={null} speaker={sp} />);
+    // Past the child's own first prediction, on the screen with the junior's line.
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     const btn = await screen.findByTestId("btn-read-aloud");
     expect(plain(btn)).toBe("読み上げ");
     expect(btn.querySelector("rt")?.textContent).toBe("よ");
@@ -90,6 +92,7 @@ describe("「読み上げ」 on the problem screen", () => {
   it("is not offered when the browser cannot speak", async () => {
     const { name } = await ready();
     render(<App storeName={name} api={null} speaker={new FakeSpeaker(false)} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     await screen.findByTestId("btn-predict-fits");
     expect(screen.queryByTestId("btn-read-aloud")).toBeNull();
   });
@@ -98,6 +101,8 @@ describe("「読み上げ」 on the problem screen", () => {
     const { name } = await ready("en");
     const sp = new FakeSpeaker();
     render(<App storeName={name} api={null} speaker={sp} />);
+    // Past the child's own first prediction, on the screen with the junior's line.
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     const btn = await screen.findByTestId("btn-read-aloud");
     expect(btn.textContent).toBe("Read aloud");
     fireEvent.click(btn);
@@ -111,6 +116,7 @@ describe("ふりがな", () => {
   it("is on at first: ruby readings over the kanji of the sentences and the fixed lines", async () => {
     const { name } = await ready();
     render(<App storeName={name} api={null} speaker={new FakeSpeaker()} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     await screen.findByTestId("btn-predict-fits");
     const rts = [...document.querySelectorAll('[data-statement] rt')].map((e) => e.textContent);
     expect(rts).toEqual(expect.arrayContaining(["あに", "きんぎょ", "ぴき", "おとうと", "なん", "びき"]));
@@ -128,6 +134,7 @@ describe("ふりがな", () => {
   it("turns off with the switch, and the choice is kept on the device", async () => {
     const { name, store } = await ready();
     render(<App storeName={name} api={null} speaker={new FakeSpeaker()} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     await screen.findByTestId("btn-predict-fits");
     fireEvent.click(screen.getByTestId("btn-furigana"));
     expect(document.querySelector("[data-statement] ruby")).toBeNull();
@@ -135,6 +142,7 @@ describe("ふりがな", () => {
     await waitFor(async () => expect(await store.getFurigana()).toBe(false));
     cleanup();
     render(<App storeName={name} api={null} speaker={new FakeSpeaker()} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     await screen.findByTestId("btn-predict-fits");
     await waitFor(() => expect(screen.getByTestId("btn-furigana").getAttribute("aria-pressed")).toBe("false"));
     expect(document.querySelector("[data-statement] ruby")).toBeNull();
@@ -142,7 +150,7 @@ describe("ふりがな", () => {
 
   it("every kanji of the fixed lines that get ruby has a reading", () => {
     const t = ui("ja");
-    for (const line of [t.problem.looking, t.problem.predict.question, t.reading.aloud, t.reading.stop, t.reading.label]) {
+    for (const line of [t.problem.looking, t.problem.predict.question, t.problem.guess.label, t.problem.guess.question, t.problem.guess.unknown, t.problem.guess.card, t.problem.guess.optional, t.reading.aloud, t.reading.stop, t.reading.label]) {
       for (const seg of rubySegments(line, UI_READINGS)) if (seg.ruby === null) expect(/[一-鿿]/.test(seg.text), `${seg.text} in ${line}`).toBe(false);
     }
   });

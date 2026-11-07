@@ -8,7 +8,7 @@ import { SentenceList } from "./draw/SentenceList.tsx";
 import { WorldView } from "./draw/WorldView.tsx";
 import { startSession, type Session } from "./flow/session.ts";
 import { bankFor } from "./flow/bank.ts";
-import { viewOf, type CardScreenView, type FlowSnapshot, type FlowView, type HelpView, type ProblemView, type WordbookView } from "./flow/view.ts";
+import { viewOf, type CardScreenView, type FlowSnapshot, type FlowView, type GuessView, type HelpView, type ProblemView, type WordbookView } from "./flow/view.ts";
 import { helplineLine, ui, type UiText } from "./flow/text.ts";
 import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
 import { CheckMode } from "./check/CheckMode.tsx";
@@ -193,6 +193,93 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
       </div>
       {view.step === "unit" && <NumberPad lang={view.lang} label={t.unitPad} onAnswer={(v) => send({ type: "ANSWER_UNIT", value: v })} />}
       {view.step === "total" && <NumberPad lang={view.lang} label={t.totalPad} onAnswer={(v) => send({ type: "ANSWER_TOTAL", value: v })} />}
+    </section>
+  );
+}
+
+/**
+ * The child's own first prediction, before the junior shows its world (指示書 第7.1節 手順2). The problem's sentences
+ * (read aloud, with furigana), one plain outline per holder, all of one length with no segment, the optional "1" card
+ * (tap a tape to put it there, tap it again to take it off), and one tap on who has more. The buttons look alike, none
+ * is chosen beforehand, and nothing says whether an answer fits.
+ */
+const srOnly: CSSProperties = { position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" };
+
+function GuessScreen({ view, send, reading }: { view: GuessView; send: Session["send"]; reading: ReadingHooks }) {
+  const [readingIndex, setReadingIndex] = useState<number | null>(null);
+  const problemReadings = readingsFor(view.problemId);
+  const rubyUi = reading.furigana && view.lang === "ja";
+  // Read aloud: the problem, then this step's own lines in the screen's language and each button's name, so a
+  // child who listens knows what is asked and which button is whom (safety review, 2026-11-07).
+  const uiVoice = view.lang === "ja" ? "ja-JP" : "en-US";
+  const readLines: ReadLine[] = [
+    ...view.statements.map((s) => ({ text: spokenText(s.text, problemReadings), lang: "ja-JP" as const })),
+    ...(view.tapes.length > 0 ? [{ text: `${view.cardLine} ${view.optional}`, lang: uiVoice }] : []),
+    { text: view.question, lang: uiVoice },
+    ...view.choices.map((c) => (c.holderId === null ? { text: c.label, lang: uiVoice } : { text: spokenText(c.label, problemReadings), lang: "ja-JP" as const })),
+  ];
+  const draw = view.text.draw;
+  const name = (label: string) => <RubyText text={label} on={reading.furigana} readings={problemReadings} />;
+  const placeOne = (holderId: string | null) => {
+    if (holderId === null || gate({ kind: "place_card", covers: "whole_tape" }, view.gate).ok) send({ type: "GUESS_ONE", holderId });
+  };
+  return (
+    <section aria-label={view.label} data-testid="screen-guess" data-problem-id={view.problemId}>
+      {view.note !== null && (
+        <p data-testid="problem-note" style={{ fontSize: 16, color: "#52606d", margin: "0 0 8px" }}>
+          {view.note}
+        </p>
+      )}
+      <h2 style={{ fontSize: 20, margin: "0 0 8px" }}>
+        <RubyText text={view.label} on={rubyUi} />
+      </h2>
+      <ReadingTools lang={view.lang} lines={readLines} speaker={reading.speaker} onReading={setReadingIndex} furigana={reading.furigana} onFurigana={reading.onFurigana} />
+      <SentenceList statements={view.statements.map((s) => ({ ...s, lit: false }))} readings={reading.furigana ? problemReadings : null} readingIndex={readingIndex} checks={null} label={view.text.problem.sentences} lang={view.lang} />
+      {view.tapes.length > 0 && (
+        <div role="group" aria-label={draw.world} data-testid="guess-tapes" style={{ display: "grid", gap: 10, margin: "12px 0" }}>
+          <p style={{ margin: 0, fontSize: 18 }}>
+            <RubyText text={view.cardLine} on={rubyUi} /> <RubyText text={view.optional} on={rubyUi} />
+          </p>
+          {view.tapes.map((t) => {
+            const on = view.one === t.holderId;
+            return (
+              <div key={t.holderId} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ minWidth: 72 }}>{name(t.label)}</span>
+                {/* Every outline has the same length and no segment: nothing in the drawing leans to an answer. */}
+                <button
+                  type="button"
+                  data-testid={`guess-tape-${t.holderId}`}
+                  aria-pressed={on}
+                  onClick={() => placeOne(on ? null : t.holderId)}
+                  style={{ flex: "1 1 auto", maxWidth: 420, minHeight: 48, border: "3px solid #52606d", borderRadius: 6, background: "#fff", color: "#1f2933", fontSize: 20, position: "relative", cursor: "pointer" }}
+                >
+                  {/* The accessible name holds the visible text (the tape's name, its label and the card). */}
+                  <span style={srOnly}>{draw.tape(t.label)} </span>
+                  {t.value}
+                  {on && <span style={srOnly}> {draw.cardHere}</span>}
+                  {on && (
+                    <span data-role="reference_mark" style={{ position: "absolute", left: 6, top: 6, padding: "0 8px", borderRadius: 6, background: "#1f2933", color: "#fff", fontWeight: 700 }}>
+                      1
+                    </span>
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div role="group" aria-label={view.label} data-testid="guess" style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+        <p style={{ margin: 0 }} data-testid="guess-question">
+          <RubyText text={view.question} on={rubyUi} />
+        </p>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {view.choices.map((c) => (
+            <Button key={c.holderId ?? "unknown"} onClick={() => send({ type: "GUESS", larger: c.holderId })} testId={`btn-guess-${c.holderId ?? "unknown"}`}>
+              {c.holderId === null ? <RubyText text={c.label} on={rubyUi} /> : name(c.label)}
+            </Button>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }
@@ -584,6 +671,8 @@ function Screen({
           <Button onClick={() => send({ type: "CONSENT_NO" })}>{t.consent.no}</Button>
         </section>
       );
+    case "guess":
+      return <GuessScreen view={view} send={send} reading={reading} />;
     case "problem":
       return <ProblemScreen view={view} send={send} voice={voice} reading={reading} />;
     case "card":

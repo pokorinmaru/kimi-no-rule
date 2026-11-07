@@ -50,6 +50,8 @@ function run(input: FlowInput = {}) {
 /** Leaves the research wait (server down) when the flow is there. */
 function settle(actor: Actor): void {
   if (actor.getSnapshot().matches({ active: "researching" })) actor.send({ type: "RESEARCH_RESULT", pool: null });
+  // The child's own first prediction, passed with "not yet" (guess.test.ts walks it).
+  actor.send({ type: "GUESS", larger: null });
 }
 
 function placeRight(actor: Actor): void {
@@ -64,6 +66,7 @@ function solve(actor: Actor): void {
   settle(actor);
   const p = actor.getSnapshot().context.problem;
   if (p === null) throw new Error("no problem");
+  actor.send({ type: "GUESS", larger: null });
   actor.send({ type: "PREDICT", answer: "odd" });
   placeRight(actor);
   actor.send({ type: "CONFIRM_YES" });
@@ -85,6 +88,7 @@ function solve(actor: Actor): void {
 /** Holds the problem on screen ("don't know", then "later"). */
 function hold(actor: Actor): void {
   settle(actor);
+  actor.send({ type: "GUESS", larger: null });
   actor.send({ type: "PREDICT", answer: "unknown" });
   // Through the junior's staged questions to the waiting screen, then "later".
   for (let i = 0; i < 5 && !actor.getSnapshot().matches("stuck"); i++) actor.send({ type: "DONT_KNOW" });
@@ -113,6 +117,7 @@ describe("when the junior's rule card appears", () => {
     hold(actor);
     settle(actor);
     solve(actor);
+    settle(actor);
     expect(viewOf(actor.getSnapshot()).screen).toBe("problem");
     // The third problem makes two solved: the card comes at the session's end.
     solve(actor);
@@ -262,6 +267,7 @@ describe("the card the child leaves", () => {
     if (v.screen !== "problem") throw new Error("expected a problem");
     // No "1" card is drawn on the junior's world, so no segment shows (指示書 第7.1節 手順3, Q29).
     expect(v.one).toBeNull();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     v = viewOf(actor.getSnapshot());
     if (v.screen !== "problem") throw new Error("expected a problem");

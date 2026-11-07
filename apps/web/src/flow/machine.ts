@@ -20,6 +20,7 @@ import {
   initialState,
   observe,
   observeAgreement,
+  observePrediction,
   problemNumber,
   readingCard,
   render,
@@ -132,6 +133,12 @@ export interface Line {
   request: KohaiRequest | null;
 }
 
+/** The child's own first prediction (指示書 第7.1節 手順2): who has more, and who the child put the "1" card on (holder ids). */
+export interface FirstGuessLog {
+  larger: string | null;
+  oneOn: string | null;
+}
+
 export interface ProblemState {
   record: ProblemRecord;
   /** Why this problem was opened (core chooseNext), for the adults' research note only. */
@@ -142,6 +149,10 @@ export interface ProblemState {
   card: string | null;
   /** The taught reading builds the sentence's own world here: drawn as the length order only until the child's 1. */
   orderOnly: boolean;
+  /** Where the child has put the "1" card in the first prediction (a holder), before the junior's world. */
+  guessOne: string | null;
+  /** The child's first prediction, null until the child answers "who has more?" (or "not yet"). Never judged. */
+  guess: FirstGuessLog | null;
   /** The child's prediction about the junior's world, null until the child answers or skips it. */
   prediction: PredictionAnswer | null;
   /** The order of the "fits" and "odd" buttons on this problem. */
@@ -195,6 +206,8 @@ export interface ProblemLog {
   source: KohaiReading["source"];
   readingId: string;
   reading: Hypothesis;
+  /** The child's first prediction before the junior's world (null: the problem ended before it). */
+  guess?: FirstGuessLog | null;
   /** The child's prediction about the junior's world (null: the problem ended before it). */
   prediction: PredictionAnswer | null;
   firstPlacement: string | null;
@@ -318,6 +331,10 @@ export type FlowEvent =
   | { type: "NEXT" }
   | { type: "CONSENT_YES" }
   | { type: "CONSENT_NO" }
+  /** The child's first prediction: the "1" card on a holder's outline (null takes it off). */
+  | { type: "GUESS_ONE"; holderId: string | null }
+  /** The child's first prediction: who has more (a holder of the relation), or null for "not yet". Moves on to the junior's world. */
+  | { type: "GUESS"; larger: string | null }
   | { type: "PREDICT"; answer: PredictionAnswer }
   | { type: "PLACE_ONE"; quantityId: string }
   | { type: "TAP_WORD"; statementIndex: number; token: number }
@@ -555,6 +572,8 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     reading: junior.reading,
     card: ctx.done.length >= 1 ? readingCard(junior.reading.hypothesis, record, ctx.lang) : null,
     orderOnly: junior.orderOnly,
+    guessOne: null,
+    guess: null,
     prediction: null,
     predictionOrder: predictionOrder(ctx.done.length + 1),
     base: junior.base,
@@ -585,8 +604,50 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     session,
     firstRecord: ctx.firstRecord ?? record,
     done: [...ctx.done, record.world.problem_id],
-    line: readLine(next, problem),
+    // The junior reads only after the child's own first prediction (the reading step's entry says its line).
+    ...noLine(next),
   };
+}
+
+/**
+ * The holders of the relation's two ends as buttons ("who has more?"). In the order the problem names them, the
+ * holder with more sat second on most problems, so the order flips with the problem's number as the prediction
+ * buttons do (predictionOrder): no holder keeps one place (safety review, 2026-11-07).
+ */
+export function guessHolders(p: ProblemState): string[] {
+  const ends = orderHolders(p);
+  const named = p.record.world.holders.map((h) => h.id).filter((id) => ends.includes(id));
+  return p.predictionOrder[0] === "fits" ? named : named.reverse();
+}
+
+/** The buttons of the help's "which is longer?": the same order as the guess. */
+export function helpHolders(p: ProblemState): string[] {
+  return guessHolders(p);
+}
+
+/**
+ * The child's own first prediction (指示書 第7.1節 手順2, 第6.7節 手順2 (i)): who has more, and the "1" card when placed.
+ * core observes it (observePrediction; "not yet" with no card observes nothing). Nothing is judged and nothing on
+ * screen changes with the answer: the junior's world and words come next, the same for every answer.
+ */
+function guess(ctx: FlowContext, larger: string | null): Partial<FlowContext> {
+  const p = ctx.problem;
+  if (p === null || p.guess !== null) return {};
+  let research: ResearchState;
+  try {
+    research = observePrediction(ctx.research, {
+      record: p.record,
+      larger,
+      oneOn: p.guessOne,
+      wordbookOpenedBefore: p.pages.some((pg) => ctx.wordbookOpened.includes(pg)),
+    });
+  } catch {
+    // core could not judge it: the prediction is kept on the log and the research state stays as it was.
+    research = ctx.research;
+  }
+  const problem = { ...p, guess: { larger, oneOn: p.guessOne } };
+  // The junior's first line is made once, here: coming back to the junior's world (after "don't know") keeps it.
+  return { problem, research, line: readLine({ ...ctx, problem, research }, problem) };
 }
 
 /**
@@ -698,6 +759,7 @@ function logOf(p: ProblemState, outcome: Outcome): ProblemLog {
     source: p.reading.source,
     readingId: p.reading.hypothesis.id,
     reading: p.reading.hypothesis,
+    guess: p.guess === null ? null : { ...p.guess },
     prediction: p.prediction,
     firstPlacement: p.firstPlacement,
     ops,
@@ -974,6 +1036,10 @@ export const flowMachine = setup({
     needsIntro: ({ context }) => !context.introSeen,
     needsConsent: ({ context }) => !context.consented,
     hasProblem: ({ context }) => context.problem !== null && !context.problem.logged,
+    guessOneOk: ({ context, event }) =>
+      event.type === "GUESS_ONE" && context.problem !== null && (event.holderId === null || guessHolders(context.problem).includes(event.holderId)),
+    guessable: ({ context, event }) =>
+      event.type === "GUESS" && context.problem !== null && context.problem.guess === null && (event.larger === null || guessHolders(context.problem).includes(event.larger)),
     predictable: ({ context, event }) =>
       event.type === "PREDICT" && (["fits", "odd", "unknown"] as const).includes(event.answer) && context.problem !== null && context.problem.prediction === null,
     placeable: ({ context, event }) => event.type === "PLACE_ONE" && isEnd(context, event.quantityId),
@@ -1110,8 +1176,22 @@ export const flowMachine = setup({
           always: [{ guard: "hasProblem", target: "problem" }, { target: "finished" }],
         },
         problem: {
-          initial: "reading",
+          initial: "guess",
           states: {
+            // The child's own first prediction, before the junior shows its world (指示書 第7.1節 手順2): the problem's
+            // sentences, plain outlines of the two holders, an optional "1" card, and one tap on who has more.
+            // 「わからない」 opens the waiting screen (active's DONT_KNOW) and comes back here.
+            guess: {
+              on: {
+                GUESS_ONE: {
+                  guard: "guessOneOk",
+                  actions: assign(({ context, event }) =>
+                    event.type === "GUESS_ONE" && context.problem !== null ? { problem: { ...context.problem, guessOne: event.holderId } } : {},
+                  ),
+                },
+                GUESS: { guard: "guessable", target: "reading", actions: assign(({ context, event }) => (event.type === "GUESS" ? guess(context, event.larger) : {})) },
+              },
+            },
             // The junior has shown its world; the child answers "fits" / "odd" (or skips) before any sentence
             // lights (指示書 第7.1節 手順4, 第11節 M7). "Next" does not skip the question.
             reading: {

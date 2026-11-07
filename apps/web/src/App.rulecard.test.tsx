@@ -26,6 +26,7 @@ async function typeNumber(n: number): Promise<void> {
 
 /** Solves the problem on screen by taps: the prediction, the 1 card on the reference's tape, the unit and the total. */
 async function solveOnScreen(): Promise<void> {
+  fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
   fireEvent.click(await screen.findByTestId("btn-predict-odd"));
   const record = recordOnScreen();
   const rel = record.world.relations[0];
@@ -114,6 +115,7 @@ describe("the junior's rule card on the screen", () => {
 
     // Leaving the card goes on to the next problem.
     fireEvent.click(within(cardScreen).getByTestId("btn-card-next"));
-    expect(await screen.findByTestId("predict")).toBeTruthy();
+    // The next problem opens on the child's own first prediction (指示書 第7.1節 手順2).
+    expect(await screen.findByTestId("guess")).toBeTruthy();
   });
 });

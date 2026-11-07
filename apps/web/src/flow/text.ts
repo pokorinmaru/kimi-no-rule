@@ -112,6 +112,11 @@ export interface UiText {
     /** On the English screen: the problem is shown as written, in Japanese. */
     note: string | null;
     next: string;
+    /**
+     * The child's own first prediction, before the junior's world (指示書 第7.1節 手順2): the screen's name, the
+     * question, the "not yet" button, and two lines about the optional "1" card. Nothing here judges an answer.
+     */
+    guess: { label: string; question: string; unknown: string; card: string; optional: string };
     /** The child's prediction about the junior's world (指示書 第7.1節 手順4): the question and its three buttons. */
     predict: { label: string; question: string; fits: string; odd: string; unknown: string };
     looking: string;
@@ -251,6 +256,7 @@ const JA: UiText = {
     world: "後輩が作った世界",
     note: null,
     next: "つぎへ",
+    guess: { label: "先輩のよそう", question: "どっちが多いと思う？", unknown: "まだわからない", card: "1とみる人がいたら、テープをタップ。", optional: "おかなくても、だいじょうぶ。" },
     predict: { label: "後輩の世界を見て", question: "この世界、問題とぴったり？ へん？", fits: "ぴったり", odd: "へん", unknown: "まだわからない" },
     looking: "「1」の札を、1とみる人のテープに動かして、後輩に教えてね。",
     yes: "うん、そう",
@@ -368,6 +374,7 @@ const EN: UiText = {
     world: "The world the junior made",
     note: "The problem is written in Japanese.",
     next: "Next",
+    guess: { label: "Your guess first", question: "Who has more, do you think?", unknown: "Not sure yet", card: "If someone is taken as 1, tap their tape.", optional: "It is fine to leave it." },
     predict: { label: "Look at the junior's world", question: "Does this world fit the problem?", fits: "It fits", odd: "Something's odd", unknown: "Not sure yet" },
     looking: 'Move the "1" card onto the tape of the person you take as 1, and show the junior.',
     yes: "Yes, that's it",

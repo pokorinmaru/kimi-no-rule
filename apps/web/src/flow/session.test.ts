@@ -46,6 +46,7 @@ async function solveCurrent(s: Awaited<ReturnType<typeof startSession>>): Promis
   const p = snap.context.problem;
   if (p === null) throw new Error("no problem");
   const rel = p.record.world.relations[0];
+  s.send({ type: "GUESS", larger: null });
   s.send({ type: "PREDICT", answer: "fits" });
   s.send({ type: "PLACE_ONE", quantityId: rel?.reference as string });
   s.send({ type: "CONFIRM_YES" });
@@ -69,7 +70,7 @@ describe("startSession", () => {
     expect(await st.getSettings()).toEqual({ consented: true, introSeen: true, lang: "ja" });
     s.stop();
     const again = await startSession({ store: st, api: down });
-    expect(again.actor.getSnapshot().matches({ active: { problem: "reading" } })).toBe(true);
+    expect(again.actor.getSnapshot().matches({ active: { problem: "guess" } })).toBe(true);
     again.stop();
   });
 
@@ -82,8 +83,9 @@ describe("startSession", () => {
     await flush();
     await s.settle();
     const snap = s.actor.getSnapshot();
-    expect(snap.matches({ active: { problem: "reading" } })).toBe(true);
-    expect(snap.context.line?.source).toBe("template");
+    expect(snap.matches({ active: { problem: "guess" } })).toBe(true);
+    s.send({ type: "GUESS", larger: null });
+    expect(s.actor.getSnapshot().context.line?.source).toBe("template");
     expect(snap.context.research.pool.length).toBeGreaterThan(0);
     const rows = await st.listAttempts();
     expect(rows.map((r) => r.outcome)).toEqual(["solved"]);
@@ -97,7 +99,7 @@ describe("startSession", () => {
     await st.setIntroSeen(true);
     const s = await startSession({ store: st, api: down, input: { maxProblems: 3 } });
     await solveCurrent(s);
-    await vi.waitFor(() => expect(s.actor.getSnapshot().matches({ active: { problem: "reading" } })).toBe(true));
+    await vi.waitFor(() => expect(s.actor.getSnapshot().matches({ active: { problem: "guess" } })).toBe(true));
     await solveCurrent(s);
     expect(s.actor.getSnapshot().matches({ active: "card" })).toBe(true);
     s.send({ type: "CARD_PICK", ruleId: "c_correct" });
@@ -120,6 +122,8 @@ describe("startSession", () => {
       safety: () => never(),
     };
     const s = await startSession({ store: st, api });
+    // The junior reads after the child's own first prediction.
+    s.send({ type: "GUESS", larger: null });
     await flush();
     expect(s.actor.getSnapshot().context.line?.text).toBe("この読み方で、テープをならべました");
     expect((await st.listGateLog()).map((g) => g.kinds)).toEqual([["judging"]]);
@@ -133,6 +137,7 @@ describe("startSession", () => {
     await st.setIntroSeen(true);
     const api: FlowApi = { kohai: () => never(), research: () => never(), safety: () => never() };
     const s = await startSession({ store: st, api, kohaiTimeoutMs: 20 });
+    s.send({ type: "GUESS", larger: null });
     const before = s.actor.getSnapshot().context.line;
     await new Promise((r) => setTimeout(r, 40));
     expect(s.actor.getSnapshot().context.line).toEqual(before);
@@ -151,7 +156,7 @@ describe("startSession", () => {
     expect(research).toHaveBeenCalledTimes(1);
     expect(s.actor.getSnapshot().matches({ active: "researching" })).toBe(true);
     await new Promise((r) => setTimeout(r, 1700));
-    expect(s.actor.getSnapshot().matches({ active: { problem: "reading" } })).toBe(true);
+    expect(s.actor.getSnapshot().matches({ active: { problem: "guess" } })).toBe(true);
     s.stop();
   });
 

@@ -79,11 +79,13 @@ describe("simEvent and runSim", () => {
     const rec = FRACTION_BANK.find((r) => r.world.problem_id === first);
     if (rec === undefined) throw new Error("record");
     expect(c.log[0]?.firstPlacement).toBe(placementOf(child, rec));
-    expect(c.research.readings).toHaveLength(1);
+    // The card of its own first prediction, and the first placement (both where its rule puts the 1).
+    expect(c.research.readings).toHaveLength(2);
     // The second problem is open and untouched.
     expect(c.problem?.record.world.problem_id).not.toBe(first);
     expect(c.problem?.prediction).toBeNull();
-    expect(s.actor.getSnapshot().matches({ active: { problem: "reading" } })).toBe(true);
+    expect(c.problem?.guess).toBeNull();
+    expect(s.actor.getSnapshot().matches({ active: { problem: "guess" } })).toBe(true);
 
     // The same run again gives the same events (deterministic).
     const s2 = await startSession({ store: store(), api: down, input: { lang: "ja" } });

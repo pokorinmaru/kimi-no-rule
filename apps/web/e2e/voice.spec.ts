@@ -61,6 +61,7 @@ test("the child tells the junior by talking, sees the words live, and confirms t
   await page.goto("/");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
+  await page.getByTestId("btn-guess-unknown").click();
   await page.getByTestId("btn-predict-fits").click();
   const talk = page.getByTestId("btn-talk");
   await expect(talk).toHaveText("話して教える");

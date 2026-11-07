@@ -1,9 +1,9 @@
 // What each screen shows, from a snapshot of the session machine. The screens draw only this, so the
 // tests can read every word a child may see (childTexts) on every path.
 import type { SnapshotFrom } from "xstate";
-import { CARD_RULES, cardSlot, checkScene, gate, sceneAvoidValues, readingCard, render, viewScene, wordbookPage, type GateContext, type Hypothesis, type Lang, type ProblemRecord, type Rational, type Scene, type WordbookPageView, type WorldScene } from "@kimi/core";
+import { CARD_RULES, apply, cardSlot, checkScene, fromSchema, gate, sceneAvoidValues, readingCard, render, toString, verifiedDrawWorld, viewScene, wordbookPage, type GateContext, type Hypothesis, type Lang, type ProblemRecord, type Rational, type Scene, type WordbookPageView, type WorldScene } from "@kimi/core";
 import type { CardScenes } from "./machine.ts";
-import { MAX_VOICE_TURNS, bookPageId, orderHolders, type PredictionAnswer, type flowMachine } from "./machine.ts";
+import { MAX_VOICE_TURNS, bookPageId, guessHolders, helpHolders, type PredictionAnswer, type ProblemState, type flowMachine } from "./machine.ts";
 import { gateContext } from "./problem.ts";
 import { AI_MARK, hardLines, helplineLine, restLines, ui, type HelplineText, type UiText } from "./text.ts";
 
@@ -124,6 +124,63 @@ export interface HelpView extends Common {
   choices: { holderId: string; label: string }[];
 }
 
+/**
+ * The child's own first prediction, before the junior's world (指示書 第7.1節 手順2): the problem's sentences, one plain
+ * outline per holder of the relation, all of one length with no segment (only the problem's own number or "？" on
+ * them, passed by core's show_world gate), the optional "1" card, and "who has more?" with the holders and "not yet".
+ * Nothing on it says whether an answer fits.
+ */
+export interface GuessView extends Common {
+  screen: "guess";
+  problemId: string;
+  statements: { index: number; text: string; tokens: string[]; isQuestion: boolean }[];
+  label: string;
+  question: string;
+  cardLine: string;
+  optional: string;
+  /** The outlines (empty when core's gate refuses to show them; the question stays). */
+  tapes: { holderId: string; label: string; value: string }[];
+  /** The holder the child put the "1" card on, or null. */
+  one: string | null;
+  /** The holders (their order flips with the problem's number, guessHolders), then null for "not yet". */
+  choices: { holderId: string | null; label: string }[];
+  /** No junior's line on this step: the junior has not read yet. */
+  line: null;
+  note: string | null;
+  /** core's gate context, for placing the card through core as the problem screen does. */
+  gate: GateContext;
+}
+
+/**
+ * The outlines' labels: the problem's own number for a holder the problem gives a number to, "？" for any other. Shown
+ * only when core's gate passes them as a world drawing (no hidden value, the asked one "？").
+ */
+function guessTapes(p: ProblemState, lang: Lang): GuessView["tapes"] {
+  try {
+    const w = p.record.world;
+    const rel = w.relations.find((r) => r.id === p.relationId);
+    const rows = guessHolders(p).flatMap((holderId) => {
+      const q = w.quantities.find((x) => x.holder === holderId && (x.id === rel?.subject || x.id === rel?.reference));
+      return q === undefined ? [] : [{ holderId, q }];
+    });
+    const res = apply({ correct: w, ops: [] });
+    const labels = rows.map(({ q }) => ({ element_id: q.id, value: q.value === null || q.id === w.question.target_id ? ("?" as const) : q.value }));
+    if (!gate({ kind: "show_world", world: verifiedDrawWorld(res), labels }, gateContext(p.record, lang)).ok) return [];
+    return rows.map(({ holderId, q }, i) => {
+      const l = labels[i]?.value;
+      const counter = w.item_kinds.find((k) => k.id === q.item_kind)?.counter ?? "";
+      return {
+        holderId,
+        label: w.holders.find((h) => h.id === holderId)?.label ?? "",
+        // "？" as the drawing writes it in each language (the problem's own number keeps the problem's counter).
+        value: l === undefined || l === "?" ? (lang === "ja" ? "？" : "?") : `${toString(fromSchema(l))}${counter}`,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 /** ことばの絵本 (指示書 第7.1節): the page core lets be shown on this problem, drawn with the "1" card on the holder it takes as 1. */
 export interface WordbookView extends Common {
   screen: "wordbook";
@@ -134,6 +191,7 @@ export interface WordbookView extends Common {
 
 export type FlowView =
   | (Common & { screen: "intro"; lines: string[] })
+  | GuessView
   | HelpView
   | WordbookView
   | (Common & { screen: "consent"; lines: string[] })
@@ -211,8 +269,28 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
       line: juniorLine,
       choices:
         stage === "order"
-          ? orderHolders(p).map((h) => ({ holderId: h, label: p.record.world.holders.find((x) => x.id === h)?.label ?? "" }))
+          ? helpHolders(p).map((h) => ({ holderId: h, label: p.record.world.holders.find((x) => x.id === h)?.label ?? "" }))
           : [],
+    };
+  }
+  if (p !== null && s.matches({ active: { problem: "guess" } })) {
+    const gt = t.problem.guess;
+    const name = (id: string): string => p.record.world.holders.find((h) => h.id === id)?.label ?? "";
+    return {
+      ...common,
+      screen: "guess",
+      problemId: p.record.world.problem_id,
+      statements: p.record.statements.map((st) => ({ index: st.index, text: st.text, tokens: [...st.tokens], isQuestion: st.is_question })),
+      label: gt.label,
+      question: gt.question,
+      cardLine: gt.card,
+      optional: gt.optional,
+      tapes: guessTapes(p, c.lang),
+      one: p.guessOne,
+      choices: [...guessHolders(p).map((h) => ({ holderId: h as string | null, label: name(h) })), { holderId: null, label: gt.unknown }],
+      line: null,
+      note: t.problem.note,
+      gate: gateContext(p.record, c.lang),
     };
   }
   if (p !== null && s.matches({ active: { problem: "wordbook" } })) {
@@ -319,6 +397,12 @@ export function childTexts(v: FlowView): string[] {
       out.push(t.help.label, t.help.read, t.help.orderLabel, t.help.open, t.help.later, t.problem.sentences);
       out.push(...v.statements.map((s) => s.text), ...v.choices.map((c) => c.label));
       if (v.line !== null) out.push(v.line);
+      out.push(t.reading.aloud, t.reading.stop, t.reading.furigana);
+      break;
+    case "guess":
+      out.push(v.label, v.question, v.cardLine, v.optional, t.problem.sentences, t.draw.world, t.draw.cardHere, t.draw.unknown);
+      out.push(...v.statements.map((s) => s.text), ...v.tapes.flatMap((x) => [x.label, x.value, t.draw.tape(x.label)]), ...v.choices.map((c) => c.label));
+      if (v.note !== null) out.push(v.note);
       out.push(t.reading.aloud, t.reading.stop, t.reading.furigana);
       break;
     case "wordbook":

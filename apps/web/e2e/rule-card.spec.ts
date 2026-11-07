@@ -40,6 +40,7 @@ async function typeNumber(page: Page, n: number): Promise<void> {
 }
 
 async function solve(page: Page): Promise<void> {
+  await page.getByTestId("btn-guess-unknown").click();
   await page.getByTestId("btn-predict-odd").click();
   const record = await recordOnScreen(page);
   const rel = record.world.relations[0];
@@ -77,7 +78,7 @@ test("two solved problems open the junior's card; choosing who is 1 builds the g
   await page.getByTestId("btn-consent-yes").click();
   await solve(page);
   await expect(page.getByTestId("screen-card")).toHaveCount(0);
-  await expect(page.getByTestId("btn-predict-odd")).toBeVisible();
+  await expect(page.getByTestId("btn-guess-unknown")).toBeVisible();
   await solve(page);
 
   await expect(page.getByTestId("screen-card")).toBeVisible();
@@ -117,5 +118,5 @@ test("two solved problems open the junior's card; choosing who is 1 builds the g
   await expect(page.locator("main")).not.toContainText(/正し|まちが|間違|正解/);
 
   await page.getByTestId("btn-card-next").click();
-  await expect(page.getByTestId("predict")).toBeVisible();
+  await expect(page.getByTestId("guess")).toBeVisible();
 });

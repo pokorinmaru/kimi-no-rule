@@ -1,8 +1,9 @@
-// The simulated child plays one problem through the same machine a child uses (指示書 第6.9節 模擬の子ども): the
+// The simulated child plays one problem through the same machine a child uses (指示書 第6.9節 模擬の子ども): its own
+// first prediction (the "1" card where its rule puts it, then who has more in its rule's world, core guessOf), the
 // prediction, then the "1" card where its rule puts it, confirmed, again after each try, until the problem is
 // held or the junior's world fits (the adult then types the numbers). Every step is decided by the child's rule
 // and core; nothing is random, so the same child on the same bank always plays the same events.
-import { runRule, sameReading } from "@kimi/core";
+import { guessOf, runRule, sameReading } from "@kimi/core";
 import type { FlowEvent } from "../flow/machine.ts";
 import type { FlowSnapshot } from "../flow/view.ts";
 import type { Session } from "../flow/session.ts";
@@ -15,6 +16,18 @@ export function simEvent(snap: FlowSnapshot, child: TryChild, startProblemId: st
   const p = snap.context.problem;
   if (!snap.matches({ active: "problem" }) || p === null || startProblemId === null) return "done";
   if (p.record.world.problem_id !== startProblemId) return "done";
+  if (snap.matches({ active: { problem: "guess" } })) {
+    if (p.guess !== null) return "done";
+    const holder = p.record.world.quantities.find((q) => q.id === placementOf(child, p.record))?.holder ?? null;
+    if (p.guessOne === null && holder !== null) return { type: "GUESS_ONE", holderId: holder };
+    let larger: string | null;
+    try {
+      larger = guessOf(runRule(child.rule, p.record), p.record, { larger: true, oneOn: false }).larger;
+    } catch {
+      larger = null;
+    }
+    return { type: "GUESS", larger };
+  }
   if (snap.matches({ active: { problem: "reading" } })) {
     if (p.prediction !== null) return "done";
     let same: boolean;

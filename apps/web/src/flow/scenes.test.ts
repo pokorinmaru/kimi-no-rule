@@ -44,6 +44,7 @@ function solve(actor: Actor): void {
   if (actor.getSnapshot().matches({ active: "researching" })) actor.send({ type: "RESEARCH_RESULT", pool: null });
   const p = actor.getSnapshot().context.problem;
   if (p === null) throw new Error("no problem");
+  actor.send({ type: "GUESS", larger: null });
   actor.send({ type: "PREDICT", answer: "odd" });
   const rel = p.record.world.relations.find((x) => x.id === p.relationId);
   // The child taps a word of the problem as the reason, then puts the 1.

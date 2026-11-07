@@ -28,6 +28,7 @@ describe("placing the card from the screen", () => {
     fireEvent.click(await screen.findByTestId("btn-next"));
     fireEvent.click(await screen.findByTestId("btn-consent-yes"));
     // The child first says whether the junior's world fits (指示書 第7.1節 手順4).
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     // The card is a button only once the child may move it.
     const card = await screen.findByRole("button", { name: /「1」/ });

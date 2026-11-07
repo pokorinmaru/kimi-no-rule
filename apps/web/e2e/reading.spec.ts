@@ -42,6 +42,7 @@ test("「読み上げ」 reads the problem sentence by sentence; ふりがな is
   await page.goto("/");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
+  await page.getByTestId("btn-guess-unknown").click();
   await expect(page.getByTestId("junior-line")).not.toHaveText("…");
   // Furigana over the problem's kanji, on at first.
   await expect(page.locator('[data-statement="0"] rt').first()).toHaveText("あに");

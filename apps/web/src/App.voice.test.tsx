@@ -71,6 +71,7 @@ describe("the mic on the problem screen", () => {
     const { api, interpret, safety } = fakeApi();
     const sp = speech();
     render(<App storeName={name} api={api} speech={sp.factory} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     const talk = await screen.findByTestId("btn-talk");
     expect(talk.textContent).toBe("話して教える");
@@ -98,6 +99,7 @@ describe("the mic on the problem screen", () => {
     api.interpret = () => new Promise((r) => (release = () => r({ status: "ok", ops: [toOtouto] })));
     const sp = speech();
     render(<App storeName={name} api={api} speech={sp.factory} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     fireEvent.click(await screen.findByTestId("btn-talk"));
     act(() => sp.last().say([], SAID));
@@ -114,6 +116,7 @@ describe("the mic on the problem screen", () => {
     const name = await ready();
     const { api } = fakeApi();
     render(<App storeName={name} api={api} speech={speech(false).factory} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     expect((await screen.findByTestId("voice-note")).textContent).toBe("このブラウザでは、声は使えません。札で教えてね。");
     expect(screen.queryByTestId("btn-talk")).toBeNull();
@@ -135,6 +138,7 @@ describe("the mic on the problem screen", () => {
     const { api } = fakeApi();
     const sp = speech();
     render(<App storeName={name} api={api} speech={sp.factory} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     fireEvent.click(await screen.findByTestId("btn-talk"));
     act(() => sp.last().fail("denied"));
@@ -145,6 +149,7 @@ describe("the mic on the problem screen", () => {
   it("without a worker client there is no mic", async () => {
     const name = await ready();
     render(<App storeName={name} api={null} speech={speech().factory} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     await screen.findByTestId("junior-line");
     expect(screen.queryByTestId("btn-talk")).toBeNull();
@@ -155,6 +160,7 @@ describe("the mic on the problem screen", () => {
     const { api } = fakeApi();
     const sp = speech();
     render(<App storeName={name} api={api} speech={sp.factory} />);
+    fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     const talk = await screen.findByTestId("btn-talk");
     expect(talk.textContent).toBe("Tell by talking");

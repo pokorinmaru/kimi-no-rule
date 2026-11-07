@@ -54,6 +54,13 @@ function events(s: Snap, opts: { safety: boolean; research: boolean; voice?: boo
     for (const q of [rel?.subject, rel?.reference]) if (q !== undefined && q !== null) out.push({ type: "PLACE_ONE", quantityId: q });
     out.push({ type: "CONFIRM_YES" }, { type: "CONFIRM_NO" }, { type: "TAP_WORD", statementIndex: 0, token: 0 });
     out.push({ type: "PREDICT", answer: "fits" }, { type: "PREDICT", answer: "odd" }, { type: "PREDICT", answer: "unknown" });
+    // The child's own first prediction: the "1" card on one holder, and who has more (one holder; "not yet").
+    const firstHolder = p.record.world.quantities.find((q) => q.id === rel?.reference)?.holder;
+    // Offered only while the prediction is open, so the walks stay small.
+    if (p.guess === null) {
+      if (firstHolder !== undefined && p.guessOne === null) out.push({ type: "GUESS_ONE", holderId: firstHolder }, { type: "GUESS", larger: firstHolder });
+      out.push({ type: "GUESS", larger: null });
+    }
     // The junior's staged questions: one holder for "which is longer?", and opening the word book.
     const firstEnd = p.record.world.quantities.find((q) => q.id === rel?.subject)?.holder;
     if (firstEnd !== undefined) out.push({ type: "ORDER_GUESS", holderId: firstEnd });
@@ -90,7 +97,7 @@ function key(s: Snap): string {
     c.researchResult === undefined,
     c.log.filter((l) => l.outcome === "solved").length,
     c.ruleCard?.rule.id ?? null,
-    p === null ? null : [p.firstPlacement !== null, p.fixes, p.placement, p.listening, p.voiceTurns],
+    p === null ? null : [p.guessOne !== null, p.firstPlacement !== null, p.fixes, p.placement, p.listening, p.voiceTurns],
   ]);
 }
 
@@ -117,6 +124,16 @@ function checkScreen(s: Snap): void {
     // No sentence lights, and nothing glows, before the child's prediction or its skip (指示書 第11節 M7).
     if (view.screen === "problem" && (view.statements.some((x) => x.lit) || view.glowIds.length > 0)) expect(p.prediction).not.toBeNull();
     if (p.taughtOps.length > 0 || p.firstPlacement !== null) expect(p.prediction).not.toBeNull();
+    // The junior's world and line come only after the child's own first prediction (指示書 第7.1節 手順2).
+    if (p.prediction !== null) expect(p.guess).not.toBeNull();
+    if (p.guess === null && !p.logged && view.screen !== "stuck" && view.screen !== "hard" && view.screen !== "rest" && view.screen !== "ended") {
+      expect(view.screen).toBe("guess");
+      if (view.screen === "guess") {
+        expect(view.line).toBeNull();
+        // The outlines carry the problem's own numbers or "？" only.
+        for (const t of view.tapes) if (t.value !== "？") expect(p.record.world.problem_text).toContain(t.value.replace(/[^0-9/]/g, ""));
+      }
+    }
     // The world on screen is the correct one only after the child's own first placement was recorded, or, for a
     // reading the child left on the rule card, drawn as the length order only (no "1" card) until then.
     if (sameReading(p.shown.world, p.record.world, true) && p.firstPlacement === null) {
@@ -198,13 +215,15 @@ describe("the session machine: every state is reachable and every screen keeps t
 });
 
 /** The child's own moves on one problem (stop, hard and safety are walked by the shortest paths above). */
-const SIMPLE = new Set<FlowEvent["type"]>(["NEXT", "PREDICT", "PLACE_ONE", "CONFIRM_YES", "CONFIRM_NO", "ANSWER_UNIT", "ANSWER_TOTAL", "DONT_KNOW", "RESUME", "HOLD", "STOP", "OPEN_BOOK"]);
+const SIMPLE = new Set<FlowEvent["type"]>(["NEXT", "GUESS", "PREDICT", "PLACE_ONE", "CONFIRM_YES", "CONFIRM_NO", "ANSWER_UNIT", "ANSWER_TOTAL", "DONT_KNOW", "RESUME", "HOLD", "STOP", "OPEN_BOOK"]);
 
 describe("simple paths through one problem", () => {
   it("every simple path keeps the rules (one problem, no safety events)", { timeout: 30_000 }, () => {
     const paths = getSimplePaths(flowMachine, {
       input: { introSeen: true, consented: true, maxProblems: 1 },
-      events: (s) => events(s, { safety: false, research: false }).filter((e) => SIMPLE.has(e.type)),
+      // The first prediction is passed with "not yet" here (its card and answers are walked by the shortest paths), so
+      // the number of simple paths stays bounded.
+      events: (s) => events(s, { safety: false, research: false }).filter((e) => SIMPLE.has(e.type) && !(e.type === "GUESS" && e.larger !== null)),
       serializeState: (s) => key(s),
       toState: (s) => s.status === "done",
     });
@@ -221,9 +240,11 @@ function step(s: Snap, e: FlowEvent): Snap {
   return transition(flowMachine, s, e)[0];
 }
 
+/** Starts a session; on the first problem the child's own first prediction is passed with "not yet" (guess.test.ts walks it). */
 function run(input: FlowInput = { introSeen: true, consented: true }) {
   const actor = createActor(flowMachine, { input });
   actor.start();
+  actor.send({ type: "GUESS", larger: null });
   return actor;
 }
 
@@ -237,6 +258,7 @@ function place(actor: ReturnType<typeof run>, right: boolean): void {
 }
 
 function solveProblem(actor: ReturnType<typeof run>): void {
+  actor.send({ type: "GUESS", larger: null });
   actor.send({ type: "PREDICT", answer: "fits" });
   place(actor, true);
   actor.send({ type: "CONFIRM_YES" });
@@ -266,7 +288,8 @@ describe("the flow of one problem (F1)", () => {
     expect(s.context.consented).toBe(true);
     expect(s.context.introSeen).toBe(true);
     expect(s.context.problem?.record.world.problem_id).toBe("p_signboard");
-    expect(s.matches({ active: { problem: "reading" } })).toBe(true);
+    // The child's own first prediction comes before the junior's world (指示書 第7.1節 手順2).
+    expect(s.matches({ active: { problem: "guess" } })).toBe(true);
   });
 
   it("skips the intro and consent when they were already given", () => {
@@ -288,6 +311,7 @@ describe("the flow of one problem (F1)", () => {
     expect(v.screen === "problem" && v.line).toMatch(/読/);
     // No sentence lights before the junior has shown its world and said so.
     expect(v.screen === "problem" && v.statements.some((x) => x.lit)).toBe(false);
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     v = viewOf(actor.getSnapshot());
     expect(v.screen === "problem" && v.step).toBe("looking");
@@ -312,6 +336,7 @@ describe("the flow of one problem (F1)", () => {
 
   it("a wrong placement keeps a sentence lit and goes back to moving the card; three tries hold the problem", () => {
     const actor = run();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     for (let i = 0; i < 2; i++) {
       place(actor, false);
@@ -328,6 +353,7 @@ describe("the flow of one problem (F1)", () => {
 
   it("'no' to the junior's restatement goes back to moving the card without changing the world", () => {
     const actor = run();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     const before = actor.getSnapshot().context.problem?.shown.world;
     place(actor, true);
@@ -344,6 +370,7 @@ describe("the flow of one problem (F1)", () => {
 
   it("core judges the unit and the total; a wrong unit gets the mismatch words and the child tries again", () => {
     const actor = run();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, true);
     actor.send({ type: "CONFIRM_YES" });
@@ -364,6 +391,7 @@ describe("the flow of one problem (F1)", () => {
   /** On the signboard: the unit step, with the right values known to the test only. */
   function atUnit() {
     const actor = run();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, true);
     actor.send({ type: "CONFIRM_YES" });
@@ -424,6 +452,7 @@ describe("the flow of one problem (F1)", () => {
     });
     solveProblem(actor);
     actor.send({ type: "RESEARCH_RESULT", pool: null });
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     expect(seqs.length).toBeGreaterThan(3);
     for (let i = 1; i < seqs.length; i++) expect(seqs[i] as number).toBeGreaterThan(seqs[i - 1] as number);
@@ -433,6 +462,7 @@ describe("the flow of one problem (F1)", () => {
     const actor = run();
     let v = viewOf(actor.getSnapshot());
     expect(v.screen === "problem" && v.glowIds).toEqual([]);
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     v = viewOf(actor.getSnapshot());
     if (v.screen !== "problem") throw new Error("problem expected");
@@ -449,6 +479,7 @@ describe("the flow of one problem (F1)", () => {
     actor.send({ type: "KOHAI_LINE", seq, text: "この読み方だと、兄のテープが長いです" });
     expect(actor.getSnapshot().context.line?.text).toBe("この読み方だと、兄のテープが長いです");
     expect(actor.getSnapshot().context.line?.source).toBe("claude");
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     actor.send({ type: "KOHAI_LINE", seq, text: "おそい返事" });
     expect(actor.getSnapshot().context.line?.text).not.toBe("おそい返事");
@@ -497,6 +528,7 @@ describe("the child's prediction: fits or odd, before any sentence lights", () =
     const seen: (string[] | null)[] = [];
     for (let i = 0; i < 3; i++) {
       if (actor.getSnapshot().matches({ active: "researching" })) actor.send({ type: "RESEARCH_RESULT", pool: null });
+      actor.send({ type: "GUESS", larger: null });
       seen.push(order(actor.getSnapshot()));
       expect(order(actor.getSnapshot())?.slice(0, 2)).toEqual([...predictionOrder(i + 1)]);
       solveProblem(actor);
@@ -514,6 +546,7 @@ describe("the child's prediction: fits or odd, before any sentence lights", () =
     expect(v.statements.some((x) => x.lit)).toBe(false);
     expect(v.glowIds).toEqual([]);
     expect(v.canPlace).toBe(false);
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "odd" });
     v = viewOf(actor.getSnapshot());
     if (v.screen !== "problem") throw new Error("problem expected");
@@ -525,6 +558,7 @@ describe("the child's prediction: fits or odd, before any sentence lights", () =
   it("'not sure' skips it: the sentences light and nothing is observed", () => {
     const research = researchedState();
     const actor = run({ introSeen: true, consented: true, research });
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "unknown" });
     const s = actor.getSnapshot();
     expect(s.matches({ active: { problem: "looking" } })).toBe(true);
@@ -534,7 +568,9 @@ describe("the child's prediction: fits or odd, before any sentence lights", () =
 
   it("is answered once per problem; later taps change nothing", () => {
     const actor = run();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "odd" });
     expect(actor.getSnapshot().context.problem?.prediction).toBe("fits");
   });
@@ -545,6 +581,7 @@ describe("the child's prediction: fits or odd, before any sentence lights", () =
     const before = actor.getSnapshot().context;
     const p = before.problem;
     if (p === null) throw new Error("problem expected");
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     const expected = observeAgreement(before.research, { record: p.record, shownWorld: p.base, answer: "fits", referencePlaced: true });
     expect(actor.getSnapshot().context.research.weights).toEqual(expected.weights);
@@ -609,6 +646,7 @@ function researchedState() {
 describe("the research layer in the flow (F3)", () => {
   it("records the child's first confirmed placement as the research observation, once per problem", () => {
     const actor = run();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, false);
     // Not yet: the child has not said "yes" to it.
@@ -627,6 +665,7 @@ describe("the research layer in the flow (F3)", () => {
 
   it("a rejected placement is not observed; the confirmed one is, with the words tapped before the confirm", () => {
     const actor = run();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     const p = actor.getSnapshot().context.problem;
     const rel = p?.record.world.relations.find((x) => x.id === p.relationId);
@@ -656,6 +695,7 @@ describe("the research layer in the flow (F3)", () => {
     }
     expect(research.readings.length).toBe(15);
     const actor = run({ introSeen: true, consented: true, research });
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     actor.send({ type: "TAP_WORD", statementIndex: 1, token: 4 });
     place(actor, false);
@@ -672,6 +712,7 @@ describe("the research layer in the flow (F3)", () => {
 
   it("with the server down, falls back to the common readings that reproduce the first reading and goes on", () => {
     const actor = run();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, false);
     actor.send({ type: "CONFIRM_YES" });
@@ -686,6 +727,7 @@ describe("the research layer in the flow (F3)", () => {
     actor.send({ type: "NEXT" });
     expect(actor.getSnapshot().matches({ active: "researching" })).toBe(true);
     actor.send({ type: "RESEARCH_RESULT", pool: null });
+    actor.send({ type: "GUESS", larger: null });
     const s = actor.getSnapshot();
     expect(s.matches({ active: { problem: "reading" } })).toBe(true);
     const ids = s.context.research.pool.map((e) => e.hypothesis.id);
@@ -697,6 +739,7 @@ describe("the research layer in the flow (F3)", () => {
   it("from the second problem the junior's card shows its reading; the first problem has none", () => {
     const actor = run();
     expect(actor.getSnapshot().context.problem?.card).toBeNull();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, false);
     actor.send({ type: "CONFIRM_YES" });
@@ -720,6 +763,7 @@ describe("the research layer in the flow (F3)", () => {
     for (let i = 0; i < 5; i++) {
       const s = actor.getSnapshot();
       if (s.matches({ active: "researching" })) actor.send({ type: "RESEARCH_RESULT", pool: null });
+      actor.send({ type: "GUESS", larger: null });
       const p = actor.getSnapshot().context.problem;
       if (p === null || !actor.getSnapshot().matches({ active: { problem: "reading" } })) break;
       used.push(p.reading.hypothesis.id);
@@ -741,6 +785,7 @@ describe("the research layer in the flow (F3)", () => {
 
   it("a pool from the research agent is checked by core before it is used", () => {
     const actor = run();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, false);
     actor.send({ type: "CONFIRM_YES" });
@@ -764,6 +809,7 @@ describe("the research layer in the flow (F3)", () => {
 describe("stopping, not knowing and hard (F8)", () => {
   it("'don't know' on the card opens the junior's staged questions; past them, a waiting screen that resumes where the child was, or holds the problem", () => {
     const actor = run();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, true);
     actor.send({ type: "DONT_KNOW" });
@@ -820,6 +866,7 @@ describe("stopping, not knowing and hard (F8)", () => {
 
   it("stop ends at once and logs the open problem without the child's words", () => {
     const actor = run();
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     actor.send({ type: "TAP_WORD", statementIndex: 1, token: 4 });
     place(actor, true);
@@ -840,6 +887,7 @@ describe("works with templates only (server down)", () => {
     actor.send({ type: "CONSENT_YES" });
     for (let i = 0; i < 3; i++) {
       if (actor.getSnapshot().matches({ active: "researching" })) actor.send({ type: "RESEARCH_RESULT", pool: null });
+      actor.send({ type: "GUESS", larger: null });
       expect(actor.getSnapshot().matches({ active: { problem: "reading" } })).toBe(true);
       expect(actor.getSnapshot().context.line?.source).toBe("template");
       solveProblem(actor);
@@ -892,6 +940,9 @@ function checkScreenEn(s: Snap): void {
           [...v.gallery.flatMap((g) => g.statements.map((x) => x.text)), ...(v.scenes?.items ?? []).flatMap((i) => i.lines)]
         : v.screen === "help"
           ? v.statements.map((x) => x.text)
+          : v.screen === "guess"
+            ? // The outlines carry the problem's own number only (core's gate show_world passed them).
+              [...v.statements.map((x) => x.text), ...v.tapes.map((x) => x.value)]
           : v.screen === "wordbook"
             ? // The word book's sentences carry the page's own numbers, checked by core (wordbookPage).
               (v.page?.lines ?? [])
@@ -933,6 +984,7 @@ describe("the English screen", () => {
 
   it("the restatement in English keeps the holder's name as in the problem", () => {
     const actor = run({ introSeen: true, consented: true, lang: "en" });
+    actor.send({ type: "GUESS", larger: null });
     actor.send({ type: "PREDICT", answer: "fits" });
     place(actor, true);
     const p = actor.getSnapshot().context.problem;

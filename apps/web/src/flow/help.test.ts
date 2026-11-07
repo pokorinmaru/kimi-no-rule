@@ -84,6 +84,7 @@ function checkHelpScreen(a: Actor, lang: "ja" | "en" = "ja"): void {
 describe("the word book opens by itself where the criteria require (指示書 第11節 M7)", () => {
   it("on a wording new in the session, after the first fix, even when every sentence fits; closing goes on", () => {
     const a = run();
+    a.send({ type: "GUESS", larger: null });
     a.send({ type: "PREDICT", answer: "odd" });
     fix(a, true);
     const v = view(a);
@@ -99,6 +100,7 @@ describe("the word book opens by itself where the criteria require (指示書 �
 
   it("after the second failed fix, every time; one more fix after it, then the problem is held", () => {
     const a = run();
+    a.send({ type: "GUESS", larger: null });
     a.send({ type: "PREDICT", answer: "fits" });
     fix(a, false);
     // First fix on a new wording: the book.
@@ -117,6 +119,7 @@ describe("the word book opens by itself where the criteria require (指示書 �
 
   it("a wording seen earlier in the session: no book after the first fix, the staged questions instead; the book after the second", () => {
     const a = run({ bank: NO_BANK, maxProblems: 2 });
+    a.send({ type: "GUESS", larger: null });
     a.send({ type: "PREDICT", answer: "fits" });
     fix(a, true);
     a.send({ type: "NEXT" }); // close the book
@@ -128,6 +131,7 @@ describe("the word book opens by itself where the criteria require (指示書 �
     a.send({ type: "RESEARCH_RESULT", pool: null });
     const s = a.getSnapshot();
     expect(s.context.problem?.newWording).toBe(false);
+    a.send({ type: "GUESS", larger: null });
     a.send({ type: "PREDICT", answer: "fits" });
     fix(a, false);
     expect(view(a).screen).toBe("help");
@@ -144,6 +148,7 @@ describe("the word book opens by itself where the criteria require (指示書 �
 describe("the staged questions (a) read again, (b) which is longer, (c) the word book", () => {
   it("「わからない」 while looking opens them in order, each a fixed line; the length answer is kept and never judged", () => {
     const a = run();
+    a.send({ type: "GUESS", larger: null });
     a.send({ type: "PREDICT", answer: "odd" });
     a.send({ type: "DONT_KNOW" });
     let v = view(a);
@@ -181,6 +186,7 @@ describe("the staged questions (a) read again, (b) which is longer, (c) the word
 
   it("「わからない」 on each step moves to the next; on the offer and the book it opens the waiting screen, and 「つづける」 comes back", () => {
     const a = run();
+    a.send({ type: "GUESS", larger: null });
     a.send({ type: "PREDICT", answer: "odd" });
     const e = ends(a);
     a.send({ type: "PLACE_ONE", quantityId: e.subject });
@@ -203,6 +209,7 @@ describe("the staged questions (a) read again, (b) which is longer, (c) the word
 
   it("「あとで」 on the offer goes back to the junior's world without the book", () => {
     const a = run();
+    a.send({ type: "GUESS", larger: null });
     a.send({ type: "PREDICT", answer: "odd" });
     a.send({ type: "DONT_KNOW" });
     a.send({ type: "NEXT" });
@@ -234,6 +241,7 @@ describe("the staged questions (a) read again, (b) which is longer, (c) the word
     for (const go of paths) {
       for (const ev of [{ type: "STOP" }, { type: "HARD" }] as const) {
         const a = run();
+        a.send({ type: "GUESS", larger: null });
         a.send({ type: "PREDICT", answer: "odd" });
         go(a);
         expect(["help", "wordbook"]).toContain(view(a).screen);
@@ -248,6 +256,7 @@ describe("the staged questions (a) read again, (b) which is longer, (c) the word
 describe("research does not count a reading made after the word book showed its wording", () => {
   it("the book opened before the first placement: the first reading is not observed and no research request is built", () => {
     const a = run();
+    a.send({ type: "GUESS", larger: null });
     a.send({ type: "PREDICT", answer: "odd" });
     a.send({ type: "DONT_KNOW" });
     a.send({ type: "NEXT" });
@@ -263,6 +272,7 @@ describe("research does not count a reading made after the word book showed its 
 
   it("without the book the same first reading is observed", () => {
     const a = run();
+    a.send({ type: "GUESS", larger: null });
     a.send({ type: "PREDICT", answer: "odd" });
     fix(a, false);
     expect(a.getSnapshot().context.research.readings).toHaveLength(1);
@@ -272,6 +282,7 @@ describe("research does not count a reading made after the word book showed its 
   it("a later problem with a wording whose page was opened is not observed; one with another wording is", () => {
     const motoni = byId("p_bank_motoni");
     const a = run({ bank: [...NO_BANK.slice(0, 1), motoni, ...NO_BANK.slice(1)], maxProblems: 3 });
+    a.send({ type: "GUESS", larger: null });
     a.send({ type: "PREDICT", answer: "fits" });
     fix(a, true);
     expect(view(a).screen).toBe("wordbook");
@@ -284,6 +295,7 @@ describe("research does not count a reading made after the word book showed its 
     const p = a.getSnapshot().context.problem;
     if (p === null) return;
     const opened = p.pages.some((pg) => a.getSnapshot().context.wordbookOpened.includes(pg));
+    a.send({ type: "GUESS", larger: null });
     a.send({ type: "PREDICT", answer: "fits" });
     fix(a, false);
     expect(a.getSnapshot().context.research.readings.length).toBe(opened ? n : n + 1);
