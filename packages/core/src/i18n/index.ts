@@ -93,7 +93,7 @@ export const TEMPLATES = {
   "answer_only.ask": {
     slots: [],
     ja: ["どう考えたのか、世界で見せてくれる？", "その考え方を、世界の形で見せて", "どう読んだか、テープで見せてくれる？"],
-    en: ["Can you show me how you thought, with the world?", "Show me your way of reading on the tapes.", "How did you read it? Show me in the world."],
+    en: ["Can you show me how you thought, with the world?", "Show me on the tapes how the problem reads.", "How did you read it? Show me in the world."],
   },
   "show_by_finger.ask": {
     slots: [],
@@ -141,7 +141,7 @@ export const TEMPLATES = {
   "fix.ask": {
     slots: [],
     ja: ["じゃあ、世界を直してみようか", "世界を、自分の読み方に直してみよう", "テープを動かして、世界を直してみよう"],
-    en: ["Then let's fix the world.", "Let's make the world match how you read it.", "Move the tapes and fix the world."],
+    en: ["Then let's fix the world.", "Let's make the world match the sentences.", "Move the tapes and fix the world."],
   },
   "kohai.read": {
     slots: [],
@@ -157,7 +157,7 @@ export const TEMPLATES = {
     ],
     en: [
       "With this reading, a sentence does not fit. Which part is off?",
-      "A sentence does not fit. Senpai, what looks strange?",
+      "A sentence does not fit. What looks strange?",
       "This sentence does not fit. What should I change?",
     ],
   },
@@ -179,7 +179,7 @@ export const TEMPLATES = {
   "kohai.result": {
     slots: [],
     ja: ["先輩の読み方で読んだら、どの文も合いました", "教わった読み方にしたら、文がぜんぶそろいました", "その読み方だと、合わない文がなくなりました"],
-    en: ["Reading it your way, every sentence fit.", "With the reading you taught me, all the sentences fit.", "With that reading, the sentences all lined up."],
+    en: ["Reading it that way, every sentence fit.", "With that reading, all the sentences fit.", "With that reading, the sentences all lined up."],
   },
   "kohai.wordbook": {
     slots: [],

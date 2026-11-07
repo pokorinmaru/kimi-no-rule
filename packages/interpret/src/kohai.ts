@@ -54,13 +54,13 @@ const MAX_CHARS = 40;
 const RELATION_WORDS =
   /はず|べき|ないと|なくちゃ|なければ|本当は|ほんとうは|ほんとは|実は|じつは|本来|半分|倍|同じ|多い|少ない|大きい|小さい|\bshould\b|\bactually\b|\breally\b|\bmust\b|\bsupposed\b|\bought\b|\bhas to\b|\bhalf\b|\btimes\b|\bsame\b|\btwice\b|\bdouble\b|\bmore\b|\bfewer\b|\bless\b|\bbigger\b|\bsmaller\b/gi;
 const JUDGING =
-  /正しい|ただしい|間違|まちが|惜しい|おしい|すごい|さすが|ほんとに|本当に|えー|せいかい|正解|ありがと|合って(い)?ます(?!か)|そのとおり|よくでき|えらい|いいね|ばっちり|ぴったり|だいじょうぶ|大丈夫|がんば|ならできる|\bcorrect\b|\bwrong\b|\bright answer\b|\bclose\b|\bgreat\b|\bawesome\b|\bgood\b|\bnice\b|\bwell done\b|\bperfect\b|\bthank|\breally\?/i;
+  /正しい|ただしい|間違|まちが|惜しい|おしい|すごい|さすが|ほんとに|本当に|えー|せいかい|正解|ありがと|合って(い)?ます(?!か)|そのとおり|よくでき|えらい|いいね|ばっちり|ぴったり|だいじょうぶ|大丈夫|がんば|ならできる|\bcorrect\b|\bwrong\b|\bright answer\b|\bthat'?s right\b|\byou'?re right\b|\bexactly\b|\bamazing\b|\bsmart\b|\bclever\b|\bexcellent\b|\bgood job\b|\bmistake\b|\bclose\b|\bgreat\b|\bawesome\b|\bgood\b|\bnice\b|\bwell done\b|\bperfect\b|\bthank|\breally\?/i;
 const FEELING =
   /うれしい|嬉しい|さみしい|寂しい|たのしい|楽しい|かなしい|悲しい|ごめん|いっしょに|また来て|好き|すき|友だち|ともだち|友達|先輩も|きみのため|\bhappy\b|\bsad\b|\blonely\b|\bfun\b|\bsorry\b|\bfriend|\blove\b|\blike you\b|\bmiss you\b|come back|\btogether\b/i;
 const MIND =
   /と思|思う|思い|気が(する|します|して|した)|感じ|わかる気|かんがえ|考え|わかりました|わかった|おぼえ|覚え|まよ|ふしぎ|びっくり|\bI think\b|\bI feel\b|\bI guess\b|\bI believe\b|seems to me|\bconfused\b|\bI am sure\b|\bI'm sure\b|\bwonder\b|\bI know\b/i;
 /** Putting the child's reading in the junior's mouth, or saying where the junior's reading came from. */
-const ATTRIBUTION = /先輩の(読み|考え|まね|やり方)|きみの|君の|あなたの|まね|\byour (reading|way|rule|idea)\b|\blike you\b|\byou read\b|\bcopied\b/i;
+const ATTRIBUTION = /先輩の(読み|考え|まね|やり方)|きみの|君の|あなたの|まね|\byour (reading|way|rule|idea)\b|\blike you\b|\bsame as you\b|\byou read\b|\bcopied\b|\blearned from you\b|\byou taught me\b/i;
 /** Questions about the child, not about the problem. */
 const ABOUT_THE_CHILD = /なまえ|名前|どこ|住ん|すん|学校|がっこう|ねんせい|年生|なんさい|何さい|何歳|おうち|家族|かぞく|\bname\b|\blive\b|\bschool\b|\bage\b|how old|\bgrade\b/i;
 /** Words for the shape of the junior's own world, which is already on the screen. */
