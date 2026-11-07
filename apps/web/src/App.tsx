@@ -9,7 +9,9 @@ import { startSession, type Session } from "./flow/session.ts";
 import { viewOf, type FlowView, type ProblemView } from "./flow/view.ts";
 import { openStore, type FlowStore } from "./store/store.ts";
 
-export const APP_TITLE = "君のルールで世界を作る";
+/** The heading the child sees. The work's name (君のルールで世界を作る) is not shown to the child: it would
+ * attribute the reading to the child (原則10, 指示書 第11節 M7). */
+export const APP_TITLE = "後輩と問題を読もう";
 
 const page: CSSProperties = { maxWidth: 760, margin: "0 auto", padding: "16px", fontFamily: "system-ui, sans-serif", fontSize: 20, lineHeight: 1.6, color: "#1f2933" };
 const big: CSSProperties = { minHeight: 48, minWidth: 48, padding: "8px 18px", fontSize: 20, borderRadius: 12, border: "2px solid #52606d", background: "#fff", cursor: "pointer" };
