@@ -99,13 +99,21 @@ async function callChecked<T>(
   check: (value: T) => boolean,
   timeoutMs: number,
 ): Promise<{ kind: "ok"; value: T } | { kind: "refusal" | "max_tokens" | "invalid" | "timeout" }> {
-  const jsonSchema = z.toJSONSchema(schema, { target: "draft-2020-12" }) as Record<string, unknown>;
+  // The per-problem schema is too large for the API's structured-output grammar ("compiled grammar is too
+  // large", found in the live eval): ask for the result as JSON text in one string field, give the schema
+  // in the cached context, and check the reply with the same per-problem zod schema as before (Q41).
+  const fullSchema = z.toJSONSchema(schema, { target: "draft-2020-12" }) as Record<string, unknown>;
+  const jsonSchema: Record<string, unknown> = RESULT_WRAPPER;
+  const context = `${cachedContext}
+
+${RESULT_INSTRUCTION}
+${JSON.stringify(fullSchema)}`;
   const started = Date.now();
   for (let attempt = 0; attempt < 2; attempt++) {
     const left = timeoutMs - (Date.now() - started);
     if (left <= 0) return { kind: "timeout" };
     const res = await withDeadline(left, (signal) =>
-      client.complete({ model, system, cachedContext, userText, schema: jsonSchema, effort: "low", maxTokens: 2000, signal }),
+      client.complete({ model, system, cachedContext: context, userText, schema: jsonSchema, effort: "low", maxTokens: 2000, signal }),
     );
     if (res === "timeout") return { kind: "timeout" };
     if (res.stopReason === "refusal") return { kind: "refusal" };
@@ -116,9 +124,24 @@ async function callChecked<T>(
   return { kind: "invalid" };
 }
 
+/** The one field structured output is asked for; the result itself is JSON text inside it. */
+export const RESULT_WRAPPER: Record<string, unknown> = {
+  type: "object",
+  properties: { result_json: { type: "string", description: "The result as JSON text, following the JSON Schema given in the context." } },
+  required: ["result_json"],
+  additionalProperties: false,
+};
+const RESULT_INSTRUCTION = "Write your result as JSON text in result_json. The JSON must follow this JSON Schema:";
+
 function parseJson<T>(text: string, schema: z.ZodType<T>): Parsed<T> {
   try {
-    const r = schema.safeParse(JSON.parse(text));
+    const outer: unknown = JSON.parse(text);
+    // The reply wraps the result as text; a reply that is the result itself is taken as it is.
+    const inner =
+      outer !== null && typeof outer === "object" && typeof (outer as { result_json?: unknown }).result_json === "string"
+        ? JSON.parse((outer as { result_json: string }).result_json)
+        : outer;
+    const r = schema.safeParse(inner);
     return r.success ? { ok: true, value: r.data } : { ok: false };
   } catch {
     return { ok: false };

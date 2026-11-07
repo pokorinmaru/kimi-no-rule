@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { problemScopedSchemas, validateOps, type AnyOp } from "@kimi/core";
 import { MODELS } from "./client.ts";
-import { interpret, type InterpretInput } from "./interpret.ts";
+import { RESULT_WRAPPER, interpret, type InterpretInput } from "./interpret.ts";
 import { FakeClaude, fails, json, stopped, text } from "./fake.ts";
 import { fingerReference, interpretationOf, record, requestText } from "./test-support.ts";
 
@@ -42,9 +42,10 @@ describe("interpret: a good answer", () => {
     expect(req?.model).toBe(MODELS.listen);
     expect(req?.effort).toBe("low");
     expect(req?.maxTokens).toBeGreaterThan(0);
-    expect(typeof req?.schema).toBe("object");
-    // The schema is narrowed to this problem: its ids are listed, a foreign id is not.
-    const schemaText = JSON.stringify(req?.schema);
+    // Structured output gets one string field (the per-problem grammar is too large for the API, Q41);
+    // the per-problem schema goes in the cached context and the reply is checked against it.
+    expect(req?.schema).toEqual(RESULT_WRAPPER);
+    const schemaText = req?.cachedContext ?? "";
     expect(schemaText).toContain("r_ratio");
     expect(schemaText).toContain("q_otouto");
     expect(schemaText).not.toContain("r_nowhere");
