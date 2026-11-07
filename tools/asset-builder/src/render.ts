@@ -1,7 +1,8 @@
 // Renders a part the way the reviewer sees it, in headless Chromium (Playwright): large, small as in the app on a
 // tablet (an item about 44 px; a container about 180 px), and an item cut to its left half, on a white sheet.
 import { chromium, type Browser } from "playwright";
-import { CONTAINER_INNER, PALETTE, type PartId } from "../../../apps/web/src/draw/assets/spec.ts";
+import { PALETTE, type PartId } from "../../../apps/web/src/draw/assets/spec.ts";
+import { containerInnerOf } from "../../../apps/web/src/draw/stage-layout.ts";
 import { kindOf } from "./spec-check.ts";
 
 export interface Renderer {
@@ -25,7 +26,7 @@ function sheet(part: PartId, svg: string): string {
   // and the front layer, so the reviewer can see whether every thing stays visible.
   const filled =
     kind === "container"
-      ? `<div class="cell">${sized(withThings(svg), big)}<p>filled with 40 things</p></div>`
+      ? `<div class="cell">${sized(withThings(svg, part), big)}<p>filled with 40 things</p></div>`
       : "";
   return `<!doctype html><html><body style="margin:0;background:#fff;font:14px sans-serif">
 <div id="s" style="display:flex;gap:32px;align-items:flex-end;padding:24px;background:#fff">
@@ -35,9 +36,10 @@ ${cut}${filled}
 </div></body></html>`;
 }
 
-/** The container with 40 placeholder things drawn between its back and front layers. */
-export function withThings(svg: string): string {
-  const { x, y, w, h } = CONTAINER_INNER;
+/** The container with 40 placeholder things drawn between its back and front layers, in the part's own plain inside
+ * (CONTAINER_INNER_OF, as the app lays them out; the shared box put things over the rims of some parts). */
+export function withThings(svg: string, part: string = ""): string {
+  const { x, y, w, h } = containerInnerOf(part);
   const cols = 8;
   const rows = 5;
   const cw = w / cols;
@@ -54,7 +56,8 @@ export function withThings(svg: string): string {
 export async function createRenderer(): Promise<Renderer> {
   const browser: Browser = await chromium.launch();
   const page = async (html: string, selector: string): Promise<Uint8Array> => {
-    const p = await browser.newPage({ deviceScaleFactor: 1 });
+    // Wide enough for the whole review sheet (a 1280 px page cut off the right of the filled container).
+    const p = await browser.newPage({ deviceScaleFactor: 1, viewport: { width: 2000, height: 900 } });
     try {
       await p.setContent(html);
       return new Uint8Array(await p.locator(selector).screenshot({ type: "png" }));
