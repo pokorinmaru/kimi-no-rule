@@ -333,6 +333,11 @@ describe("the parts loader", () => {
       for (const h of COMMON_FRACTION_READINGS) {
         const scene = sceneOf(r, runRule(h, r));
         const l = layoutStage(scene);
+        // A pairing is always one panel, the holders one above the other.
+        if (scene.pairing !== null) {
+          expect(l?.stacked).toBe(true);
+          continue;
+        }
         const side = layoutStage(scene, "side");
         const stacked = layoutStage(scene, "stacked");
         if (l === null || side === null || stacked === null) continue;
@@ -519,5 +524,79 @@ describe("words and accessibility", () => {
     );
     const res = await axe.run(container, { resultTypes: ["violations"] });
     expect(res.violations.map((v) => v.id)).toEqual([]);
+  });
+});
+
+describe("an additive reading is drawn as a one-to-one pairing", () => {
+  const r = bank("p_signboard");
+  const scene = sceneOf(r, runRule(rule("c_additive"), r));
+
+  it("lays both holders in one panel, the same size and columns, thing i above thing i, the 3 unpaired in dashed boxes", () => {
+    const l = layoutStage(scene);
+    if (l === null || l.pairing === null) throw new Error("pairing");
+    const [ani, oto] = l.holders;
+    if (ani === undefined || oto === undefined) throw new Error("holders");
+    expect(ani.things).toHaveLength(6);
+    expect(oto.things).toHaveLength(9);
+    expect(ani.things[0]?.size).toBeCloseTo(oto.things[0]?.size ?? -1, 9);
+    for (let i = 0; i < 6; i++) expect(ani.things[i]?.x).toBeCloseTo(oto.things[i]?.x ?? NaN, 9);
+    // One row per holder when it fits at a roomy size.
+    for (const x of [ani, oto]) expect(new Set(x.things.map((t) => Math.round(t.y * 1000))).size).toBe(1);
+    expect(l.pairing.lines).toHaveLength(6);
+    for (const ln of l.pairing.lines) expect(ln.x1).toBeCloseTo(ln.x2, 9);
+    expect(l.pairing.larger).toBe("h_otouto");
+    // The boxes hold exactly the younger brother's things 7 to 9 and none of the paired ones.
+    const off = l.pairing.offsets[1] ?? 0;
+    const inBox = (t: { x: number; y: number; size: number }) =>
+      l.pairing?.unpaired.some((b) => t.x >= b.x && t.x + t.size <= b.x + b.w && off + t.y >= b.y && off + t.y + t.size <= b.y + b.h) ?? false;
+    expect(oto.things.map(inBox)).toEqual([false, false, false, false, false, false, true, true, true]);
+    // Both containers drawn; one panel.
+    expect(ani.box).not.toBeNull();
+    expect(oto.box).not.toBeNull();
+    expect(l.height).toBeCloseTo((l.pairing.offsets[1] ?? 0) + oto.height, 9);
+  });
+
+  it("draws one line per pair and a dashed box for the unpaired things; says what is drawn, no verdict", () => {
+    const { container } = render(<ObjectSceneView scene={scene} reducedMotion />);
+    expect(q(container, '[data-role="pair-line"]')).toHaveLength(6);
+    const boxes = q(container, '[data-role="unpaired"]');
+    expect(boxes.length).toBeGreaterThan(0);
+    for (const b of boxes) expect(b.getAttribute("stroke-dasharray")).not.toBeNull();
+    expect(q(container, '[data-role="stage-holder"]')).toHaveLength(2);
+    const desc = container.querySelector('[data-role="stage-description"]')?.textContent ?? "";
+    expect(desc).toContain("弟の 金魚のうち 3匹は、あいてが いません");
+    expect(desc).not.toContain("合わない");
+    const en = render(<ObjectSceneView scene={scene} reducedMotion lang="en" />);
+    expect(en.container.querySelector('[data-role="stage-description"]')?.textContent ?? "").toContain("have no partner");
+  });
+
+  it("rows that must wrap wrap the same for both holders, so thing i still sits above thing i", () => {
+    const card = bank("p_bank_card");
+    const l = layoutStage(sceneOf(card, runRule(rule("c_additive"), card)));
+    const [a, b] = l?.holders ?? [];
+    if (a === undefined || b === undefined) throw new Error("holders");
+    for (let i = 0; i < Math.min(a.things.length, b.things.length); i++) {
+      expect(a.things[i]?.x).toBeCloseTo(b.things[i]?.x ?? NaN, 9);
+      expect((a.things[i]?.y ?? 0) - (a.box?.y ?? 0)).toBeCloseTo((b.things[i]?.y ?? 0) - (b.box?.y ?? 0) + ((a.things[0]?.y ?? 0) - (a.box?.y ?? 0)) - ((b.things[0]?.y ?? 0) - (b.box?.y ?? 0)), 9);
+    }
+  });
+
+  it("the additive bank scenes: every bank problem pairs except where the gate hides a holder", () => {
+    const fellBack: string[] = [];
+    for (const p of FRACTION_BANK.filter((x) => x.world.item_kinds.every((k) => k.countable))) {
+      const s = sceneOf(p, runRule(rule("c_additive"), p));
+      const l = layoutStage(s);
+      if (s.pairing === null) {
+        fellBack.push(p.world.problem_id);
+        expect(l?.pairing ?? null).toBeNull();
+      } else expect(l?.pairing?.lines).toHaveLength(s.pairing.paired);
+    }
+    expect(fellBack).toEqual(["p_bank_motoni"]);
+  });
+
+  it("the pairing's words have readings for every kanji", () => {
+    const w = ui("ja").draw;
+    for (const line of [w.stagePaired("A", "B", "C"), w.stageUnpaired("A", "B", "3C")])
+      for (const seg of rubySegments(line, UI_READINGS)) if (seg.ruby === null) expect(/[一-鿿]/.test(seg.text), `${seg.text} in ${line}`).toBe(false);
   });
 });

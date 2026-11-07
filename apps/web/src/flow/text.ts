@@ -218,6 +218,9 @@ export interface UiText {
     stageCut: (noun: string, half: boolean, ghost: boolean) => string;
     /** A number of things as drawn: wholes and the last piece. */
     amount: (wholes: number, piece: { num: number; den: number } | null, counter: string) => string;
+    /** An additive reading drawn as a one-to-one pairing: what is lined up, and the things without a partner. */
+    stagePaired: (smaller: string, larger: string, noun: string) => string;
+    stageUnpaired: (label: string, noun: string, count: string) => string;
   };
 }
 
@@ -401,6 +404,8 @@ const JA: UiText = {
     stageEach: (count) => `おさら ひとつに ${count}`,
     stageCut: (noun, half, ghost) =>
       ghost ? (half ? `はんぶんだけの ${noun}が あります` : `かけた ${noun}が あります`) : half ? `はんぶんに きれた ${noun}が あります` : `きれた ${noun}が あります`,
+    stagePaired: (smaller, larger, noun) => `${smaller}の ${noun}と ${larger}の ${noun}を、ひとつずつ ならべています`,
+    stageUnpaired: (label, noun, count) => `${label}の ${noun}のうち ${count}は、あいてが いません`,
     amount: (wholes, piece, counter) => {
       const p = piece === null ? "" : piece.num * 2 === piece.den ? "はんぶん" : `${String(piece.den)}ぶんの${String(piece.num)}`;
       if (wholes === 0) return p === "" ? `0${counter}` : p;
@@ -557,6 +562,8 @@ const EN: UiText = {
     stageEach: (count) => `${count} on each dish`,
     stageCut: (noun, half, ghost) =>
       ghost ? (half ? `There is half a ${noun}` : `There is part of a ${noun}`) : half ? `There is a ${noun} cut in half` : `There is a cut ${noun}`,
+    stagePaired: (smaller, larger, noun) => `${smaller}'s ${noun} and ${larger}'s ${noun} are lined up one to one`,
+    stageUnpaired: (label, noun, count) => `${count} of ${label}'s ${noun} have no partner`,
     amount: (wholes, piece, counter) => {
       const p = piece === null ? "" : piece.num * 2 === piece.den ? "a half" : `${String(piece.num)}/${String(piece.den)}`;
       const w = `${String(wholes)} ${counter}`.trim();

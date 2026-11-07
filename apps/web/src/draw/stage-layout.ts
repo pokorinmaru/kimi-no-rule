@@ -57,6 +57,21 @@ export interface StageLayout {
   /** The holders one above the other at full width (side by side could not keep every thing large enough). */
   stacked: boolean;
   holders: StageHolderLayout[];
+  /**
+   * An additive reading drawn as a one-to-one pairing: both holders in ONE panel, one above the other (holder i at
+   * offsets[i]), with the same thing size and columns, so thing i of one sits above thing i of the other. A light
+   * line joins each pair; the larger holder's things without a partner sit in dashed boxes. Coordinates are the
+   * combined panel's. Null otherwise.
+   */
+  pairing: StagePairing | null;
+}
+
+export interface StagePairing {
+  offsets: number[];
+  lines: { x1: number; y1: number; x2: number; y2: number }[];
+  /** One box per row of the larger holder's unpaired things. */
+  unpaired: Box[];
+  larger: string;
 }
 
 /** A thing is drawn this share of its cell, so neighbours never touch. */
@@ -301,12 +316,45 @@ export function layoutStage(scene: ObjectScene, mode?: "side" | "stacked"): Stag
   const found = scene.holders.map((h) => itemPartFor(scene.item.noun, h.label));
   if (found.some((p) => p === null)) return null;
   const parts = found as ItemPart[];
+  if (scene.pairing !== null) return paired(arrange(scene, parts, true), scene.pairing);
   if (mode !== undefined) return arrange(scene, parts, mode === "stacked");
   const side = arrange(scene, parts, false);
   const stacked = arrange(scene, parts, true);
   if (!meetsSizes(side)) return stacked;
   if (meetsSizes(stacked) && heightPx(stacked) < heightPx(side)) return stacked;
   return side;
+}
+
+/** The gap between the two holders of a pairing, in panel units. */
+const PAIR_GAP = 16;
+
+/** Both holders in one panel, one above the other, their things paired one to one by index. */
+function paired(l: StageLayout, p: NonNullable<ObjectScene["pairing"]>): StageLayout {
+  const [top, bottom] = l.holders;
+  if (top === undefined || bottom === undefined) return l;
+  const offsets = [0, top.height + PAIR_GAP];
+  const off1 = offsets[1] ?? 0;
+  const lines: StagePairing["lines"] = [];
+  for (let i = 0; i < p.paired; i++) {
+    const a = top.things[i];
+    const b = bottom.things[i];
+    if (a === undefined || b === undefined) continue;
+    lines.push({ x1: a.x + a.size / 2, y1: a.y + a.size * 0.95, x2: b.x + b.size / 2, y2: off1 + b.y + b.size * 0.1 });
+  }
+  const largeIndex = l.holders.findIndex((h) => h.holderId === p.larger);
+  const large = l.holders[largeIndex];
+  const dy = offsets[largeIndex] ?? 0;
+  const rows = new Map<number, ThingLayout[]>();
+  for (const t of (large?.things ?? []).slice(p.paired)) rows.set(Math.round(t.y * 1000), [...(rows.get(Math.round(t.y * 1000)) ?? []), t]);
+  const pad = 4;
+  const unpaired = [...rows.values()].map((ts) => {
+    const x0 = Math.min(...ts.map((t) => t.x));
+    const x1 = Math.max(...ts.map((t) => t.x + t.size));
+    const y0 = Math.min(...ts.map((t) => t.y));
+    const y1 = Math.max(...ts.map((t) => t.y + t.size));
+    return { x: x0 - pad, y: dy + y0 - pad, w: x1 - x0 + 2 * pad, h: y1 - y0 + 2 * pad };
+  });
+  return { ...l, height: off1 + bottom.height, pairing: { offsets, lines, unpaired, larger: p.larger } };
 }
 
 /** The least shorter side (px) a thing's drawing must keep where it is: on a dish by how many share it, else the side-by-side floor. */
@@ -356,8 +404,22 @@ function arrange(scene: ObjectScene, parts: ItemPart[], stacked: boolean): Stage
     while (k < fullK && fit(k) < want && (k < PANEL.stackedContainerMax || fit(k) < minThing)) k += 0.05;
     k = Math.min(k, fullK);
   }
-  const keptSize = fit(k);
-  const keptCols = Math.max(1, Math.min(Math.max(most, 1), Math.floor((innerW * k) / keptSize + 1e-9)));
+  let keptSize = fit(k);
+  let keptCols = Math.max(1, Math.min(Math.max(most, 1), Math.floor((innerW * k) / keptSize + 1e-9)));
+  if (scene.pairing !== null && stacked) {
+    // A pairing reads best in one row per holder: the smallest container that holds the larger count in one row
+    // at a roomy size; else the rows wrap, the same for both holders.
+    const roomy = Math.max(minThing, PANEL.roomyThing);
+    for (let kk = 1; kk <= fullK + 1e-9; kk += 0.05) {
+      const row = Math.min((innerW * kk) / Math.max(1, most), innerH * kk, PANEL.maxThing);
+      if (row >= roomy) {
+        k = kk;
+        keptSize = row;
+        keptCols = Math.max(1, most);
+        break;
+      }
+    }
+  }
 
   // One pile for every dish (every dish gets the same share): things at least PANEL.dishFewPx (3 or fewer) or
   // PANEL.dishManyPx, as many dishes side by side as keep that, each plate only as wide as its things.
@@ -455,5 +517,5 @@ function arrange(scene: ObjectScene, parts: ItemPart[], stacked: boolean): Stage
       things,
     };
   });
-  return { width: W, height: Math.max(0, ...holders.map((h) => h.height)), stacked, holders };
+  return { width: W, height: Math.max(0, ...holders.map((h) => h.height)), stacked, holders, pairing: null };
 }

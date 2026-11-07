@@ -17,6 +17,8 @@ export const ITEM_PARTS = [
   "mikan",
   "apple",
   "card",
+  // Continuous: a length of yarn (cut lengths are its pieces). Liquids have no item part: they are poured into cups.
+  "yarn",
 ] as const;
 export type ItemPart = (typeof ITEM_PARTS)[number];
 
@@ -34,11 +36,12 @@ export const shareStyleOf = (item: ItemPart): ShareStyle => ITEM_SHARE[item] ?? 
 /** Where a holder keeps its things. Drawn in two layers so the things sit inside: back, then things, then front. */
 // Each shows every thing inside, side by side and countable, up to MAX_THINGS (the bank's largest count across the
 // worlds the app can show is 54 cards): a clear wide tank, a flower bed, baskets and trays seen from above, a sheet.
-export const CONTAINER_PARTS = ["tank", "cooler", "flowerbed", "basket", "sheet", "tray"] as const;
+export const CONTAINER_PARTS = ["tank", "cooler", "flowerbed", "basket", "sheet", "tray", "bottle", "pail", "yarn_ball"] as const;
 export type ContainerPart = (typeof CONTAINER_PARTS)[number];
 
 /** The dish the things are dealt onto, one per segment of the relation (the "1" is so many dishes). */
-export const GROUP_PARTS = ["plate"] as const;
+// plate: countable things are dealt onto it. cup: a liquid is poured into same-size cups (a cup part-filled is its piece).
+export const GROUP_PARTS = ["plate", "cup"] as const;
 export type GroupPart = (typeof GROUP_PARTS)[number];
 
 export type PartId = ItemPart | ContainerPart | GroupPart;
@@ -91,6 +94,7 @@ export function itemPartFor(noun: string, holderLabel: string): ItemPart | null 
   if (noun === "花") return holderLabel.includes("赤") ? "flower_red" : "flower_white";
   if (noun === "くだもの") return holderLabel.includes("みかん") ? "mikan" : "apple";
   if (noun === "カード") return "card";
+  if (noun === "毛糸") return "yarn";
   return null;
 }
 
@@ -102,5 +106,6 @@ export function containerPartFor(item: ItemPart): ContainerPart {
   if (item === "tulip" || item === "flower_white" || item === "flower_red") return "flowerbed";
   if (item === "mikan" || item === "apple") return "basket";
   if (item === "sticker") return "sheet";
+  if (item === "yarn") return "yarn_ball";
   return "tray";
 }

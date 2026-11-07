@@ -212,3 +212,50 @@ describe("the gate over the bank and the common readings (no hidden correct valu
     );
   });
 });
+
+describe("an additive reading is drawn as a one-to-one pairing", () => {
+  it("the signboard read as '3 fewer': the older brother's 6 pair with 6 of the younger's 9, 3 have no partner", () => {
+    const r = bank("p_signboard");
+    const s = objectScene(asDrawn(runRule(rule("c_additive"), r)), r.world, { values: [] });
+    if (s === null) throw new Error("scene");
+    expect(s.pairing).toEqual({ paired: 6, extra: 3, larger: "h_otouto" });
+    expect(s.share).toBeNull();
+  });
+
+  it("is absent for a multiple, and for the correct world", () => {
+    const r = bank("p_signboard");
+    expect(objectScene(asDrawn(runRule(rule("c_known_whole"), r)), r.world, { values: [] })?.pairing).toBeNull();
+    expect(objectScene(asDrawn(r.world), r.world, { values: [] })?.pairing).toBeNull();
+  });
+
+  it("falls back (no pairing) when the paired or the extra count is a hidden correct value", () => {
+    const r = bank("p_signboard");
+    const w = asDrawn(r.world);
+    // 6 = younger - 2: the younger has 8 (hidden: the answer) -> the holder itself is hidden, no pairing.
+    const eight: WorldScene = { ...w, relations: w.relations.map((x) => ({ ...x, operator: "less_by" as const, subject: "q_ani", reference: "q_otouto", amount: n(2) })) };
+    expect(objectScene(eight, r.world, { values: [] })?.pairing).toBeNull();
+    // 6 = younger - 4: the younger has 10, the extra is 4... not hidden; but 6 + 2 = 8 is not drawn. Pairing shows.
+    const ten: WorldScene = { ...w, relations: w.relations.map((x) => ({ ...x, operator: "less_by" as const, subject: "q_ani", reference: "q_otouto", amount: n(4) })) };
+    expect(objectScene(ten, r.world, { values: [] })?.pairing).toEqual({ paired: 6, extra: 4, larger: "h_otouto" });
+    // 6 = younger - 2 with a hidden one segment of 2: the extra 2 equals the hidden one segment -> no pairing.
+    // (the younger then has 8, hidden anyway); use 6 = younger + 2 instead: younger 4, extra 2 = hidden one segment.
+    const four: WorldScene = { ...w, relations: w.relations.map((x) => ({ ...x, operator: "more_by" as const, subject: "q_ani", reference: "q_otouto", amount: n(2) })) };
+    const s4 = objectScene(four, r.world, { values: [] });
+    expect(s4?.holders.find((h) => h.holderId === "h_otouto")?.count).toEqual({ wholes: 4, piece: null });
+    expect(s4?.pairing).toBeNull();
+    // Once the child said 2, the pairing may show.
+    expect(objectScene(four, r.world, { values: [n(2)] })?.pairing).toEqual({ paired: 4, extra: 2, larger: "h_ani" });
+  });
+
+  it("over the bank's additive readings, no paired or extra count is ever a hidden value", () => {
+    for (const r of FRACTION_BANK.filter((x) => x.world.item_kinds.every((k) => k.countable))) {
+      const s = objectScene(asDrawn(runRule(rule("c_additive"), r)), r.world, { values: [] });
+      if (s === null) continue;
+      assertNoHiddenDrawn(s, `${r.world.problem_id} c_additive`);
+      if (s.pairing === null) continue;
+      const counts = s.holders.map((h) => h.count?.wholes ?? -1);
+      expect(Math.min(...counts)).toBe(s.pairing.paired);
+      expect(Math.max(...counts) - Math.min(...counts)).toBe(s.pairing.extra);
+    }
+  });
+});

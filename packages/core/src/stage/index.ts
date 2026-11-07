@@ -43,6 +43,13 @@ export interface ObjectScene {
   holders: StageHolder[];
   /** What one dish gets; null when nothing is dealt (no multiple, or the share is hidden). */
   share: StageAmount | null;
+  /**
+   * An additive reading (more_by / less_by) drawn as a one-to-one pairing: the smaller holder's things pair with as
+   * many of the larger holder's, and `extra` of the larger holder's have no partner. Null when the relation is not
+   * additive, a count is not whole or is hidden, or the paired or extra count is a hidden value (then the picture is
+   * the two containers only).
+   */
+  pairing: { paired: number; extra: number; larger: string } | null;
   /** The dealing does not come out in whole things. */
   breaks: boolean;
   /** The values that are never drawn here (the correct world's solution the child has not said). */
@@ -169,10 +176,28 @@ export function objectScene(shown: WorldScene, correct: WorldScene, said: { valu
     for (const x of holders) x.dishes = 0;
   }
 
+  // An additive reading: pair the two holders' things one to one; the larger holder's extra things have no partner.
+  let pairing: ObjectScene["pairing"] = null;
+  const additive = shown.relations.some((r) => (r.operator === "more_by" || r.operator === "less_by") && r.reference !== null);
+  const [ha, hb] = holders;
+  if (additive && share === null && ha !== undefined && hb !== undefined && ha.count !== null && hb.count !== null && ha.count.piece === null && hb.count.piece === null && !ha.impossible && !hb.impossible) {
+    const ca = ha.count.wholes;
+    const cb = hb.count.wholes;
+    if (ca !== cb) {
+      const [small, large] = ca < cb ? [ha, hb] : [hb, ha];
+      const paired = Math.min(ca, cb);
+      const extra = Math.abs(ca - cb);
+      // The extra count is a new number on the picture; the paired count is new unless it is the problem's own number.
+      const shows = [rat(extra), ...(small.given ? [] : [rat(paired)])];
+      if (!shows.some(isHiddenValue)) pairing = { paired, extra, larger: large.holderId };
+    }
+  }
+
   return {
     item: { id: kind.id, noun: kind.noun, counter: kind.counter },
     holders,
     share,
+    pairing,
     breaks,
     hidden: hidden.map(toSchema),
   };
@@ -186,7 +211,10 @@ export function objectScene(shown: WorldScene, correct: WorldScene, said: { valu
 export function drawnValues(s: ObjectScene): Rational[] {
   const counts = (a: StageAmount): Rational[] => (a.piece === null ? [amountValue(a)] : [amountValue(a), { num: a.wholes, den: 1 }]);
   const share = s.share;
+  const p = s.pairing;
+  const smallGiven = p === null ? true : s.holders.find((h) => h.holderId !== p.larger)?.given === true;
   return [
+    ...(p === null ? [] : [{ num: p.extra, den: 1 }, ...(smallGiven ? [] : [{ num: p.paired, den: 1 }])]),
     ...s.holders.flatMap((h) => (h.count === null || h.given ? [] : counts(h.count))),
     ...(share === null ? [] : counts(share)),
     ...(share === null || share.piece === null ? [] : s.holders.filter((h) => h.dishes > 0).map((h) => ({ num: h.dishes * share.wholes, den: 1 }))),

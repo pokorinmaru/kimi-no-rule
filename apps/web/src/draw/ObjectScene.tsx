@@ -11,7 +11,7 @@ import { PALETTE, shareStyleOf, type ItemPart, type ShareStyle } from "./assets/
 import { holderColors } from "./holder-colors.ts";
 import { MOTION } from "./motion-tokens.ts";
 import { useReducedMotion } from "./motion.ts";
-import { PANEL, THING_FILL, layoutStage, partBoxOf, pieceKeepOf, type StageLayout, type ThingLayout } from "./stage-layout.ts";
+import { PANEL, THING_FILL, layoutStage, partBoxOf, pieceKeepOf, type StageHolderLayout, type StageLayout, type ThingLayout } from "./stage-layout.ts";
 import { COLORS, FONT } from "./theme.ts";
 
 export interface ObjectSceneProps {
@@ -51,6 +51,14 @@ export function describeStage(scene: ObjectScene, layout: StageLayout, lang: Lan
     }
     return out;
   });
+  const p = scene.pairing;
+  if (p !== null && layout.pairing !== null) {
+    const large = scene.holders.find((h) => h.holderId === p.larger);
+    const small = scene.holders.find((h) => h.holderId !== p.larger);
+    if (large !== undefined && small !== undefined) {
+      parts.push(w.stagePaired(small.label, large.label, noun), w.stageUnpaired(large.label, noun, w.amount(p.extra, null, counter)));
+    }
+  }
   const cutHolders = layout.holders.filter((h) => h.things.some((t) => t.piece !== null));
   const pieces = cutHolders.flatMap((h) => h.things.filter((t) => t.piece !== null));
   const first = cutHolders[0];
@@ -160,6 +168,69 @@ export function ObjectSceneView({ scene, reducedMotion, lang = "ja", label, shar
 
   if (layout === null) return null;
   const plate = groupSvg();
+  const drawHolder = (h: StageHolderLayout, layer: "back" | "front" | "all" = "all") => {
+    const box = containerSvg(h.container);
+    const part = { ...itemSvg(h.item), id: h.item };
+    const color = colors.get(h.holderId);
+    const back = layer !== "front";
+    const front = layer !== "back";
+    return (
+      <>
+        {back && h.box !== null && (
+          <svg data-role="container" x={h.box.x} y={h.box.y} width={h.box.w} height={h.box.h} viewBox={box.viewBox}>
+            <g dangerouslySetInnerHTML={{ __html: box.back }} />
+          </svg>
+        )}
+        {back && h.soil.map((b, k) => (
+          <rect key={`s${String(k)}`} data-role="soil" x={b.x} y={b.y} width={b.w} height={b.h} rx={b.h / 2} fill={PALETTE.brown} stroke={PALETTE.outline} strokeWidth={3} />
+        ))}
+        {back && h.plates.map((d, k) => (
+          <svg key={`p${String(k)}`} data-role="dish" data-holder={h.holderId} x={d.x} y={d.y} width={d.w} height={d.h} viewBox={plate.viewBox} preserveAspectRatio="none" overflow="visible">
+            <g dangerouslySetInnerHTML={{ __html: plate.body }} />
+          </svg>
+        ))}
+        {front && h.things.map((t, i) => (
+          <Thing key={i} t={t} holderId={h.holderId} part={part} clipId={`${uid}-${h.holderId}-${String(i)}`} style={shareStyle(h.item)} />
+        ))}
+        {front && h.box !== null && (
+          <svg x={h.box.x} y={h.box.y} width={h.box.w} height={h.box.h} viewBox={box.viewBox} pointerEvents="none">
+            <g dangerouslySetInnerHTML={{ __html: box.front }} />
+          </svg>
+        )}
+        {front && h.unknown !== null && (
+          <text
+            data-role="stage-unknown"
+            data-holder={h.holderId}
+            x={h.unknown.x}
+            y={h.unknown.y}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill={COLORS.ink}
+            style={{ font: `800 64px ${FONT}` }}
+          >
+            ？
+          </text>
+        )}
+        {front && (
+          <>
+        <text
+          data-role="name-tag"
+          data-holder={h.holderId}
+          x={h.tag.x}
+          y={h.tag.y}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fill={color?.ink ?? COLORS.ink}
+          style={{ font: `700 26px ${FONT}` }}
+        >
+          {h.label}
+        </text>
+        {color !== undefined && <rect x={h.tag.x - 30} y={h.tag.y + 16} width={60} height={5} rx={2.5} fill={color.fill} />}
+          </>
+        )}
+      </>
+    );
+  };
   return (
     <div data-role="stage" data-breaks={scene.breaks ? "true" : "false"} style={{ position: "relative", marginBottom: 8 }}>
       {/* A ghost piece: every shape of the part as a dashed outline in the outline colour, unfilled, so it reads as a
@@ -172,83 +243,63 @@ export function ObjectSceneView({ scene, reducedMotion, lang = "ja", label, shar
         aria-describedby={`${uid}-d`}
         style={{ display: "flex", flexWrap: "wrap", gap: PANEL.gap, alignItems: "flex-start", background: COLORS.paper }}
       >
-        {layout.holders.map((h) => {
-          const box = containerSvg(h.container);
-          const part = { ...itemSvg(h.item), id: h.item };
-          const color = colors.get(h.holderId);
-          return (
-            // One panel per holder: side by side when two fit, stacked on a narrow screen; never overlapping.
-            <svg
-              key={h.holderId}
-              data-role="stage-holder"
-              data-holder={h.holderId}
-              data-hidden={h.hidden ? "true" : "false"}
-              aria-hidden="true"
-              viewBox={`0 0 ${String(layout.width)} ${String(h.height)}`}
-              // A frame in the holder's colour keeps each holder's dishes apart from the other's.
-              style={{
-                // Side by side, two panels share the row (stacked below about 704 px); stacked, each takes the full width.
-                flex: layout.stacked ? "1 1 100%" : `1 1 ${String(PANEL.minPx)}px`,
-                minWidth: 0,
-                maxWidth: layout.stacked ? PANEL.stackedMaxPx : PANEL.maxPx,
-                display: "block",
-                boxSizing: "border-box",
-                padding: 6,
-                border: `3px solid ${color?.fill ?? COLORS.muted}`,
-                borderRadius: 16,
-              }}
-            >
-              {h.box !== null && (
-                <svg data-role="container" x={h.box.x} y={h.box.y} width={h.box.w} height={h.box.h} viewBox={box.viewBox}>
-                  <g dangerouslySetInnerHTML={{ __html: box.back }} />
-                </svg>
-              )}
-              {h.soil.map((b, k) => (
-                <rect key={`s${String(k)}`} data-role="soil" x={b.x} y={b.y} width={b.w} height={b.h} rx={b.h / 2} fill={PALETTE.brown} stroke={PALETTE.outline} strokeWidth={3} />
-              ))}
-              {h.plates.map((d, k) => (
-                <svg key={`p${String(k)}`} data-role="dish" data-holder={h.holderId} x={d.x} y={d.y} width={d.w} height={d.h} viewBox={plate.viewBox} preserveAspectRatio="none" overflow="visible">
-                  <g dangerouslySetInnerHTML={{ __html: plate.body }} />
-                </svg>
-              ))}
-              {h.things.map((t, i) => (
-                <Thing key={i} t={t} holderId={h.holderId} part={part} clipId={`${uid}-${h.holderId}-${String(i)}`} style={shareStyle(h.item)} />
-              ))}
-              {h.box !== null && (
-                <svg x={h.box.x} y={h.box.y} width={h.box.w} height={h.box.h} viewBox={box.viewBox} pointerEvents="none">
-                  <g dangerouslySetInnerHTML={{ __html: box.front }} />
-                </svg>
-              )}
-              {h.unknown !== null && (
-                <text
-                  data-role="stage-unknown"
-                  data-holder={h.holderId}
-                  x={h.unknown.x}
-                  y={h.unknown.y}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fill={COLORS.ink}
-                  style={{ font: `800 64px ${FONT}` }}
-                >
-                  ？
-                </text>
-              )}
-              <text
-                data-role="name-tag"
+        {layout.pairing === null ? (
+          layout.holders.map((h) => {
+            const color = colors.get(h.holderId);
+            return (
+              // One panel per holder: side by side when two fit, stacked on a narrow screen; never overlapping.
+              <svg
+                key={h.holderId}
+                data-role="stage-holder"
                 data-holder={h.holderId}
-                x={h.tag.x}
-                y={h.tag.y}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fill={color?.ink ?? COLORS.ink}
-                style={{ font: `700 26px ${FONT}` }}
+                data-hidden={h.hidden ? "true" : "false"}
+                aria-hidden="true"
+                viewBox={`0 0 ${String(layout.width)} ${String(h.height)}`}
+                // A frame in the holder's colour keeps each holder's dishes apart from the other's.
+                style={{
+                  // Side by side, two panels share the row (stacked below about 704 px); stacked, each takes the full width.
+                  flex: layout.stacked ? "1 1 100%" : `1 1 ${String(PANEL.minPx)}px`,
+                  minWidth: 0,
+                  maxWidth: layout.stacked ? PANEL.stackedMaxPx : PANEL.maxPx,
+                  display: "block",
+                  boxSizing: "border-box",
+                  padding: 6,
+                  border: `3px solid ${color?.fill ?? COLORS.muted}`,
+                  borderRadius: 16,
+                }}
               >
-                {h.label}
-              </text>
-              {color !== undefined && <rect x={h.tag.x - 30} y={h.tag.y + 16} width={60} height={5} rx={2.5} fill={color.fill} />}
-            </svg>
-          );
-        })}
+                {drawHolder(h)}
+              </svg>
+            );
+          })
+        ) : (
+          // An additive reading: both holders in one panel, thing i above thing i, joined by a light line; the
+          // larger holder's things without a partner in dashed boxes.
+          <svg
+            data-role="stage-pairing"
+            aria-hidden="true"
+            viewBox={`0 0 ${String(layout.width)} ${String(layout.height)}`}
+            style={{ flex: "1 1 100%", minWidth: 0, maxWidth: PANEL.stackedMaxPx, display: "block", boxSizing: "border-box", padding: 6, border: `3px solid ${COLORS.muted}`, borderRadius: 16 }}
+          >
+            {/* The containers' backs, then the lines joining each pair (behind the things), then the things. */}
+            {layout.holders.map((h, i) => (
+              <g key={`b${h.holderId}`} transform={`translate(0 ${String(layout.pairing?.offsets[i] ?? 0)})`}>
+                {drawHolder(h, "back")}
+              </g>
+            ))}
+            {layout.pairing.lines.map((ln, k) => (
+              <line key={`l${String(k)}`} data-role="pair-line" x1={ln.x1} y1={ln.y1} x2={ln.x2} y2={ln.y2} stroke={PALETTE.outline} strokeWidth={4} strokeLinecap="round" opacity={0.3} />
+            ))}
+            {layout.holders.map((h, i) => (
+              <g key={h.holderId} data-role="stage-holder" data-holder={h.holderId} data-hidden={h.hidden ? "true" : "false"} transform={`translate(0 ${String(layout.pairing?.offsets[i] ?? 0)})`}>
+                {drawHolder(h, "front")}
+              </g>
+            ))}
+            {layout.pairing.unpaired.map((b, k) => (
+              <rect key={`u${String(k)}`} data-role="unpaired" x={b.x} y={b.y} width={b.w} height={b.h} rx={12} fill="none" stroke={PALETTE.red} strokeWidth={4} strokeDasharray="10 7" />
+            ))}
+          </svg>
+        )}
       </div>
       <p id={`${uid}-d`} data-role="stage-description" style={srOnly}>
         {desc}

@@ -22,6 +22,11 @@ export const PART_BRIEFS: Record<PartId, string> = {
   basket: "a wide, shallow woven fruit basket seen from above at an angle: the rim and outer sides show a clear basket weave and two small handles, so it clearly reads as a basket; the inside bottom (the things area) is plain light and empty",
   sheet: "a sticker book opened flat and seen from the front: a large plain light page with a coloured spine edge on the left, clearly a book page for stickers (no rings, no calendar look), nothing on the page",
   tray: "a wide, flat rounded tray seen from above at an angle, plain light surface with a raised edge, so many things can lie on it side by side; nothing on it",
+  yarn: "one length of knitting yarn laid out straight with a soft wave, thick and fuzzy-looking, both ends cut cleanly; one colour (red)",
+  bottle: "a clear glass juice bottle seen from the front, wide body and short neck, empty and transparent so a liquid level drawn inside is fully visible; the things area is the bottle's body",
+  pail: "a clear plastic water pail (bucket) seen from the front with a handle, transparent body so a water level drawn inside is fully visible; the things area is the pail's body",
+  yarn_ball: "a round ball of knitting yarn (red) with a loose end, sitting in a small shallow basket seen from the front; the things area above it is open and plain for cut lengths of yarn laid side by side",
+  cup: "a clear measuring cup seen from the front, straight sides and a small spout and handle, empty and transparent so a liquid level drawn inside is visible; no marks, numbers or scale lines",
   plate: "a shallow round dish seen from slightly above, wide and flat",
 };
 
