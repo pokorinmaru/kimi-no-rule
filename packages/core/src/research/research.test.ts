@@ -25,6 +25,7 @@ import {
   POOL_MAX,
   readingCard,
   revisePool,
+  safeWord,
   type FirstReading,
   type PoolEdit,
   type PoolEntry,
@@ -793,6 +794,21 @@ describe("readingCard", () => {
         );
       }
       expect(readingCard(always("h_w", act.chooseByWord("after_word", "の")), undefined, "en")).toBe('Junior\'s reading: takes the person after "の" as 1');
+    });
+
+    it("safeWord refuses any word core reads a number in, any operation name the gate knows, and more number words", () => {
+      // Read as numbers by core (numbersIn): kana, full-width, fractions, percents.
+      for (const w of ["はち", "やっつ", "１２", "3/4", "50%", "3割"]) expect(safeWord(w), w).toBe(false);
+      // Operation names the gate refuses (the same patterns, not a copy).
+      for (const w of ["足して", "ひいて", "かけて", "わって", "加法", "sum", "product", "quotient", "difference", "added", "subtracts"]) expect(safeWord(w), w).toBe(false);
+      // English number words, in any case, and words for multiples.
+      for (const w of ["eleven", "Thirteen", "nineteen", "twenty", "forty", "ninety", "hundred", "Double", "twice", "triple", "dozen", "a-dozen"]) {
+        expect(safeWord(w), w).toBe(false);
+      }
+      // Kanji for the results of operations.
+      for (const w of ["差", "和", "積", "商", "乗", "差は", "和を"]) expect(safeWord(w), w).toBe(false);
+      // Plain words stay quotable.
+      for (const w of ["の", "より", "は", "兄", "弟", "まい", "Bob", "than"]) expect(safeWord(w), w).toBe(true);
     });
 
     it("gives no card for a rule that changes nothing, and names the acting clause on a problem", () => {

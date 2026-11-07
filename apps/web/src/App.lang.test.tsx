@@ -92,7 +92,16 @@ describe("the language switch", () => {
     const list = await screen.findByTestId("helplines");
     expect(list.querySelectorAll("li")).toHaveLength(4);
     for (const h of helplinesFor("ja")) expect(list.textContent).toContain(h.number);
-    expect(screen.getByText("These are free phone lines in Japan.")).toBeTruthy();
+    const page = document.body.textContent ?? "";
+    expect(page).toContain("These are free phone lines in Japan.");
+    expect(page).toContain("speak Japanese");
+    expect(page).toContain("show this screen to a grown-up you trust");
+    // Each line says in plain English what it is, next to its Japanese name.
+    for (const h of helplinesFor("en")) {
+      expect(h.about ?? "").not.toBe("");
+      expect(list.textContent).toContain(`${h.name} (${h.about ?? ""})`);
+    }
+    for (const t of [...document.querySelectorAll("button, p, h1, h2, li")].map((e) => e.textContent ?? "")) expect(hasForbiddenPhrase(t), t).toBe(false);
     expectEnglishOnly();
   });
 

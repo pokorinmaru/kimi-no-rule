@@ -3,12 +3,12 @@
 import { describe, expect, it } from "vitest";
 import { getShortestPaths, getSimplePaths, getStateNodes } from "@xstate/graph";
 import { createActor, transition, type SnapshotFrom } from "xstate";
-import { FRACTION_BANK, initialState, numbersIn, observe, observeAgreement, sameReading, runRule, type Rational } from "@kimi/core";
+import { FRACTION_BANK, initialState, numbersIn, observe, observeAgreement, sameReading, runRule, TEMPLATES, type Rational } from "@kimi/core";
 import { flowMachine, predictionOrder, type FlowEvent, type FlowInput } from "./machine.ts";
 import { childTexts, viewOf } from "./view.ts";
 import { firstReading, judgeTotal, judgeUnit } from "./problem.ts";
-import { FORBIDDEN_CHILD_PHRASES } from "./text.ts";
-import { HELPLINES, hasForbiddenPhrase, helplineLine, helplinesFor } from "./text.ts";
+import { HELPLINES, hasForbiddenPhrase, helplineLine, helplinesFor, ui } from "./text.ts";
+import { checkText } from "../check/text.ts";
 
 /** The text with the checked helpline lines taken out (their numbers are allowed, nothing else). */
 const withoutHelplines = (t: string): string => HELPLINES.reduce((acc, h) => acc.replaceAll(helplineLine(h), ""), t);
@@ -96,7 +96,7 @@ const FRESH: FlowInput = { introSeen: false, consented: false, maxProblems: 2 };
 function checkScreen(s: Snap): void {
   const view = viewOf(s);
   const texts = childTexts(view);
-  for (const t of texts) for (const bad of FORBIDDEN_CHILD_PHRASES) expect(t, `"${bad}" in child text`).not.toContain(bad);
+  for (const t of texts) expect(hasForbiddenPhrase(t), `forbidden phrase in child text: ${t}`).toBe(false);
   const p = s.context.problem;
   if (p !== null) {
     // No sentence lights, and nothing glows, before the child's prediction or its skip (指示書 第11節 M7).
@@ -339,7 +339,7 @@ describe("the flow of one problem (F1)", () => {
     expect(actor.getSnapshot().context.line?.key).toBe("unit.mismatch");
     expect(line).not.toContain(String(v.unitOk.num));
     expect(line).not.toContain(String(v.totalOk.num));
-    for (const bad of FORBIDDEN_CHILD_PHRASES) expect(line).not.toContain(bad);
+    expect(hasForbiddenPhrase(line), line).toBe(false);
     expect(line).not.toMatch(/正しい|ちがう|ざんねん/);
   }
 
@@ -870,7 +870,7 @@ describe("the English screen", () => {
     const p = actor.getSnapshot().context.problem;
     const holder = p?.record.world.holders.find((h) => h.id === p.record.world.quantities.find((q) => q.id === p.placement)?.holder);
     expect(actor.getSnapshot().context.line?.text).toContain(holder?.label ?? "??");
-    expect(actor.getSnapshot().context.line?.text).toContain('"1"');
+    expect(actor.getSnapshot().context.line?.text).toMatch(/"1"|\bas 1\b/);
   });
 
   it("a generated English line that judges, names the child's rule or names an operation is not shown", () => {
@@ -889,6 +889,29 @@ describe("the English screen", () => {
   it("the forbidden phrases are found in any case, in Japanese and in English", () => {
     for (const t of ["YOUR RULE", "You copied your reading", "wrong", "Correct", "a mistake", "君のルール", "まちがい"]) expect(hasForbiddenPhrase(t), t).toBe(true);
     for (const t of ["Which sentence shall we look at first?", "Is that right?", "Take your time. I will wait."]) expect(hasForbiddenPhrase(t), t).toBe(false);
+  });
+
+  it("finds judging, praise and attribution words in English, whatever the case", () => {
+    const bad = [
+      "Is this your way?", "That is your reading.", "So you read it like this.", "I read it like you.", "It is the same as you.",
+      "Was it your idea?", "I copied it.", "I learned from you.", "You taught me.", "That's right!", "You're right.", "Exactly!",
+      "Good job.", "Great!", "Nice.", "Well done.", "Perfect.", "Awesome!", "Amazing.", "You are smart.", "Thank you.", "Thanks!",
+      "Look at the keyword.",
+    ];
+    for (const t of bad) expect(hasForbiddenPhrase(t), t).toBe(true);
+  });
+
+  it("sees through full-width letters, zero-width characters, hyphens, extra spaces and curly apostrophes", () => {
+    const tricks = [
+      "ＷＲＯＮＧ", "ｗｒｏｎｇ", "wr​ong", "cor‌rect", "mis‍take", "﻿your rule", "your-rule", "your   rule",
+      "your　rule", "your - rule", "Ｙｏｕｒ Ｒｕｌｅ", "That’s right", "you’re right", "good-job", "well  done",
+      "learned​ from you", "まち​がい", "正​解", "your‑rule",
+    ];
+    for (const t of tricks) expect(hasForbiddenPhrase(t), JSON.stringify(t)).toBe(true);
+  });
+
+  it("does not block a restating question that ends with \", right?\"", () => {
+    for (const t of ['Bob is the "1", right?', 'Your clue was "まい", right?', "So it goes here, right?", "Is that right?"]) expect(hasForbiddenPhrase(t), t).toBe(false);
   });
 
   it("from the second problem the junior's card is in English", () => {
@@ -910,5 +933,78 @@ describe("the English screen", () => {
     expect(actor.getSnapshot().context.lang).toBe("en");
     actor.send({ type: "STOP" });
     expect(viewOf(actor.getSnapshot()).screen).toBe("ended");
+  });
+});
+
+describe("the English words for help, for parents and for the end", () => {
+  it("each helpline in English says plainly what it is, next to its Japanese name, and no line or number is added", () => {
+    const en = helplinesFor("en");
+    const ja = helplinesFor("ja");
+    expect(en.map((h) => h.number)).toEqual(ja.map((h) => h.number));
+    expect(en.map((h) => h.name)).toEqual(ja.map((h) => h.name));
+    const abouts = en.map((h) => h.about ?? "");
+    expect(abouts[0]).toMatch(/24-hour SOS line for children/i);
+    expect(abouts[1]).toMatch(/Childline.*up to 18/i);
+    expect(abouts[2]).toMatch(/children's human rights line.*weekdays/i);
+    expect(abouts[3]).toMatch(/someone at home is hurting you/i);
+    expect(abouts[3]).toMatch(/child guidance center/i);
+    en.forEach((h) => {
+      const line = helplineLine(h, "en");
+      expect(line.startsWith(h.name), line).toBe(true);
+      expect(line).toContain(h.about ?? "??");
+      expect(line).toContain(h.number);
+      expect(hasForbiddenPhrase(line), line).toBe(false);
+    });
+    // The Japanese screen stays as it was: no English description.
+    ja.forEach((h, i) => expect(helplineLine(h, "ja")).not.toContain(en[i]?.about ?? "??"));
+  });
+
+  it("the English helpline note says the people speak Japanese and to show the screen to a trusted grown-up", () => {
+    const note = ui("en").helpline.note ?? "";
+    expect(note).toMatch(/free phone lines in Japan/);
+    expect(note).toMatch(/speak Japanese/);
+    expect(note).toMatch(/show this screen to a grown-up you trust/);
+    expect(hasForbiddenPhrase(note)).toBe(false);
+    expect(numbersIn(note)).toEqual([]);
+  });
+
+  it("the hard screen in English shows the described helplines and the note", () => {
+    const actor = run({ introSeen: true, consented: true, lang: "en" });
+    actor.send({ type: "HARD" });
+    const texts = childTexts(viewOf(actor.getSnapshot()));
+    const all = texts.join("\n");
+    for (const h of helplinesFor("en")) expect(all).toContain(helplineLine(h, "en"));
+    expect(all).toContain(ui("en").helpline.note ?? "??");
+    for (const t of texts) expect(hasForbiddenPhrase(t), t).toBe(false);
+  });
+
+  it("the parent screen names no misreading and no correctness, and keeps no forbidden phrase", () => {
+    for (const lang of ["ja", "en"] as const) {
+      const p = ui(lang).parent;
+      const texts = [...p.lines, p.checksTitle, p.checksNone, p.checkRow("2026-11-07", 2, 3), p.checksNote, p.deleteAsk, p.deleteWarn, p.label];
+      for (const t of texts) {
+        expect(hasForbiddenPhrase(t), t).toBe(false);
+        expect(t, t).not.toMatch(/正し|読み違い|misread/i);
+      }
+    }
+    expect(ui("ja").parent.lines.join("")).toContain("多くの子がする別の読み方");
+    expect(ui("en").parent.lines.join("")).toContain("a way of reading many children use");
+    expect(ui("ja").parent.checkRow("2026-11-07", 2, 3)).toContain("プログラムの答えと同じ数を入れました");
+    expect(ui("en").parent.checkRow("2026-11-07", 2, 3)).toContain("entered the same number as the program's answer");
+  });
+
+  it("the English '1' is always said 'as 1', and the end says 'That's all for now.'", () => {
+    expect(ui("en").problem.looking).toContain("the person you take as 1");
+    expect(ui("en").problem.looking).not.toMatch(/count as 1/);
+    expect(ui("en").ended.line).toBe("That's all for now.");
+    expect(checkText("en").done).toContain("That's all for now.");
+    expect([ui("en").ended.line, ...checkText("en").done].join(" ")).not.toMatch(/See you/);
+    // The junior's and the guide's English lines say the same "as 1", and none holds a forbidden phrase.
+    for (const [key, t] of Object.entries(TEMPLATES)) {
+      for (const v of t.en) {
+        expect(hasForbiddenPhrase(v), `${key}: ${v}`).toBe(false);
+        expect(v, key).not.toMatch(/gets the "1"|give the "1"|is the "1"|"1" goes|count as 1/);
+      }
+    }
   });
 });

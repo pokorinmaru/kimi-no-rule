@@ -351,6 +351,12 @@ const OPERATION_NAMES: RegExp[] = [
   /\b(?:add(?:s|ed|ing|ition)?|plus|subtract(?:s|ed|ing|ion)?|minus|multipl(?:y|ies|ied|ying|ication)|times|divid(?:e|es|ed|ing)|division|sum|product|quotient|difference|take\s+away)\b/gi,
 ];
 
+/** Whether a text holds any operation name or sign the gate refuses (the same patterns, for other checks in core). */
+export function hasOperationName(text: string): boolean {
+  const t = text.normalize("NFKC");
+  return OPERATION_NAMES.some((re) => t.match(re) !== null);
+}
+
 const same = (a: Rational, b: Rational): boolean => eq(fromSchema(a), fromSchema(b));
 const containsAny = (values: readonly Rational[], v: Rational): boolean => values.some((x) => same(x, v));
 

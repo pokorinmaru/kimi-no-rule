@@ -22,6 +22,7 @@ import {
   type Weights,
 } from "../rules/weights.ts";
 import { COMMON_MISREADINGS } from "./common.ts";
+import { hasOperationName, numbersIn } from "../gates/index.ts";
 
 export { COMMON_FRACTION_READINGS, COMMON_MISREADINGS, CORRECT_READING_ID } from "./common.ts";
 
@@ -396,10 +397,17 @@ function cardText(a: Action, lang: CardLang): string | null {
 }
 
 const NUMBER_OR_OPERATION = /[0-9０-９一二三四五六七八九十百千万〇零半倍分割足引掛たすひくかけわる+\-×÷*/=]|one|two|three|four|five|six|seven|eight|nine|ten|half|times|plus|minus|divide|multiply/i;
+/** Words for numbers and multiples the letters above do not reach, and kanji for the results of operations. */
+const MORE_NUMBER_WORDS = /eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|double|twice|triple|dozen|[差和積商乗]/i;
 
-/** A word the card may quote: short, one line, with no number and no operation in it. */
+/**
+ * A word the card may quote: short, one line, with no number and no operation in it. Core decides what is a
+ * number (numbersIn) and what is an operation name (the gate's own patterns); the lists here only add to them.
+ */
 export function safeWord(w: string): boolean {
-  return w.length > 0 && w.length <= 8 && !/[\s「」]/.test(w) && !NUMBER_OR_OPERATION.test(w);
+  if (w.length === 0 || w.length > 8 || /[\s「」]/.test(w)) return false;
+  const t = w.normalize("NFKC");
+  return numbersIn(t).length === 0 && !hasOperationName(t) && !NUMBER_OR_OPERATION.test(t) && !MORE_NUMBER_WORDS.test(t);
 }
 
 /**

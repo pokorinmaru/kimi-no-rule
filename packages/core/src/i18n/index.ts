@@ -69,7 +69,7 @@ export const TEMPLATES = {
   "predict.ask": {
     slots: [],
     ja: ["この世界と問題、ぴったり重なってる？", "問題とこの世界、同じに見える？", "この世界、問題のとおりになってる？"],
-    en: ["Does this world match the problem exactly?", "Do this world and the problem look the same?", "Is this world just like the problem?"],
+    en: ["Does this world line up with the problem?", "Do this world and the problem look the same?", "Is this world just like the problem?"],
   },
   "statement.fails": {
     slots: [],
@@ -93,17 +93,17 @@ export const TEMPLATES = {
   "answer_only.ask": {
     slots: [],
     ja: ["どう考えたのか、世界で見せてくれる？", "その考え方を、世界の形で見せて", "どう読んだか、テープで見せてくれる？"],
-    en: ["Can you show me how you thought, with the world?", "Show me on the tapes how the problem reads.", "How did you read it? Show me in the world."],
+    en: ["Can you show me how you thought, with the world?", "Show me on the tapes how the problem reads.", "How did you see it? Show me in the world."],
   },
   "show_by_finger.ask": {
     slots: [],
     ja: ["指で見せてくれる？ もとになるのはだれかな", "指で教えて。どっちが長いと思う？", "指で動かしてみて。もとはだれだろう"],
-    en: ['Show me with your finger: who gets the "1"?', "Point it out: which is longer?", 'Move it with your finger: where does the "1" go?'],
+    en: ["Show me with your finger: who do you take as 1?", "Point it out: which is longer?", 'Move the "1" card with your finger: who do you take as 1?'],
   },
   "cue.ask": {
     slots: [],
     ja: ["どの言葉から、そう読んだの？", "問題のどこを見て、そう思った？", "そう読んだ手がかりの言葉はどれ？"],
-    en: ["Which word made you read it that way?", "What in the problem told you that?", "Which word was your clue?"],
+    en: ["Which word made you see it that way?", "What in the problem told you that?", "Which word was your clue?"],
   },
   "unit.mismatch": {
     slots: ["holder", "number"],
@@ -136,7 +136,7 @@ export const TEMPLATES = {
   "hint.ratio_reference": {
     slots: [],
     ja: ["この文で、もとになっているのはだれ？", "この文は、だれをもとにしているかな？", "もとにする人を、この文から見つけてみよう"],
-    en: ['In this sentence, who gets the "1"?', 'Who does this sentence give the "1" to?', 'Find who gets the "1" in this sentence.'],
+    en: ["In this sentence, who is taken as 1?", "Who does this sentence take as 1?", "Find who is taken as 1 in this sentence."],
   },
   "fix.ask": {
     slots: [],
@@ -169,7 +169,7 @@ export const TEMPLATES = {
   "kohai.restate": {
     slots: ["holder"],
     ja: ["{holder}が「1」、ですね。合っていますか？", "「1」は{holder}、でいいですか？", "「1」の札は{holder}、ですね。合っていますか？"],
-    en: ['{holder} is the "1", right?', 'The "1" goes on {holder}, is that it?', 'You put the "1" on {holder}. Is that right?'],
+    en: ["You take {holder} as 1, right?", "So {holder} is taken as 1, is that it?", 'You put the "1" card on {holder}. Is that right?'],
   },
   "kohai.restate_word": {
     slots: ["transcript"],

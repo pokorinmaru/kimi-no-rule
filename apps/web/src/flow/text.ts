@@ -7,7 +7,7 @@ import { render, type Lang } from "@kimi/core";
 
 /**
  * Words that must never reach a child's screen (原則10・11), in Japanese and in English. Checked on every
- * screen in the tests and on every generated line, ignoring case (hasForbiddenPhrase).
+ * screen in the tests and on every generated line, after normalizeForPhrases (hasForbiddenPhrase).
  */
 export const FORBIDDEN_CHILD_PHRASES: readonly string[] = [
   "君のルール",
@@ -30,16 +30,56 @@ export const FORBIDDEN_CHILD_PHRASES: readonly string[] = [
   "right answer",
   "fooled by",
   "tricked by",
+  "your way",
+  "your reading",
+  "you read",
+  "like you",
+  "same as you",
+  "your idea",
+  "copied",
+  "learned from you",
+  "you taught me",
+  "that's right",
+  "you're right",
+  "exactly",
+  "good job",
+  "great",
+  "nice",
+  "well done",
+  "perfect",
+  "awesome",
+  "amazing",
+  "smart",
+  "thank",
+  "keyword",
 ];
 
-/** Whether a text holds a forbidden phrase (ignoring case, so "Wrong" and "YOUR RULE" are found too). */
+/**
+ * A text as the phrases are matched: NFKC (full-width letters become plain ones), zero-width characters
+ * removed, curly apostrophes made straight, every run of spaces and hyphens one space, lower case. So
+ * full-width "WRONG", "wr" + U+200B + "ong", "your-rule" and "That" + U+2019 + "s right" are found too.
+ */
+export function normalizeForPhrases(text: string): string {
+  return text
+    .normalize("NFKC")
+    .replace(/[\u200b-\u200d\ufeff]/g, "")
+    .replace(/[\u2018\u2019\u02bc\uff07`]/g, "'")
+    .replace(/[\s\-\u2010-\u2015\u2212]+/g, " ")
+    .toLowerCase();
+}
+
+const FORBIDDEN_NORMALIZED = FORBIDDEN_CHILD_PHRASES.map(normalizeForPhrases);
+
+/** Whether a text holds a forbidden phrase, after normalizeForPhrases. A question ending ", right?" is not judging. */
 export function hasForbiddenPhrase(text: string): boolean {
-  const t = text.toLowerCase();
-  return FORBIDDEN_CHILD_PHRASES.some((w) => t.includes(w.toLowerCase()));
+  const t = normalizeForPhrases(text);
+  return FORBIDDEN_NORMALIZED.some((w) => t.includes(w));
 }
 
 export interface Helpline {
   name: string;
+  /** On the English screen: what the line is, in plain English, next to its Japanese name. */
+  about?: string;
   number: string;
   when: string;
 }
@@ -127,7 +167,7 @@ export interface UiText {
  * - 児童相談所虐待対応ダイヤル 189: こども家庭庁 https://www.cfa.go.jp/policies/jidougyakutai/gyakutai-taiou-dial
  *   (近くの児童相談所、無料、一部のIP電話は不可。24時間・365日 per こども家庭庁's materials)
  * Check them again before each release: numbers and hours change. The English screen lists the same four
- * (they serve children in Japan) with their names as they are and the hours in English; no other line is added.
+ * (they serve children in Japan) with their names as they are, a plain-English description next to each name and the hours in English; no other line is added.
  */
 export const HELPLINES: readonly Helpline[] = [
   { name: "24時間子供SOSダイヤル", number: "0120-0-78310", when: "いつでも（よるも、休みの日も）。電話代はかかりません。" },
@@ -137,10 +177,10 @@ export const HELPLINES: readonly Helpline[] = [
 ];
 
 const HELPLINES_EN: readonly Helpline[] = [
-  { name: "24時間子供SOSダイヤル", number: "0120-0-78310", when: "Any time, at night and on holidays too. The call is free." },
-  { name: "チャイルドライン（18さいまで）", number: "0120-99-7777", when: "Every day, 4 pm to 9 pm (closed December 29 to January 3). For children up to 18. The call is free." },
-  { name: "子どもの人権110番", number: "0120-007-110", when: "Monday to Friday, 8:30 am to 5:15 pm. The call is free." },
-  { name: "児童相談所 虐待対応ダイヤル", number: "189", when: "Connects you to a nearby child guidance center. The call is free (some IP phones cannot connect)." },
+  { name: "24時間子供SOSダイヤル", about: "a 24-hour SOS line for children", number: "0120-0-78310", when: "Any time, at night and on holidays too. The call is free." },
+  { name: "チャイルドライン（18さいまで）", about: "Childline, for children up to 18", number: "0120-99-7777", when: "Every day, 4 pm to 9 pm (closed December 29 to January 3). For children up to 18. The call is free." },
+  { name: "子どもの人権110番", about: "a children's human rights line (weekdays)", number: "0120-007-110", when: "Monday to Friday, 8:30 am to 5:15 pm. The call is free." },
+  { name: "児童相談所 虐待対応ダイヤル", about: "189: if someone at home is hurting you, it connects you to the nearby child guidance center", number: "189", when: "Connects you to a nearby child guidance center. The call is free (some IP phones cannot connect)." },
 ];
 
 export function helplinesFor(lang: Lang): readonly Helpline[] {
@@ -212,13 +252,13 @@ const JA: UiText = {
     label: "おうちの人へ",
     lines: [
       "このアプリの記録は、この端末の中にだけ保存されます。子どもの言葉の本文は保存しません。",
-      "後輩は AI（Anthropic の Claude）で、人ではありません。2問目からは、1問目の子どもの「1」の札の置き方から作った読み方や、よくある読み違いで問題を読みます。後輩は答えを知らされていません。",
+      "後輩は AI（Anthropic の Claude）で、人ではありません。2問目からは、1問目の子どもの「1」の札の置き方から作った読み方や、多くの子がする別の読み方で問題を読みます。後輩は答えを知らされていません。",
     ],
     checksTitle: "AIなしで ためした記録",
     checksNone: "まだありません。",
-    checkRow: (date, right, total) => `${date}：${String(total)}問中${String(right)}問 正しく答えました`,
+    checkRow: (date, right, total) => `${date}：${String(total)}問中${String(right)}問 プログラムの答えと同じ数を入れました`,
     checksNote:
-      "後輩も図もなしで、問題の文と数の入力だけで解いた結果です。答えはプログラムが確かめています。「わからない」でとばした問題は、正しく答えた数に入りません。",
+      "後輩も図もなしで、問題の文と数の入力だけで解いた結果です。答えはプログラムが確かめています。「わからない」でとばした問題は、同じ数を入れた問題に数えません。",
     deleteAsk: "記録をすべて消す",
     deleteWarn: "この端末の記録と同意を、すべて消します。元には戻せません。",
     deleteYes: "消す",
@@ -280,7 +320,7 @@ const EN: UiText = {
     note: "The problem is written in Japanese.",
     next: "Next",
     predict: { label: "Look at the junior's world", question: "Does this world fit the problem?", fits: "It fits", odd: "Something's odd", unknown: "Not sure yet" },
-    looking: 'Move the "1" card onto the tape of the person you count as 1, and show the junior.',
+    looking: 'Move the "1" card onto the tape of the person you take as 1, and show the junior.',
     yes: "Yes, that's it",
     no: "Not that",
     nextProblem: "Next problem",
@@ -296,22 +336,22 @@ const EN: UiText = {
   helpline: {
     title: "Places you can talk to",
     pending: 'Try telling a grown-up near you, "I feel bad." If you want to talk on the phone, you can call these.',
-    note: "These are free phone lines in Japan.",
+    note: "These are free phone lines in Japan. The people on these lines speak Japanese. If that is hard, show this screen to a grown-up you trust.",
     entries: HELPLINES_EN,
   },
-  ended: { label: "The end", line: "See you next time." },
+  ended: { label: "The end", line: "That's all for now." },
   parentDoor: "For parents (press and hold for 2 seconds)",
   parent: {
     label: "For parents and guardians",
     lines: [
       "This app keeps its records only on this device. It does not keep the text of the child's words.",
-      'The junior is an AI (Anthropic\'s Claude), not a person. From the second problem, it reads problems with a way of reading made from how the child placed the "1" card on the first problem, or with a common misreading. The junior is not told the answers.',
+      'The junior is an AI (Anthropic\'s Claude), not a person. From the second problem, it reads problems with a way of reading made from how the child placed the "1" card on the first problem, or with a way of reading many children use. The junior is not told the answers.',
     ],
     checksTitle: "Records of trying without AI",
     checksNone: "None yet.",
-    checkRow: (date, right, total) => `${date}: ${String(right)} of ${String(total)} answered correctly`,
+    checkRow: (date, right, total) => `${date}: ${String(right)} of ${String(total)} entered the same number as the program's answer`,
     checksNote:
-      'These are results of solving with only the problem text and number entry, without the junior or pictures. The program checks the answers. A problem skipped with "I don\'t know" does not count as answered correctly.',
+      'These are results of solving with only the problem text and number entry, without the junior or pictures. The program checks the answers. A problem skipped with "I don\'t know" is not counted as the same number.',
     deleteAsk: "Delete all records",
     deleteWarn: "This deletes every record and the consent on this device. It cannot be undone. The language choice stays.",
     deleteYes: "Delete",
@@ -355,7 +395,7 @@ export const FINISHED_LINES: readonly string[] = JA.finished.lines;
 export const RESEARCH_WAIT_LINE = JA.research.wait;
 
 /** One helpline as the child reads it. */
-export const helplineLine = (h: Helpline, lang: Lang = "ja"): string => (lang === "en" ? `${h.name}: ${h.number}  ${h.when}` : `${h.name}：${h.number}  ${h.when}`);
+export const helplineLine = (h: Helpline, lang: Lang = "ja"): string => (lang === "en" ? `${h.name}${h.about === undefined ? "" : ` (${h.about})`}: ${h.number}  ${h.when}` : `${h.name}：${h.number}  ${h.when}`);
 
 export function hardLines(lang: Lang): string[] {
   const reply = render("distress.reply", lang, 0, {}).text;

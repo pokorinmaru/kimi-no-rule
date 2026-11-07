@@ -37,7 +37,7 @@ export const CHECK_TEXT_EN: CheckText = {
   pad: "What number does the problem ask for?",
   kept: "Your answer is saved.",
   next: "Next",
-  done: ["That's all of the problems without AI.", "See you next time."],
+  done: ["That's all of the problems without AI.", "That's all for now."],
   back: "Back",
   close: "Close",
 };

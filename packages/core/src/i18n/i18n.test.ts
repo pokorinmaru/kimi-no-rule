@@ -99,7 +99,7 @@ describe("words the child should never hear from the app", () => {
 
   it("the junior's restating sentences add nothing to the child's words", () => {
     for (const lang of LANGS) {
-      for (const v of TEMPLATES["kohai.restate"][lang]) expect(v).toMatch(/「1」|"1"/);
+      for (const v of TEMPLATES["kohai.restate"][lang]) expect(v).toMatch(/「1」|"1"|\bas 1\b/);
       for (const v of TEMPLATES["kohai.restate_word"][lang]) expect(v).not.toMatch(/決め手|key/i);
     }
   });
