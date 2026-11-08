@@ -65,6 +65,21 @@ export function stepsOf(record: ProblemRecord): Step[] | null {
 }
 
 /**
+ * A percent off written in the relation sentence (「20%引き」) that the relation keeps as num/den of the whole (4/5):
+ * the percent, and the parts it splits into. Null when the sentence writes no such percent, or it does not agree.
+ */
+export function percentOff(record: ProblemRecord, step: Extract<Step, { kind: "relation" }>): { percent: number; parts: number; kept: number } | null {
+  const tokens = record.statements[step.statementIndex]?.tokens ?? [];
+  const at = tokens.findIndex((t, i) => /^[0-9]+%$/.test(t) && tokens[i + 1] === "引き");
+  if (at < 0) return null;
+  const percent = Number((tokens[at] ?? "").replace("%", ""));
+  const { num, den } = step.amount;
+  // The part taken off is one of den parts, and what is kept is num of them: 20%引き is 1 of 5 off, 4 of 5 kept.
+  if (den - num !== 1 || percent * den !== 100) return null;
+  return { percent, parts: den, kept: num };
+}
+
+/**
  * The picture of a step: at the number sentence only the holder it names, with its own (given) count; from the
  * relation on, the problem's world through core's objectScene, which keeps the answer and one part hidden until the
  * child has said them (`said`). Null when the world cannot be drawn as things.

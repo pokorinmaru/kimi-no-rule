@@ -2,7 +2,7 @@
 // the picture of this step, and one question with its answers. No tape diagram, no "1" card, no word book here.
 // At the relation step the child may also answer in words (voice or typing): the words go to the session, which
 // sends them to /safety and /interpret; what comes back is checked by core before it chooses anything.
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { UI_READINGS, readingsFor, spokenText, type Lang, type StatementCheck } from "@kimi/core";
 import { KohaiBeside } from "../draw/Kohai.tsx";
 import { ObjectSceneView } from "../draw/ObjectScene.tsx";
@@ -67,6 +67,11 @@ export function StepScreen({
   const checks: StatementCheck[] = view.statements.map((s) => ({ index: s.index, verdict: "holds", cues: [] }) as StatementCheck);
   const lineIndex = readingIndex ?? view.current;
   const wide = useWide();
+  // The 「せいかい！」 is brought into view: the child has just pressed the pad at the bottom of the page.
+  const cheerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (view.cheer !== null) cheerRef.current?.scrollIntoView?.({ block: "center" });
+  }, [view.cheer]);
   // One part after a wrong number (user request, 2026-11-08): the problem, AI-kun's words, the answer and the child's own
   // dealing on one screen, with no scrolling (two columns on a landscape tablet).
   if (view.deal !== null) {
@@ -196,6 +201,17 @@ export function StepScreen({
       {view.pad !== null && (
         <div style={{ marginTop: SPACE.lg }}>
           <NumberPad key={`${view.kind}-${String(view.at)}`} lang={lang} label={view.pad} labelNode={<RubyText text={view.pad} on={rubyUi} />} onAnswer={(v) => send({ type: "STEP_NUMBER", value: v })} />
+        </div>
+      )}
+      {view.cheer !== null && (
+        // The solved screen (user request, 2026-11-08): a clear, happy 「せいかい！」 and the child's own answer.
+        <div ref={cheerRef} data-testid="steps-cheer" role="status" className="k-cheer" style={{ ...card, textAlign: "center", padding: `${String(SPACE.md)}px ${String(SPACE.lg)}px`, marginTop: SPACE.lg, background: "#fff6d6", borderColor: "#f2c94c" }}>
+          <p style={{ margin: 0, fontSize: 44, fontWeight: 800, letterSpacing: "0.08em", color: "#c0392b", lineHeight: 1.2 }}>
+            <span aria-hidden="true" className="k-cheer-star">★</span> <RubyText text={view.cheer.title} on={rubyUi} readings={readings} /> <span aria-hidden="true" className="k-cheer-star">★</span>
+          </p>
+          <p style={{ ...prose, margin: `${String(SPACE.xs)}px 0 0`, fontSize: TYPE.large, fontWeight: 700 }}>
+            <RubyText text={view.cheer.line} on={rubyUi} readings={readings} />
+          </p>
         </div>
       )}
       {(view.kind === "solved" || view.kind === "held") && (

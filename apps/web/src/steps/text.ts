@@ -28,6 +28,10 @@ export interface StepsText {
   pad: string;
   solved: string;
   held: string;
+  /** The solved screen (user request, 2026-11-08): a clear 「せいかい！」 and the child's answer, for the sense of having done it. */
+  cheer: { title: string; line: (target: string, value: string) => string };
+  /** How a percent off becomes the fraction kept (20%引き → 4/5), said before one part is asked. */
+  percent: (percent: number, parts: number, kept: number) => string;
   nextProblem: string;
   /** Under the relation's buttons: the child may say or type why (the words go to Claude, core checks what comes back). */
   voiceLead: string;
@@ -72,6 +76,8 @@ const JA: StepsText = {
   totalHelp: (parts) => `1つの おさらの 数を、${String(parts)}こ ぶん あわせてみてね。`,
   pad: "こたえ",
   solved: "この問題は、ここまで。",
+  cheer: { title: "せいかい！", line: (target, value) => `${target}は ${value}。じぶんで たしかめられたね！` },
+  percent: (percent, parts, kept) => `「${String(percent)}%」は、${String(parts)}つに わけた うちの 1つぶん。「${String(percent)}%引き」は、そこから 1つぶん へらすから、${String(parts)}つに わけた うちの ${String(kept)}つぶん（${String(kept)}/${String(parts)}）。`,
   held: "この問題は、また あとで やってみよう。",
   nextProblem: "つぎの問題へ",
   voiceLead: "ことばで こたえても いいよ",
@@ -119,6 +125,8 @@ const EN: StepsText = {
   totalHelp: (parts) => `Put together what one plate has, ${String(parts)} times.`,
   pad: "Answer",
   solved: "That is this problem done.",
+  cheer: { title: "That's it!", line: (target, value) => `${target}: ${value}. You checked it yourself!` },
+  percent: (percent, parts, kept) => `"${String(percent)}%" is 1 of ${String(parts)} equal parts. "${String(percent)}% off" takes 1 part away, so ${String(kept)} of ${String(parts)} parts are left (${String(kept)}/${String(parts)}).`,
   held: "Let's try this problem again later.",
   nextProblem: "Next problem",
   voiceLead: "You can also answer in words.",

@@ -116,6 +116,12 @@ ruby { ruby-align: center; }
 .k-frac-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 :lang(ja) :is(p, li, h1, h2, h3, figcaption, summary, [data-role="bubble"]) { word-break: auto-phrase; line-break: strict; }
 .k-page { max-width: ${String(PAGE.narrow)}px; }
+/* The solved screen's 「せいかい！」: a short pop and twinkling stars, still for reduced motion. */
+@keyframes k-cheer-pop { 0% { transform: scale(0.85); opacity: 0; } 60% { transform: scale(1.04); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes k-cheer-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.k-cheer { animation: k-cheer-pop 420ms ease-out both; }
+.k-cheer-star { color: #f2b705; display: inline-block; animation: k-cheer-twinkle 1.2s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) { .k-cheer, .k-cheer-star { animation: none; } }
 /* The child's own dealing (one part after a wrong number): the wide page, and the problem smaller beside the board. */
 .k-page:has([data-deal="true"]) { max-width: ${String(PAGE.wide)}px; }
 .k-deal-sentences li { margin: 2px 0 !important; padding: 2px 4px !important; }
