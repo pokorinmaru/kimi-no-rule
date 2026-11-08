@@ -301,26 +301,26 @@ export interface UiText {
 
 /**
  * Places a child can call (BLOCKED B2, checked on 2026-11-07 against each operator's own page):
- * - 24時間子供SOSダイヤル: 文部科学省 https://www.mext.go.jp/a_menu/shotou/seitoshidou/06112210.htm
+ * - 24時間こどもSOSダイヤル（文部科学省の今の表記。こども家庭庁のページは「子供」）: 文部科学省 https://www.mext.go.jp/a_menu/shotou/seitoshidou/06112210.htm
  *   (24時間・年中無休・無料 per the 文部科学省 FAQ and こども家庭庁's list)
  * - チャイルドライン: https://childline.or.jp/tel/ (18歳まで、毎日16時〜21時、12/29〜1/3休み、無料)
  * - 子どもの人権110番: 法務省 https://www.moj.go.jp/JINKEN/jinken112.html (平日8時30分〜17時15分、最寄りの法務局)
  * - 児童相談所虐待対応ダイヤル 189: こども家庭庁 https://www.cfa.go.jp/policies/jidougyakutai/gyakutai-taiou-dial
- *   (近くの児童相談所、無料、一部のIP電話は不可。24時間・365日 per こども家庭庁's materials)
+ *   (近くの児童相談所、無料、一部のIP電話は不可。受付時間はこども家庭庁のページに書かれていない。2026-11-08 に確かめ直した)
  * Check them again before each release: numbers and hours change. The English screen lists the same four
  * (they serve children in Japan) with their names as they are, a plain-English description next to each name and the hours in English; no other line is added.
  */
 export const HELPLINES: readonly Helpline[] = [
-  { name: "24時間子供SOSダイヤル", number: "0120-0-78310", when: "いつでも（よるも、休みの日も）。電話代はかかりません。" },
+  { name: "24時間こどもSOSダイヤル", number: "0120-0-78310", when: "いつでも（よるも、休みの日も）。電話代はかかりません。" },
   { name: "チャイルドライン（18さいまで）", number: "0120-99-7777", when: "毎日 午後4時〜午後9時（12月29日〜1月3日はお休み）。電話代はかかりません。" },
-  { name: "子どもの人権110番", number: "0120-007-110", when: "月曜日〜金曜日 午前8時30分〜午後5時15分。電話代はかかりません。" },
+  { name: "子どもの人権110番", number: "0120-007-110", when: "月曜日〜金曜日 午前8時30分〜午後5時15分。電話代はかかりません（一部のIP電話はつながりません）。" },
   { name: "児童相談所 虐待対応ダイヤル", number: "189", when: "近くの児童相談所につながります。電話代はかかりません（一部のIP電話はつながりません）。" },
 ];
 
 const HELPLINES_EN: readonly Helpline[] = [
-  { name: "24時間子供SOSダイヤル", about: "a 24-hour SOS line for children", number: "0120-0-78310", when: "Any time, at night and on holidays too. The call is free." },
+  { name: "24時間こどもSOSダイヤル", about: "a 24-hour SOS line for children", number: "0120-0-78310", when: "Any time, at night and on holidays too. The call is free." },
   { name: "チャイルドライン（18さいまで）", about: "Childline, for children up to 18", number: "0120-99-7777", when: "Every day, 4 pm to 9 pm (closed December 29 to January 3). For children up to 18. The call is free." },
-  { name: "子どもの人権110番", about: "a children's human rights line (weekdays)", number: "0120-007-110", when: "Monday to Friday, 8:30 am to 5:15 pm. The call is free." },
+  { name: "子どもの人権110番", about: "a children's human rights line (weekdays)", number: "0120-007-110", when: "Monday to Friday, 8:30 am to 5:15 pm. The call is free (some IP phones cannot connect)." },
   { name: "児童相談所 虐待対応ダイヤル", about: "189: if someone at home is hurting you, it connects you to the nearby child guidance center", number: "189", when: "Connects you to a nearby child guidance center. The call is free (some IP phones cannot connect)." },
 ];
 
