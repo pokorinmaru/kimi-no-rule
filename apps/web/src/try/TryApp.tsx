@@ -1,5 +1,5 @@
-// The adults' try route (指示書 第6.9節, 第11節 M5). An adult plays the same flow a child would (the same machine,
-// the same screens, the same calls to the local worker and nothing more), with 「中身を見る」 beside it and a
+// The adults' try route (指示書 第6.9節, 第11節 M5). An adult plays the flow the child had before Q62 (the same machine
+// with the step flow off, the old screens, the same calls to the local worker and nothing more), with 「中身を見る」 beside it and a
 // simulated child that plays a problem by a chosen reading. The device store has a name of its own, so no child
 // record mixes in, and it is emptied every time the route opens: a try keeps nothing for the next visit.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -118,7 +118,7 @@ export function TryApp({
       <section aria-label="大人向けの試用" data-testid="try-banner" style={banner}>
         <h2 style={{ fontSize: 18, margin: "0 0 4px" }}>大人向けの試用ルート（子どもの利用は想定していません）</h2>
         <p style={{ margin: 0 }}>
-          子どもと同じ画面と流れを、大人が自分の手で通せます。右の「中身を見る」に、読み方の研究（仮説・重み・問題を選んだ理由）が出ます。
+          子どもの道より前の流れ（予想・「1」の札・絵本・ルールカード）を、大人が自分の手で通せます。子どもの道は、問題を1文ずつ進めます（Q62）。右の「中身を見る」に、読み方の研究（仮説・重み・問題を選んだ理由）が出ます。
           この試用の記録は子どもの記録と別の場所に置き、このページを開くたびに消します。サーバーに送るものは子どもの流れと同じです。
         </p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>

@@ -1,7 +1,13 @@
 // The band of the three buttons at the bottom (原則7) never covers what the child must see or tap (whole-screen review,
 // 2026-11-08: the band sat over the stage picture). On every screen of the first problem, at both tablet sizes, with
 // the page scrolled to its end, the band's box overlaps no button, no number-pad key and no thing of the picture.
+// The child's route runs the problem one sentence at a time (Q62), so the screens are its steps and their branches.
 import { expect, test, type Page } from "@playwright/test";
+
+async function typeNumber(page: Page, n: number): Promise<void> {
+  for (const d of String(n)) await page.getByTestId(`pad-${d}`).click();
+  await page.getByTestId("pad-ok").click();
+}
 
 const SIZES = [
   { width: 1024, height: 768 },
@@ -57,25 +63,32 @@ for (const size of SIZES) {
     await expect(page.getByTestId("btn-consent-yes")).toBeVisible();
     await expectBarClear(page, "consent");
     await page.getByTestId("btn-consent-yes").click();
-    await expect(page.getByTestId("btn-guess-unknown")).toBeVisible();
-    await expectBarClear(page, "first guess");
-    await page.getByTestId("btn-guess-unknown").click();
-    await expect(page.getByTestId("btn-predict-fits")).toBeVisible();
-    await expectBarClear(page, "the junior's world");
-    await page.getByTestId("btn-predict-odd").click();
-    await expect(page.locator('[data-role="reference_mark"]')).toBeVisible();
-    await expectBarClear(page, "the lit sentence");
-    await page.locator('[data-role="reference_mark"]').click();
-    await page.locator('[data-drop-target="h_ai"]').first().click();
-    await expect(page.getByTestId("btn-confirm-yes")).toBeVisible();
-    await expectBarClear(page, "restatement");
-    await page.getByTestId("btn-confirm-yes").click();
-    // On the festival story a fix that makes every sentence fit goes straight to the rebuilt world (Q60).
-    await expect(page.getByTestId("btn-next")).toBeVisible();
-    await expectBarClear(page, "rebuilt world");
-    await page.getByTestId("btn-next").click();
-    await expect(page.getByTestId("pad-ok")).toBeVisible();
-    await expectBarClear(page, "number pad");
+    // The child's route runs the problem one sentence at a time (Q62): every step and its branches.
+    const steps = page.getByTestId("screen-steps");
+    await expect(steps).toHaveAttribute("data-step", "fact");
+    await expectBarClear(page, "fact step");
+    await typeNumber(page, 5);
+    await expect(page.getByTestId("steps-lead")).toBeVisible();
+    await expectBarClear(page, "fact step, its number lit");
+    await typeNumber(page, 8);
+    await expect(steps).toHaveAttribute("data-step", "relation");
+    await expectBarClear(page, "relation step");
+    await page.getByTestId("btn-step-h_ai").click();
+    await expect(page.getByTestId("btn-step-again")).toBeVisible();
+    await expectBarClear(page, "the other reading's world");
+    await page.getByTestId("btn-step-again").click();
+    await page.getByTestId("btn-step-h_me").click();
+    await expect(steps).toHaveAttribute("data-step", "unit");
+    await expectBarClear(page, "one part");
+    await typeNumber(page, 5);
+    await expect(page.locator('[data-role="thing"]').first()).toBeAttached();
+    await expectBarClear(page, "one part, the plates dealt");
+    await typeNumber(page, 2);
+    await expect(steps).toHaveAttribute("data-step", "total");
+    await expectBarClear(page, "the answer");
+    await typeNumber(page, 6);
+    await expect(steps).toHaveAttribute("data-step", "solved");
+    await expectBarClear(page, "solved");
     await page.getByTestId("btn-hard").click();
     await expect(page.getByTestId("screen-hard")).toBeVisible();
     await expectBarClear(page, "つらい");

@@ -1,5 +1,6 @@
 // The whole first problem in a real browser, with the local server down: templates and the fallback pool
-// only (指示書 第11節 M7: the flow never stops when the server does). Every step is a tap.
+// only (指示書 第11節 M7: the flow never stops when the server does). Every step is a tap. The child's route runs
+// the problem one sentence at a time (Q62); the old screens (guess, prediction, the "1" card) are on #/try.
 import { createRequire } from "node:module";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { FRACTION_BANK, judgeAnswer } from "@kimi/core";
@@ -29,6 +30,22 @@ async function expectNoAxeViolations(page: Page, screen: string): Promise<void> 
   expect(found.violations, screen).toEqual([]);
 }
 
+/** The child's route to the first step of the first problem: top page, はじめる, the intro, consent. */
+async function startChild(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
+  await page.getByTestId("btn-next").click();
+  await page.getByTestId("btn-consent-yes").click();
+}
+
+async function typeNumber(page: Page, n: number): Promise<void> {
+  for (const d of String(n)) await page.getByTestId(`pad-${d}`).click();
+  await page.getByTestId("pad-ok").click();
+}
+
+const stepScreen = (page: Page): Locator => page.getByTestId("screen-steps");
+
 test("app shell renders with the AI mark and the three buttons", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("btn-home-start").click();
@@ -45,61 +62,75 @@ test("app shell renders with the AI mark and the three buttons", async ({ page }
   await expect(page.getByTestId("btn-hard")).toBeVisible();
 });
 
-test("the festival problem from the junior's misreading to the answer, then a second problem with the junior's card", async ({ page }) => {
-  await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto("/");
-  await page.getByTestId("btn-home-start").click();
-  await page.getByTestId("btn-next").click();
-  await page.getByTestId("btn-consent-yes").click();
-  // The child's own first prediction comes first (指示書 第7.1節 手順2): plain outlines, no junior's world or line yet.
-  await expect(page.getByTestId("screen-guess")).toBeVisible();
-  await expect(page.getByTestId("junior-line")).toHaveCount(0);
-  await expect(page.locator('[data-role="tape"]')).toHaveCount(0);
-  await expect(page.locator("main")).not.toContainText("8匹");
-  await page.getByTestId("btn-guess-h_ai").click();
-  // The junior's world: the younger brother's tape is asked, so it shows ？ and never the answer.
-  await expect(page.getByTestId("junior-line")).not.toHaveText("…");
-  await expect(page.locator("main")).not.toContainText("8匹");
-  // Before any sentence lights, the child says whether the junior's world fits (指示書 第7.1節 手順4).
-  // The line as written (the furigana over it aside, 指示書 第8.4b節).
-  await expect(page.getByTestId("predict-question")).toBeVisible();
-  const question = await page.getByTestId("predict-question").evaluate((el) => {
-    const c = el.cloneNode(true) as Element;
-    for (const rt of c.querySelectorAll("rt")) rt.remove();
-    return c.textContent;
-  });
-  expect(question).toBe("この世界、問題とぴったり？ へん？");
-  await expect(page.locator('[data-glow="true"]')).toHaveCount(0);
-  const first = await page.getByTestId("predict").getByRole("button").allTextContents();
-  await page.getByTestId("btn-predict-fits").click();
-  await expect(page.getByTestId("predict")).toHaveCount(0);
-  await expect(page.locator('[data-glow="true"]').first()).toBeAttached();
-  // The child teaches with the 1 card: tap it, then tap the younger brother's whole tape.
-  await page.locator('[data-role="reference_mark"]').click();
-  await page.locator('[data-drop-target="h_ai"]').first().click();
-  await expect(page.getByTestId("junior-line")).toContainText("AIくん");
-  await page.getByTestId("btn-confirm-yes").click();
-  // On the festival story a fix that makes every sentence fit goes straight to the rebuilt world (Q60).
-  // The rebuilt world: the junior says nothing here (Q30), so no "…" that looks like the junior thinking
-  // (run-through, 2026-11-08).
-  await expect(page.getByTestId("btn-next")).toBeVisible();
-  await expect(page.getByTestId("junior-line")).toHaveCount(0);
-  await page.getByTestId("btn-next").click();
+// Q62: the child's route runs the problem one sentence at a time (the count, who is compared with, one part, the answer).
+test("the festival problem one sentence at a time: a wrong count, the other reading's world, the answer, then the second problem", async ({ page }) => {
+  await startChild(page);
+  // The first step: only the first sentence, its count asked; the answer (6) is not on the screen.
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "fact");
+  await expect(stepScreen(page)).toHaveAttribute("data-problem-id", "p_festival_whole");
+  await expect(page.getByTestId("steps-progress")).toHaveText("1 / 4");
+  await expect(page.locator("[data-statement]")).toHaveCount(1);
+  await expect(page.locator("main")).not.toContainText("6匹");
+  await expect(page.getByTestId("steps-lead")).toHaveCount(0);
   // The three buttons stay on screen while the child types a number (原則7).
   await expect(page.getByTestId("btn-hard")).toBeInViewport();
-  await page.getByTestId("pad-2").click();
-  await page.getByTestId("pad-ok").click();
-  await page.getByTestId("pad-8").click();
-  await page.getByTestId("pad-ok").click();
-  await expect(page.locator("main")).toContainText("8匹");
+  // A wrong count once lights the sentence's number; the step stays.
+  await typeNumber(page, 5);
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "fact");
+  await expect(page.getByTestId("steps-lead")).toBeVisible();
+  await typeNumber(page, 8);
+  // Who is compared with: the other holder draws that reading's world, then the question again.
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "relation");
+  await expect(page.getByTestId("steps-progress")).toHaveText("2 / 4");
+  await page.getByTestId("btn-step-h_ai").click();
+  await expect(page.getByTestId("btn-step-again")).toBeVisible();
+  await expect(page.getByTestId("steps-lead")).toBeVisible();
+  await expect(page.getByTestId("steps-question")).toHaveCount(0);
+  await expect(page.locator("main")).not.toContainText("6匹");
+  await page.getByTestId("btn-step-again").click();
+  await expect(page.getByTestId("btn-step-again")).toHaveCount(0);
+  await page.getByTestId("btn-step-h_me").click();
+  // One part, then the answer.
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "unit");
+  await expect(page.locator("main")).not.toContainText("6匹");
+  await typeNumber(page, 2);
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "total");
+  await typeNumber(page, 6);
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "solved");
+  await expect.poll(() => plainOf(page.getByTestId("btn-next"))).toBe("つぎの問題へ");
   await page.getByTestId("btn-next").click();
-  await page.getByTestId("btn-guess-unknown").click();
-  await expect.poll(() => plainOf(page.getByTestId("reading-card"))).toContain("AIくんの読み方：");
-  // On the second problem the two prediction buttons come in the other order (指示書 第11節 M7).
-  const second = await page.getByTestId("predict").getByRole("button").allTextContents();
-  expect(second.slice(0, 2)).toEqual([first[1], first[0]]);
-  expect(second[2]).toBe(first[2]);
+  // The second problem's first step (the session may wait up to 8 s for a research reply that never comes).
+  await expect(stepScreen(page)).toHaveAttribute("data-problem-id", "p_festival", { timeout: 15_000 });
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "fact");
+  await expect(page.getByTestId("steps-progress")).toHaveText("1 / 4");
+  await expect(page.getByTestId("btn-stop")).toBeVisible();
+  await expect(page.getByTestId("btn-dont-know")).toBeVisible();
+  await expect(page.getByTestId("btn-hard")).toBeVisible();
+  await expect(page.locator('[data-role="ai-badge"]').first()).toBeVisible();
+  await expect(page.locator("main")).not.toContainText("8匹");
   await expect(page.locator("main")).not.toContainText("君のルール");
+});
+
+// Q62: a wrong one part opens the smaller step (the plates dealt); two wrong answers keep the problem for later.
+test("a wrong one part opens the smaller step, never the number; two wrong answers hold the problem", async ({ page }) => {
+  await startChild(page);
+  await typeNumber(page, 8);
+  await page.getByTestId("btn-step-h_me").click();
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "unit");
+  const before = await plainOf(page.getByTestId("steps-question"));
+  await typeNumber(page, 5);
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "unit");
+  await expect.poll(() => plainOf(page.getByTestId("steps-question"))).not.toBe(before);
+  await expect(page.locator('[data-role="thing"]').first()).toBeAttached();
+  await expect(page.locator("main")).not.toContainText("6匹");
+  await typeNumber(page, 2);
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "total");
+  await typeNumber(page, 5);
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "total");
+  await expect(page.getByTestId("steps-lead")).toBeVisible();
+  await typeNumber(page, 5);
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "held");
+  await expect.poll(() => plainOf(page.getByTestId("btn-next"))).toBe("つぎの問題へ");
 });
 
 test("つらい stops the math from a problem and shows no phone number", async ({ page }) => {
@@ -124,7 +155,8 @@ test("the three buttons stay on the parent screen too", async ({ page }) => {
   await expect(page.getByTestId("btn-hard")).toBeVisible();
 });
 
-test("axe-core finds no violation on the intro, consent, prediction and number-pad screens", async ({ page }) => {
+// Q62: on the child's route the problem runs one sentence at a time, so axe runs on its steps.
+test("axe-core finds no violation on the intro, consent, a fact step, the relation step, the other world and the number pad", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
   await page.getByTestId("btn-home-start").click();
@@ -134,25 +166,28 @@ test("axe-core finds no violation on the intro, consent, prediction and number-p
   await expect(page.getByTestId("btn-consent-yes")).toBeVisible();
   await expectNoAxeViolations(page, "consent");
   await page.getByTestId("btn-consent-yes").click();
-  await expect(page.getByTestId("btn-guess-unknown")).toBeVisible();
-  await expectNoAxeViolations(page, "first prediction");
-  await page.getByTestId("btn-guess-unknown").click();
-  await expect(page.getByTestId("btn-predict-fits")).toBeVisible();
-  await expectNoAxeViolations(page, "prediction");
-  await page.getByTestId("btn-predict-odd").click();
-  await page.locator('[data-role="reference_mark"]').click();
-  await page.locator('[data-drop-target="h_ai"]').first().click();
-  await page.getByTestId("btn-confirm-yes").click();
-  // On the festival story a fix that makes every sentence fit goes straight to the rebuilt world (Q60).
-  await page.getByTestId("btn-next").click();
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "fact");
   await expect(page.getByTestId("pad-ok")).toBeVisible();
-  await expectNoAxeViolations(page, "number pad");
+  await expectNoAxeViolations(page, "fact step with the number pad");
+  await typeNumber(page, 8);
+  await expect(page.getByTestId("btn-step-unknown")).toBeVisible();
+  await expectNoAxeViolations(page, "relation step");
+  await page.getByTestId("btn-step-h_ai").click();
+  await expect(page.getByTestId("btn-step-again")).toBeVisible();
+  await expectNoAxeViolations(page, "the other reading's world");
+  await page.getByTestId("btn-step-again").click();
+  await page.getByTestId("btn-step-h_me").click();
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "unit");
+  await typeNumber(page, 5);
+  await expect(page.locator('[data-role="thing"]').first()).toBeAttached();
+  await expectNoAxeViolations(page, "one part, the smaller step with the number pad");
 });
 
-test("a wrong unit gets the junior's words, never the right number; a second wrong one holds the problem", async ({ page }) => {
+// The old screens (guess, prediction, the "1" card, the junior's words at the pad) are on the adults' try route
+// now (Q62). It has no top page; its first problem is the same festival problem the child's route used before.
+test("#/try: a wrong unit gets the junior's words, never the right number; a second wrong one holds the problem", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto("/");
-  await page.getByTestId("btn-home-start").click();
+  await page.goto("/#/try");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   await page.getByTestId("btn-guess-unknown").click();
@@ -204,6 +239,7 @@ test("the AI-free check: three problems, a neutral line after each, and the resu
   await expect(page.getByTestId("check-results")).toContainText(/\d{4}\/\d{1,2}\/\d{1,2} \d{2}:\d{2}：3問中3問/);
 });
 
+// Q62: the first problem in English runs one sentence at a time; the problem's own words stay Japanese.
 test("in English: switch on the intro, then the first problem with taps; the choice stays after a reload", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
@@ -218,31 +254,23 @@ test("in English: switch on the intro, then the first problem with taps; the cho
   await expect(page.getByTestId("btn-next")).toHaveText("Start");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
-  // The problem stays as written, with a note in English; the junior's words are English.
-  await expect(page.getByText("The problem is written in Japanese.")).toBeVisible();
-  await expect(page.getByTestId("guess-question")).toHaveText("Who has more, do you think?");
-  await page.getByTestId("btn-guess-unknown").click();
-  await expect(page.getByTestId("junior-line")).not.toHaveText("…");
-  await expect(page.getByTestId("junior-line")).not.toContainText(/[\u3040-\u30ff]/);
-  await expect(page.locator("main")).not.toContainText("8匹");
-  await expect(page.getByTestId("predict-question")).toHaveText("Does this world fit the problem?");
-  await page.getByTestId("btn-predict-odd").click();
-  await page.locator('[data-role="reference_mark"]').click();
-  await page.locator('[data-drop-target="h_ai"]').first().click();
-  // The holder's name stays as in the problem.
-  await expect(page.getByTestId("junior-line")).toContainText("AIくん");
-  await page.getByTestId("btn-confirm-yes").click();
-  // On the festival story a fix that makes every sentence fit goes straight to the rebuilt world (Q60).
-  await page.getByTestId("btn-next").click();
+  // The step's question is English; the holders' names and the thing stay as written in the problem.
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "fact");
+  await expect(page.getByTestId("steps-question")).toHaveText(/^How many .* does そら have\?$/);
   await expect(page.getByTestId("btn-hard")).toHaveText("I feel bad");
-  await page.getByTestId("pad-2").click();
-  await page.getByTestId("pad-ok").click();
-  await page.getByTestId("pad-8").click();
-  await page.getByTestId("pad-ok").click();
+  await typeNumber(page, 8);
+  await expect(page.getByTestId("btn-step-unknown")).toHaveText("I don't know");
+  await page.getByTestId("btn-step-h_ai").click();
+  await expect(page.getByTestId("steps-lead")).toContainText("Does it fit the problem?");
+  await expect(page.getByTestId("btn-step-again")).toHaveText("Choose again");
+  await page.getByTestId("btn-step-again").click();
+  await page.getByTestId("btn-step-h_me").click();
+  await typeNumber(page, 2);
+  await typeNumber(page, 6);
   await expect(page.getByTestId("btn-next")).toHaveText("Next problem");
   await page.getByTestId("btn-next").click();
-  await page.getByTestId("btn-guess-unknown").click();
-  await expect(page.getByTestId("reading-card")).toContainText("AI-kun's reading: ");
+  await expect(stepScreen(page)).toHaveAttribute("data-problem-id", "p_festival", { timeout: 15_000 });
+  await expect(page.getByTestId("steps-question")).toHaveText(/^How many /);
   await expect(page.locator("main")).not.toContainText(/your rule|wrong|correct|mistake/i);
 });
 

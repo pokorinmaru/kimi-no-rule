@@ -1,5 +1,6 @@
 // The stage picture above the tape on the junior's world (指示書 第8節), on a tablet: each holder's things in its
-// container, its name under it; the correct answer never shows as text or as a count of things.
+// container, its name under it; the correct answer never shows as text or as a count of things. The junior's world
+// above the tape is on the adults' try route (#/try) since the child's route runs one sentence at a time (Q62).
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 
@@ -13,8 +14,8 @@ test("the junior's world shows the stage picture above the tape, without the ans
   await page.setViewportSize({ width: 1024, height: 768 });
   // The final picture at once (the deal is the same picture after its motion; 指示書 第8.6節).
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
-  await page.getByTestId("btn-home-start").click();
+  // The old screens live on the adults' try route now (Q62): no top page there; its first problem is the festival one.
+  await page.goto("/#/try");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   await page.getByTestId("btn-guess-h_ai").click();

@@ -34,7 +34,8 @@ test("the child's route has no research note", async ({ page }) => {
   await page.getByTestId("btn-home-start").click();
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
-  await expect(page.getByTestId("guess")).toBeVisible();
+  // The child's route runs the problem one sentence at a time (Q62).
+  await expect(page.getByTestId("screen-steps")).toBeVisible();
   await expect(page.getByTestId("research-note")).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText("研究ノート");
   await expect(page.getByTestId("toggle-unchecked")).toHaveCount(0);
