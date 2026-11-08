@@ -104,7 +104,7 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
       lead: outcome === "solved" ? null : t.held,
       cheer:
         outcome === "solved" && last?.kind === "total"
-          ? { title: t.cheer.title, line: t.cheer.line(money ? label(last.targetHolderId) : lang === "ja" ? `${label(last.targetHolderId)}の ${noun}` : `${label(last.targetHolderId)}'s ${noun}`, `${frac(last.value)}${counter}`) }
+          ? { title: t.cheer.title, line: t.cheer.line(s.steps[0] !== undefined && stepScene(p.record, s.steps[0], [])?.item.coin !== undefined ? label(last.targetHolderId) : lang === "ja" ? `${label(last.targetHolderId)}の ${noun}` : `${label(last.targetHolderId)}'s ${noun}`, `${frac(last.value)}${counter}`) }
           : null,
       question: null,
       choices: null,
