@@ -2,7 +2,7 @@
 // step, one question, and the answers it takes. Every number and picture comes from core (stepsOf, stepScene,
 // objectScene); this file only picks the words. A question's numbers are the problem's own (the given count, the
 // parts of p/q), never the answer or one part before the child has said them.
-import { dealAttempt, dealLine, objectScene, percentOff, stepScene, type DealAttempt, type Lang, type ObjectScene, type Rational, type Step } from "@kimi/core";
+import { dealAttempt, dealLine, dealStart, dealStartLine, dealTotal, dealTotalLine, objectScene, percentOff, stepScene, type DealAttempt, type Lang, type ObjectScene, type Rational, type Step } from "@kimi/core";
 import { MAX_VOICE_TURNS, type ProblemState } from "../flow/machine.ts";
 import { firstReading } from "../flow/problem.ts";
 import { ui } from "../flow/text.ts";
@@ -221,6 +221,22 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
           deal: { attempt, key: `${String(s.tries)}-${String(s.tried.num)}/${String(s.tried.den)}` },
         };
       }
+      // Before any answer (user request, 2026-11-08 夜): the plates empty and the things in the pool, so the child can
+      // deal them and think with them from the start.
+      const start = !s.help && fact?.kind === "fact" ? dealStart(p.record, step, fact) : null;
+      if (start !== null) {
+        return {
+          ...common,
+          statements: statementsUpTo(all),
+          current: relation?.kind === "relation" ? relation.statementIndex : null,
+          lit: null,
+          lead: join(dealStartLine(p.record, start, lang), coinNote(stepScene(p.record, step, s.said))),
+          question,
+          pad: t.pad,
+          scene: null,
+          deal: { attempt: start, key: "start" },
+        };
+      }
       // The smaller step draws the dealing so the child can count one part (Q62: a smaller step is allowed);
       // its description says the dishes, never what one dish gets (safety review S1).
       const unitScene = stepScene(p.record, step, s.help ? [...s.said, step.value] : s.said);
@@ -248,6 +264,22 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
       };
     }
     case "total": {
+      // The answer, wrong (user request, 2026-11-08 夜): the child's number dealt one part per plate.
+      const unitStep = s.steps.find((x) => x.kind === "unit");
+      const tried = s.tried !== null && unitStep?.kind === "unit" ? dealTotal(p.record, step, unitStep.value, s.tried) : null;
+      if (tried !== null && s.tried !== null && unitStep?.kind === "unit") {
+        return {
+          ...common,
+          statements: statementsUpTo(all),
+          current: step.statementIndex,
+          lit: null,
+          lead: dealTotalLine(p.record, tried, unitStep.value, s.tried, lang),
+          question: t.total(label(step.targetHolderId), step.parts, counter),
+          pad: t.pad,
+          scene: null,
+          deal: { attempt: tried, key: `total-${String(s.tries)}-${String(s.tried.num)}/${String(s.tried.den)}` },
+        };
+      }
       const totalScene = stepScene(p.record, step, s.said);
       return {
         ...common,

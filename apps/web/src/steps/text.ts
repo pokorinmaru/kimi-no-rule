@@ -58,6 +58,9 @@ export interface StepsText {
     notYet: (parts: number, now: string) => string;
     /** When all the plates are the same: the child is sent on to type one part. */
     toPad: (counter: string) => string;
+    /** AI-kun when all the plates are the same (one part), and what the plates are now on the answer step. */
+    equalSay: (parts: number, counter: string) => string;
+    nowSay: (now: string) => string;
   };
   money: {
     note: (coinNoun: string, coinCounter: string, worth: number, counter: string) => string;
@@ -107,9 +110,11 @@ const JA: StepsText = {
     pool: (n) => `のこり ${n}`,
     equal: (parts) => `やったね！ ${String(parts)}つの おさらが 同じに なったよ！`,
     how: "ドラッグか、タップで えらんで おさらを タップすると、うごかせるよ。",
-    hint: (noun) => `${noun}を ゆびで ほかの おさらへ うごかしてみよう！`,
+    hint: (noun) => `${noun}を ゆびで おさらへ うごかしてみよう！`,
     notYet: (parts, now) => `まだ ${String(parts)}つの おさらが 同じに なってないね。いまは ${now} だね。`,
     toPad: (counter) => `じゃあ、1つぶんは なん${counter}？ こたえに 入れてみよう！`,
+    equalSay: (parts, counter) => `${String(parts)}つの おさらが 同じに なったね！ じゃあ、1つぶんは なん${counter}かな？`,
+    nowSay: (now) => `いまは ${now} だね。`,
   },
   money: {
     note: (coinNoun, coinCounter, worth, counter) => `絵の ${coinNoun} 1${coinCounter}は ${String(worth)}${counter}。`,
@@ -158,9 +163,11 @@ const EN: StepsText = {
     pool: (n) => `Left over: ${n}`,
     equal: (parts) => `You did it! All ${String(parts)} plates are the same!`,
     how: "Drag one, or tap one and then tap a plate, to move it.",
-    hint: (noun) => `Move the ${noun} to other plates with your finger!`,
+    hint: (noun) => `Move the ${noun} onto the plates with your finger!`,
     notYet: (parts, now) => `The ${String(parts)} plates are not the same yet. Now they are ${now}.`,
     toPad: (counter) => `So how many ${counter} is one part? Type it in the answer!`,
+    equalSay: (parts, counter) => `All ${String(parts)} plates are the same! So how many ${counter} is one part?`,
+    nowSay: (now) => `Now they are ${now}.`,
   },
   money: {
     note: (coinNoun, _coinCounter, worth, counter) => `In the picture, one ${coinNoun} is ${String(worth)}${counter}.`,

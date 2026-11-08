@@ -47,7 +47,26 @@ function Thing({ svg, size, selected, wiggle }: { svg: { viewBox: string; body: 
   );
 }
 
-export function DealBoard({ attempt, lang, holderLabel, onEqual }: { attempt: DealAttempt; lang: Lang; holderLabel: string; onEqual?: (equal: boolean) => void }) {
+/**
+ * `unit`: the child looks for one part, so all plates the same is the goal (a cheer, onEqual). `total`: the child's
+ * answer dealt one part per plate; plates the same is not the goal there, so only what the plates are now is said.
+ * `onTalk` hands AI-kun's line for the plates now (null: AI-kun keeps the step's line).
+ */
+export function DealBoard({
+  attempt,
+  lang,
+  holderLabel,
+  mode = "unit",
+  onEqual,
+  onTalk,
+}: {
+  attempt: DealAttempt;
+  lang: Lang;
+  holderLabel: string;
+  mode?: "unit" | "total";
+  onEqual?: (equal: boolean) => void;
+  onTalk?: (line: string | null) => void;
+}) {
   const t = stepsText(lang);
   const [plates, setPlates] = useState<number[]>(() => [...attempt.plates]);
   const [pool, setPool] = useState(attempt.left);
@@ -64,7 +83,8 @@ export function DealBoard({ attempt, lang, holderLabel, onEqual }: { attempt: De
   }, [attempt]);
   const part = itemPartFor(attempt.noun, holderLabel);
   const svg = itemSvg(part ?? "token");
-  const status = dealStatus(plates, attempt.total, attempt.worth);
+  const raw = dealStatus(plates, attempt.total, attempt.worth);
+  const status = mode === "unit" ? raw : { ...raw, equal: false };
   useEffect(() => {
     onEqual?.(status.equal);
   }, [status.equal, onEqual]);
@@ -167,11 +187,17 @@ export function DealBoard({ attempt, lang, holderLabel, onEqual }: { attempt: De
     );
   };
   const now = plates.map((_, i) => `${String(status.plates[i]?.value ?? 0)}${unit}`).join("・");
+  // AI-kun says what the plates are now once the child has moved one (and the cheer's question when they are the same).
+  const talk = status.equal ? t.deal.equalSay(attempt.parts, unit) : moved || dragging ? (mode === "unit" ? t.deal.notYet(attempt.parts, now) : t.deal.nowSay(now)) : null;
+  useEffect(() => {
+    onTalk?.(talk);
+  }, [talk, onTalk]);
   return (
-    <section aria-label={t.deal.label} data-testid="deal-board" style={{ border: `${String(BORDER.thin)}px solid ${COLOR.line}`, borderRadius: RADIUS.md, background: COLOR.surface, padding: SPACE.sm, position: "relative" }}>
+    <section aria-label={t.deal.label} data-testid="deal-board" style={{ border: `${String(BORDER.thin)}px solid ${COLOR.line}`, borderRadius: RADIUS.md, background: COLOR.surface, padding: SPACE.sm, position: "relative", userSelect: "none", WebkitUserSelect: "none" }}>
       <style>{CSS}</style>
       {/* The call to move things: big, until the child has moved one. */}
-      {!moved && !status.equal && (
+      {/* On the answer step moving cannot fill the empty plates, so the call to move is shown for one part only. */}
+      {mode === "unit" && !moved && !status.equal && (
         <p
           data-testid="deal-hint"
           className="k-deal-glow"
@@ -201,8 +227,10 @@ export function DealBoard({ attempt, lang, holderLabel, onEqual }: { attempt: De
           {t.deal.equal(attempt.parts)}
         </p>
       ) : (
-        <p data-testid="deal-status" data-equal="false" role="status" style={{ margin: `${String(SPACE.xs)}px 0 0`, fontSize: moved || dragging ? TYPE.body : TYPE.small, fontWeight: 700, color: moved || dragging ? COLOR.ink : COLOR.inkSoft, minHeight: "1.5em", lineHeight: 1.5 }}>
-          {moved || dragging ? t.deal.notYet(attempt.parts, now) : t.deal.how}
+        // AI-kun says what the plates are now (onTalk), and the big call says how to move them: the board keeps one
+        // screen with no line of its own here (user request, 2026-11-08 夜). Kept for screen readers.
+        <p data-testid="deal-status" data-equal="false" role="status" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }}>
+          {moved || dragging ? (mode === "unit" ? t.deal.notYet(attempt.parts, now) : t.deal.nowSay(now)) : t.deal.how}
         </p>
       )}
       {/* The thing under the finger while dragging. */}

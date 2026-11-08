@@ -57,8 +57,13 @@ export function StepScreen({
   const [readingIndex, setReadingIndex] = useState<number | null>(null);
   // The child's own dealing came out the same on every plate: the answer pad is lit and the child is sent to it.
   const [dealEqual, setDealEqual] = useState(false);
+  // AI-kun's line for the plates as the child moves the things (null: the step's own line).
+  const [dealTalk, setDealTalk] = useState<string | null>(null);
   const dealKey = view.deal?.key ?? null;
-  useEffect(() => setDealEqual(false), [dealKey]);
+  useEffect(() => {
+    setDealEqual(false);
+    setDealTalk(null);
+  }, [dealKey]);
   const problemReadings = readingsFor(view.problemId);
   const rubyUi = furigana && lang === "ja";
   // The step's own words read with the problem's readings too (the holders' names, the thing's noun).
@@ -90,9 +95,9 @@ export function StepScreen({
           <div>
             <KohaiBeside pose="look">
               <div>
-                {view.lead !== null && (
-                  <p data-testid="steps-lead" style={{ ...prose, fontSize: TYPE.small, lineHeight: 1.6, margin: `0 0 ${String(SPACE.xs)}px`, padding: `${String(SPACE.xs)}px ${String(SPACE.sm)}px`, border: `${String(BORDER.thin)}px solid ${COLOR.line}`, borderRadius: RADIUS.md, background: COLOR.surfaceSoft }}>
-                    <RubyText text={view.lead} on={rubyUi} readings={readings} />
+                {(dealTalk ?? view.lead) !== null && (
+                  <p data-testid="steps-lead" data-talk={dealTalk !== null ? "plates" : "step"} role="status" style={{ ...prose, fontSize: TYPE.small, lineHeight: 1.6, margin: `0 0 ${String(SPACE.xs)}px`, padding: `${String(SPACE.xs)}px ${String(SPACE.sm)}px`, border: `${String(BORDER.thin)}px solid ${COLOR.line}`, borderRadius: RADIUS.md, background: COLOR.surfaceSoft }}>
+                    <RubyText text={dealTalk ?? view.lead ?? ""} on={rubyUi} readings={readings} />
                   </p>
                 )}
                 {/* Once the plates are the same, the question becomes the call to type one part (one screen: no new row). */}
@@ -125,7 +130,7 @@ export function StepScreen({
             <div className="k-deal-sentences" style={{ ...card, padding: `0 ${String(SPACE.sm)}px`, marginBottom: SPACE.sm }}>
               <SentenceList statements={view.statements} readings={furigana ? problemReadings : null} readingIndex={lineIndex} holders={holderColors(view.holders)} checks={checks} label={t.label} lang={lang} />
             </div>
-            <DealBoard key={view.deal.key} attempt={view.deal.attempt} lang={lang} holderLabel={view.holders[0]?.label ?? ""} onEqual={setDealEqual} />
+            <DealBoard key={view.deal.key} attempt={view.deal.attempt} lang={lang} holderLabel={view.holders[0]?.label ?? ""} mode={view.kind === "total" ? "total" : "unit"} onEqual={setDealEqual} onTalk={setDealTalk} />
           </div>
         </div>
       </section>
