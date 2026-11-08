@@ -48,7 +48,8 @@ describe("the child's route, one sentence at a time", () => {
     fireEvent.click(screen.getByTestId("btn-step-again"));
     fireEvent.click(await screen.findByTestId("btn-step-h_me"));
     await waitFor(() => expect(stepOf()).toBe("unit"));
-    expect(plain(screen.getByTestId("steps-lead"))).toContain("4つに わけた うちの 3つぶん");
+    // The one part step opens with the empty plates and every goldfish waiting (5d59d9c).
+    expect(plain(screen.getByTestId("steps-lead"))).toContain("4つの おさらに");
   });
 
   it("goes to the end, and the parent sees each step with where it needed help", async () => {
