@@ -386,7 +386,12 @@ function facts(ctx: GateContext): Facts {
   const given = givenValues(ctx.correct);
   if (res.kind !== "unique") return { solvable: false, given, hidden: [], answer: null };
   const answer = res.values.get(ctx.correct.question.target_id);
-  const hidden = [...res.values.values()].map(toSchema).filter((v) => !containsAny(given, v));
+  const values = [...res.values.values()].map(toSchema);
+  // One part of a multiple (the reference split into its denominator's parts) is a value on the way too (Q62).
+  const m = ctx.correct.relations.find((r) => (r.operator === "fraction_of" || r.operator === "times") && r.reference !== null && r.amount !== null);
+  const ref = m?.reference == null ? undefined : res.values.get(m.reference);
+  if (m?.amount != null && ref !== undefined) values.push(toSchema(div(ref, rat(fromSchema(m.amount).den))));
+  const hidden = values.filter((v) => !containsAny(given, v));
   return { solvable: true, given, hidden, answer: answer === undefined ? null : toSchema(answer) };
 }
 

@@ -113,3 +113,76 @@ export const festivalRecord: ProblemRecord = {
   ],
   companion_ids: [],
 };
+
+// The child's route opens with this one (Q62): the same festival, but the child's count is the whole (8) and AIくん's is
+// 3/4 of it (answer 6, one part 2), so the child can split 8 into 4 and take 3. The story above (the part is given)
+// comes second. Read with the "1" swapped, AIくん scoops 10 and two-thirds goldfish.
+const WHOLE_SENTENCES: { tokens: string[]; ids: string[]; question: boolean }[] = [
+  {
+    tokens: ["なつまつり", "の", "金魚", "すくい", "で", "、", FESTIVAL_PLACEHOLDER, "は", "金魚", "を", "8", "匹", "すくい", "ました", "。"],
+    ids: ["q_me"],
+    question: false,
+  },
+  {
+    tokens: ["AIくん", "が", "すくった", "金魚", "は", "、", FESTIVAL_PLACEHOLDER, "の", "金魚", "の", "3/4", "です", "。"],
+    ids: ["r_ratio"],
+    question: false,
+  },
+  {
+    tokens: ["AIくん", "は", "、", "金魚", "を", "何", "匹", "すくい", "ました", "か", "。"],
+    ids: ["q_ai"],
+    question: true,
+  },
+];
+
+const wholeStatements: ProblemRecord["statements"] = WHOLE_SENTENCES.map((s, index) => ({
+  index,
+  text: s.tokens.join(""),
+  element_ids: s.ids,
+  is_question: s.question,
+  speaker_holder_id: null,
+  tokens: s.tokens,
+}));
+
+const wholeWorld: WorldScene = {
+  ...world,
+  problem_id: "p_festival_whole",
+  problem_text: wholeStatements.map((s) => s.text).join(""),
+  quantities: [
+    { id: "q_me", holder: "h_me", item_kind: "k_kingyo", at_event: null, value: { num: 8, den: 1 } },
+    { id: "q_ai", holder: "h_ai", item_kind: "k_kingyo", at_event: null, value: null },
+  ],
+  relations: [
+    {
+      id: "r_ratio",
+      operator: "fraction_of",
+      subject: "q_ai",
+      reference: "q_me",
+      reference_list: null,
+      amount: { num: 3, den: 4 },
+      other_description: null,
+    },
+  ],
+};
+
+export const festivalWholeRecord: ProblemRecord = {
+  schema_version: "1",
+  world: wholeWorld,
+  consistency: "consistent",
+  pair_id: null,
+  source: "prepared",
+  checks: { double_build_match: false, restate_match: false, misread_pass_rate: null, human_checked: false },
+  expected_answer: { num: 6, den: 1 },
+  statements: wholeStatements,
+  syntax_marks: [
+    mark("holder_mention", 0, 6, FESTIVAL_PLACEHOLDER, "h_me"),
+    mark("unit_word", 0, 11, "匹", "k_kingyo"),
+    mark("holder_mention", 1, 0, "AIくん", "h_ai"),
+    mark("holder_mention", 1, 6, FESTIVAL_PLACEHOLDER, "h_me"),
+    mark("relation_word", 1, 9, "の", "r_ratio"),
+    mark("ratio_notation", 1, 10, "3/4", "r_ratio", ["lt1", "fraction"]),
+    mark("holder_mention", 2, 0, "AIくん", "h_ai"),
+    mark("sentence_pattern", 2, 5, "何", null),
+  ],
+  companion_ids: [],
+};
