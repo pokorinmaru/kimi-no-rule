@@ -7,9 +7,9 @@ describe("sceneCases", () => {
   const cases = sceneCases();
   it("has the correct world before and after the answer, and misread worlds, for every bank problem core can draw as things", () => {
     const ids = new Set(cases.map((c) => c.problemId));
-    // A problem whose counts pass the picture's limit (the sale problem's 800円, Q63) has no stage picture.
+    // A problem core cannot draw as things has no stage picture; the sale problem is drawn in 100円 coins (Q63).
     const drawable = PREPARED_BANK.filter((r) => objectScene(r.world, r.world, { values: [] }) !== null);
-    expect(drawable.map((r) => r.world.problem_id)).not.toContain("p_sale");
+    expect(drawable.map((r) => r.world.problem_id)).toContain("p_sale");
     expect(ids.size).toBe(drawable.length);
     for (const id of ids) {
       expect(cases.some((c) => c.id === `${id}/correct`)).toBe(true);

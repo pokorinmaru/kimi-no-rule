@@ -167,6 +167,8 @@ export const PART_NARROW: Readonly<Record<string, number>> = {
   bead: 0.84,
   acorn: 0.84,
   senbei: 0.84,
+  // The 100円 coin of the sale problem (Q63; measured on the real part, 2026-11-08).
+  coin: 0.89,
 };
 export const narrowOf = (item: string): number => (item === "cup" ? CUP_NARROW : item === "token" ? TOKEN_NARROW : (PART_NARROW[item] ?? 0.5));
 
@@ -205,6 +207,7 @@ export const PART_BOX: Readonly<Record<string, { x: number; w: number }>> = {
   bead: { x: 8, w: 84 },
   acorn: { x: 8, w: 84 },
   senbei: { x: 8, w: 84 },
+  coin: { x: 5, w: 89 },
 };
 export const partBoxOf = (item: string): { x: number; w: number } => PART_BOX[item] ?? { x: 0, w: 100 };
 

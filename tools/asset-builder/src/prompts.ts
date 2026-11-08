@@ -32,6 +32,7 @@ export const PART_BRIEFS: Record<PartId, string> = {
   senbei: "one round Japanese rice cracker (senbei) seen from above: a flat golden-brown disc with a slightly darker toasted rim, a few small darker toast dots, and a small dark-green square sheet of nori seaweed wrapped over one edge; flat like a cookie, never a ball or a sphere",
   bead: "one round bead for a bracelet, with a hole through the middle seen from the side",
   acorn: "one acorn with its little cap, standing upright",
+  coin: "one Japanese 100-yen coin seen straight from above: a round silver-grey coin with a thick raised rim and a simple cherry-blossom flower pressed in the middle, so it clearly reads as a coin of money; no numbers, no letters, no text of any kind on it",
   plate: "a shallow round dish seen from slightly above, wide and flat",
 };
 

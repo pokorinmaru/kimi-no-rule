@@ -38,8 +38,11 @@ export interface StageHolder {
 }
 
 export interface ObjectScene {
-  /** `continuous`: a unit like dL, L or m (poured into cups or cut in lengths; a piece is possible). */
-  item: { id: string; noun: string; counter: string; continuous: boolean };
+  /**
+   * `continuous`: a unit like dL, L or m (poured into cups or cut in lengths; a piece is possible). `coin`: a sum of
+   * money drawn as coins of so many 円 each (Q63); the counts are then coins, and `hidden` stays in 円.
+   */
+  item: { id: string; noun: string; counter: string; continuous: boolean; coin?: number };
   /** In the world's order of holders. */
   holders: StageHolder[];
   /** What one dish gets; null when nothing is dealt (no multiple, or the share is hidden). */
@@ -97,6 +100,35 @@ const quantityOfHolder = (w: WorldScene, holderId: string): Quantity | undefined
 };
 const multipleOf = (w: WorldScene) => w.relations.find((r) => MULTIPLE.has(r.operator) && r.reference !== null && r.amount !== null);
 
+/** The coin a sum of money is drawn in (Q63). */
+const COIN = 100;
+
+/** The coin to draw the money of a world in: 100 when it counts 円 and every number it solves to is a whole number of 100円 coins. */
+function coinOf(correct: WorldScene): number | null {
+  const kind = correct.item_kinds[0];
+  if (correct.item_kinds.length !== 1 || kind === undefined || kind.counter !== "円") return null;
+  const res = solve(correct);
+  if (res.kind !== "unique") return null;
+  const values = correct.quantities.flatMap((q) => {
+    const v = res.values.get(q.id);
+    return v === undefined ? [] : [v];
+  });
+  const m = multipleOf(correct);
+  const ref = m?.reference == null ? undefined : res.values.get(m.reference);
+  if (m?.amount != null && ref !== undefined) values.push(div(ref, rat(fromSchema(m.amount).den)));
+  return values.length > 0 && values.every((v) => v.num > 0n && v.num % (v.den * BigInt(COIN)) === 0n) ? COIN : null;
+}
+
+/** A world with its amounts of money counted in coins (the given counts, and the differences of an additive relation). */
+function scaled(w: WorldScene, coin: number): WorldScene {
+  const inCoins = (v: Rational): Rational => toSchema(div(fromSchema(v), rat(coin)));
+  return {
+    ...w,
+    quantities: w.quantities.map((q) => (q.value === null ? q : { ...q, value: inCoins(q.value) })),
+    relations: w.relations.map((r) => ((r.operator === "more_by" || r.operator === "less_by") && r.amount !== null ? { ...r, amount: inCoins(r.amount) } : r)),
+  };
+}
+
 /** The correct world's values the child has not said: its solution beyond the given numbers, and one segment. */
 function hiddenValues(correct: WorldScene, said: readonly Rational[]): Exact[] {
   const res = solve(correct);
@@ -122,6 +154,21 @@ function hiddenValues(correct: WorldScene, said: readonly Rational[]): Exact[] {
  * continuous unit), or does not solve to one value per holder (the screen then shows the tape only).
  */
 export function objectScene(shown: WorldScene, correct: WorldScene, said: { values: readonly Rational[] }): ObjectScene | null {
+  // A sum of money is drawn as 100円 coins when every number of the correct world is a whole number of them (Q63):
+  // the worlds and the said numbers are counted in coins, so the gate below hides the answer and one part as coins.
+  const coin = coinOf(correct);
+  if (coin !== null) {
+    const inCoins = (v: Rational): Rational => toSchema(div(fromSchema(v), rat(coin)));
+    const scene = objectScene(scaled(shown, coin), scaled(correct, coin), { values: said.values.map(inCoins) });
+    if (scene === null) return null;
+    return {
+      ...scene,
+      item: { ...scene.item, noun: `${String(coin)}円玉`, counter: "枚", continuous: false, coin },
+      // A price that is not a whole number of coins is still a price: a cut coin shows it, not an impossible world.
+      holders: scene.holders.map((h) => ({ ...h, impossible: h.count === null && !h.hidden })),
+      hidden: scene.hidden.map((v) => toSchema(mul(fromSchema(v), rat(coin)))),
+    };
+  }
   const kind = shown.item_kinds[0];
   if (shown.item_kinds.length !== 1 || kind === undefined) return null;
   // A continuous unit (dL, L, m) may come in pieces: a piece is then no impossible world.
@@ -220,6 +267,13 @@ export function objectScene(shown: WorldScene, correct: WorldScene, said: { valu
  * dish (likewise), and the whole things and the shapes over a holder's dishes.
  */
 export function drawnValues(s: ObjectScene): Rational[] {
+  // Coins: what a child counts is coins, and what it reads off them is so many 円 (both are checked).
+  const coin = s.item.coin;
+  if (coin !== undefined) {
+    const item: ObjectScene["item"] = { id: s.item.id, noun: s.item.noun, counter: s.item.counter, continuous: s.item.continuous };
+    const coins = drawnValues({ ...s, item });
+    return [...coins, ...coins.map((v) => toSchema(mul(fromSchema(v), rat(coin))))];
+  }
   const counts = (a: StageAmount): Rational[] =>
     a.piece === null ? [amountValue(a)] : [amountValue(a), { num: a.wholes, den: 1 }, { num: a.wholes + 1, den: 1 }];
   const share = s.share;

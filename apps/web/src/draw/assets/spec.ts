@@ -25,6 +25,8 @@ export const ITEM_PARTS = [
   "senbei",
   "bead",
   "acorn",
+  // Money counted in 100円 coins (the sale problem, Q63): core draws a sum of 円 as coins when it comes out whole.
+  "coin",
 ] as const;
 export type ItemPart = (typeof ITEM_PARTS)[number];
 
@@ -127,6 +129,7 @@ export function itemPartFor(noun: string, holderLabel: string): ItemPart | null 
   if (noun === "せんべい") return "senbei";
   if (noun === "ビーズ") return "bead";
   if (noun === "どんぐり") return "acorn";
+  if (noun === "100円玉") return "coin";
   return null;
 }
 

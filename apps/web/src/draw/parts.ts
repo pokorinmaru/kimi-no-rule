@@ -53,6 +53,7 @@ const ITEM_FILL: Record<string, [string, string] | undefined> = {
   bead: [PALETTE.yellow, PALETTE.white],
   acorn: [PALETTE.brown, PALETTE.brownLight],
   senbei: [PALETTE.brownLight, PALETTE.brown],
+  coin: [PALETTE.greyLight, PALETTE.grey],
 };
 
 /** A plain stand-in for a part not drawn yet: a shape and the palette only. */
@@ -72,7 +73,7 @@ export function placeholder(part: PartId | "token"): string {
       return svg(w, h, `<path d="M74 50 L96 30 L96 70 Z" fill="${accent}" ${sw("item")}/><ellipse cx="44" cy="50" rx="36" ry="24" fill="${main}" ${sw("item")}/><circle cx="26" cy="45" r="4" fill="${O}"/>`);
     if (id === "card" || id === "sticker") return svg(w, h, `<rect x="16" y="10" width="68" height="80" rx="10" fill="${main}" ${sw("item")}/><circle cx="50" cy="50" r="14" fill="${accent}"/>`);
     if (id === "ribbon") return svg(w, h, `<path d="M50 50 L12 26 L12 74 Z M50 50 L88 26 L88 74 Z" fill="${main}" ${sw("item")}/><circle cx="50" cy="50" r="10" fill="${accent}" ${sw("item")}/>`);
-    if (id === "candy" || id === "marble" || id === "bead" || id === "acorn" || id === "senbei")
+    if (id === "candy" || id === "marble" || id === "bead" || id === "acorn" || id === "senbei" || id === "coin")
       // A round thing (the word book's everyday things) until its part is drawn.
       return svg(w, h, `<circle cx="50" cy="50" r="38" fill="${main}" ${sw("item")}/><circle cx="38" cy="38" r="9" fill="${accent}"/>`);
     if (id === "yarn")
