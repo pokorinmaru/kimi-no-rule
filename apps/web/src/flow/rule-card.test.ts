@@ -145,7 +145,7 @@ describe("what the card screen shows", () => {
     const v = cardView(actor);
     const current = s.context.log.at(-1)?.reading;
     expect(current).toBeDefined();
-    expect(v.card).toMatch(/^後輩の読み方：/);
+    expect(v.card).toMatch(/^AIくんの読み方：/);
     expect(v.card).toBe(readingCard(current as never, undefined, "ja", { forEdit: true }) ?? readingCard(current as never, undefined, "ja"));
     expect(v.options.map((o) => o.ruleId)).toEqual([...CARD_RULE_IDS]);
     expect(v.options.map((o) => o.label)).toEqual(CARD_RULE_IDS.map((id) => cardSlot(rule(id), "ja")));

@@ -408,7 +408,7 @@ const CARD_WORDS = {
     invert: "分数を、上と下を入れかえて読む",
     flip: "ふえた・へったを、反対に読む",
     question: "聞かれている人を、ほかの人として読む",
-    prefix: "後輩の読み方：",
+    prefix: "AIくんの読み方：",
   },
   en: {
     quoted: (word: string, before: boolean) => `takes the person ${before ? "before" : "after"} "${word}" as 1`,
@@ -423,7 +423,7 @@ const CARD_WORDS = {
     invert: "reads the fraction upside down",
     flip: "reads gaining and losing the other way round",
     question: "reads the person asked about as someone else",
-    prefix: "Junior's reading: ",
+    prefix: "AI-kun's reading: ",
   },
 } as const;
 

@@ -4,8 +4,8 @@
 
 export type SpokenCommand = "stop" | "dont_know";
 
-const STOP_WORDS = ["やめる", "やめたい", "やめます", "止める", "辞める", "おわり", "おわる", "終わり", "終わる", "stop", "quit"];
-const DONT_KNOW_WORDS = ["わからない", "分からない", "わかんない", "分かんない", "わかりません", "分かりません", "idontknow", "dontknow"];
+export const STOP_WORDS = ["やめる", "やめたい", "やめます", "止める", "辞める", "おわり", "おわる", "終わり", "終わる", "stop", "quit"];
+export const DONT_KNOW_WORDS = ["わからない", "分からない", "わかんない", "分かんない", "わかりません", "分かりません", "idontknow", "dontknow"];
 
 /** The words folded for the comparison: no spaces, punctuation or apostrophes, lower case, full-width folded. */
 function fold(text: string): string {

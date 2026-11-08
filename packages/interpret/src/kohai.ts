@@ -62,7 +62,7 @@ const MIND =
 /** Putting the child's reading in the junior's mouth, or saying where the junior's reading came from. */
 const ATTRIBUTION = /先輩の(読み|考え|まね|やり方)|きみの|君の|あなたの|まね|\byour (reading|way|rule|idea)\b|\blike you\b|\bsame as you\b|\byou read\b|\bcopied\b|\blearned from you\b|\byou taught me\b/i;
 /** Questions about the child, not about the problem. */
-const ABOUT_THE_CHILD = /なまえ|名前|どこ|住ん|すん|学校|がっこう|ねんせい|年生|なんさい|何さい|何歳|おうち|家族|かぞく|\bname\b|\blive\b|\bschool\b|\bage\b|how old|\bgrade\b/i;
+const ABOUT_THE_CHILD = /先輩|せんぱい|\bsenpai\b|なまえ|名前|どこ|住ん|すん|学校|がっこう|ねんせい|年生|なんさい|何さい|何歳|おうち|家族|かぞく|\bname\b|\blive\b|\bschool\b|\bage\b|how old|\bgrade\b/i;
 /** Words for the shape of the junior's own world, which is already on the screen. */
 const SHAPE_WORDS = ["長い", "短い", "区切り", "足りない", "あふれ", "テープ", "文", "世界", "絵本", "読み方", "long", "short", "part", "tape", "sentence", "world", "picture book", "reading"];
 

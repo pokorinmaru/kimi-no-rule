@@ -39,14 +39,14 @@ describe("the rule card's options (指示書 第7.1節 後輩のルールカー�
   it("pins the slot of the reading that keeps who the sentence says, in both languages", () => {
     expect(cardSlot(rule(CORRECT_READING_ID), "ja")).toBe("文が言うとおりの人を、1とみる");
     expect(cardSlot(rule(CORRECT_READING_ID), "en")).toBe("takes as 1 the person the sentence says");
-    expect(readingCard(rule(CORRECT_READING_ID), undefined, "ja", { forEdit: true })).toBe("後輩の読み方：文が言うとおりの人を、1とみる");
-    expect(readingCard(rule(CORRECT_READING_ID), undefined, "en", { forEdit: true })).toBe("Junior's reading: takes as 1 the person the sentence says");
+    expect(readingCard(rule(CORRECT_READING_ID), undefined, "ja", { forEdit: true })).toBe("AIくんの読み方：文が言うとおりの人を、1とみる");
+    expect(readingCard(rule(CORRECT_READING_ID), undefined, "en", { forEdit: true })).toBe("AI-kun's reading: takes as 1 the person the sentence says");
   });
 
   it("leaves the plain card as it was: a rule that changes nothing still has no card outside the editor", () => {
     expect(readingCard(rule(CORRECT_READING_ID))).toBeNull();
     expect(readingCard(rule(CORRECT_READING_ID), undefined, "en")).toBeNull();
-    expect(readingCard(rule("c_known_whole"))).toBe("後輩の読み方：わかっている数の人を、1とみる");
+    expect(readingCard(rule("c_known_whole"))).toBe("AIくんの読み方：わかっている数の人を、1とみる");
   });
 
   it("the editor's card is the prefix and the slot, even on a problem where the reading builds the sentence's world", () => {
@@ -55,7 +55,7 @@ describe("the rule card's options (指示書 第7.1節 後輩のルールカー�
       for (const lang of ["ja", "en"] as const) {
         const slot = cardSlot(h, lang);
         expect(slot, h.id).not.toBeNull();
-        const prefix = lang === "ja" ? "後輩の読み方：" : "Junior's reading: ";
+        const prefix = lang === "ja" ? "AIくんの読み方：" : "AI-kun's reading: ";
         expect(readingCard(h, signboard, lang, { forEdit: true })).toBe(`${prefix}${slot as string}`);
       }
     }

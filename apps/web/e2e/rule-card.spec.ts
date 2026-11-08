@@ -4,7 +4,7 @@
 // are found here with core and never read off the screen.
 import { createRequire } from "node:module";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { FRACTION_BANK, judgeAnswer, judgeUnitValue, numbersIn, sceneAvoidValues, type ProblemRecord } from "@kimi/core";
+import { PREPARED_BANK, judgeAnswer, judgeUnitValue, numbersIn, sceneAvoidValues, type ProblemRecord } from "@kimi/core";
 
 /** A locator's text as written, its furigana (the <rt> readings) aside. */
 const plainOf = (loc: Locator): Promise<string> =>
@@ -27,7 +27,7 @@ async function axeViolations(page: Page): Promise<string[]> {
 
 async function recordOnScreen(page: Page): Promise<ProblemRecord> {
   const id = await page.locator("section[data-problem-id]").getAttribute("data-problem-id");
-  const r = FRACTION_BANK.find((x) => x.world.problem_id === id);
+  const r = PREPARED_BANK.find((x) => x.world.problem_id === id);
   if (r === undefined) throw new Error(`no bank problem ${String(id)}`);
   return r;
 }
@@ -91,7 +91,7 @@ test("two solved problems open the junior's card; choosing who is 1 builds the g
   await solve(page);
 
   await expect(page.getByTestId("screen-card")).toBeVisible();
-  await expect.poll(() => plainOf(page.getByTestId("rule-card"))).toContain("後輩の読み方：");
+  await expect.poll(() => plainOf(page.getByTestId("rule-card"))).toContain("AIくんの読み方：");
   await expect(page.getByTestId("gallery-item")).toHaveCount(2);
   // The AI mark and the three buttons stay on the card screen.
   await expect(page.locator('[data-role="ai-badge"]').first()).toBeVisible();
@@ -113,7 +113,7 @@ test("two solved problems open the junior's card; choosing who is 1 builds the g
   await expect(scenes.getByTestId("scene")).toHaveCount(2);
   await expect(scenes.locator('[data-role="common-sense"][data-glow="true"]')).toHaveCount(1);
   expect(await scenes.locator('[data-role="scene-tape"]').count()).toBeGreaterThanOrEqual(4);
-  const avoid = sceneAvoidValues(FRACTION_BANK);
+  const avoid = sceneAvoidValues(PREPARED_BANK);
   for (const n of numbersIn((await scenes.textContent()) ?? "")) expect(avoid.some((a) => a.num * n.den === n.num * a.den)).toBe(false);
   expect(await axeViolations(page)).toEqual([]);
 

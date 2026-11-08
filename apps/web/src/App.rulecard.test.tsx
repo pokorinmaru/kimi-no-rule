@@ -74,7 +74,7 @@ describe("the junior's rule card on the screen", () => {
     await solveOnScreen();
 
     const cardScreen = await screen.findByTestId("screen-card");
-    expect(plainText(screen.getByTestId("rule-card"))).toMatch(/^後輩の読み方：/);
+    expect(plainText(screen.getByTestId("rule-card"))).toMatch(/^AIくんの読み方：/);
     const options = within(cardScreen)
       .getAllByRole("button")
       .filter((b) => b.hasAttribute("data-rule"));

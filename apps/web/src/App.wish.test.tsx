@@ -113,12 +113,14 @@ describe("a wish to AI-kun", () => {
     expect(screen.queryByTestId("btn-wish-copy")).toBeNull();
   });
 
-  it("has 「つらい」 on the wish screen, which shows where to talk", async () => {
+  it("keeps the three buttons under the wish screen; 「つらい」 leaves it for the hard screen", async () => {
     render(<App storeName="kimi-wish-hardbtn" api={null} />);
     await screen.findByTestId("screen-home");
     fireEvent.click(screen.getByTestId("btn-wish"));
-    fireEvent.click(await screen.findByTestId("btn-wish-hard"));
-    expect(plain(await screen.findByTestId("wish-hard"))).toContain(t.hard.talk);
+    await screen.findByTestId("screen-wish");
+    fireEvent.click(screen.getByTestId("btn-hard"));
+    expect(await screen.findByTestId("screen-hard")).toBeTruthy();
+    expect(screen.queryByTestId("screen-wish")).toBeNull();
   });
 
   it("when the server cannot judge (no server, an error, unchecked), thanks the child and gently offers 「つらい」", async () => {
@@ -127,7 +129,7 @@ describe("a wish to AI-kun", () => {
       await sendWish(name, api, "もっとはやくして");
       await screen.findByTestId("wish-done");
       expect(plain(screen.getByTestId("wish-unchecked"))).toContain(t.wish.unchecked);
-      expect(screen.getByTestId("btn-wish-hard")).toBeTruthy();
+      expect(screen.getByTestId("btn-hard")).toBeTruthy();
       cleanup();
     }
   });

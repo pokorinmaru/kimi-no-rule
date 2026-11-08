@@ -41,6 +41,29 @@ describe("RESTART_PROBLEM", () => {
     expect(s.context.done).toEqual([first.record.world.problem_id]);
   });
 
+  // Code review, 2026-11-08: a child who has seen the rebuilt world and starts again is no longer reading unaided.
+  it("records no second observation of the same problem, and keeps the voice turns used", () => {
+    const actor = run();
+    const p0 = actor.getSnapshot().context.problem;
+    if (p0 === null) throw new Error("no problem");
+    const rel = p0.record.world.relations.find((x) => x.id === p0.relationId);
+    actor.send({ type: "GUESS", larger: rel?.reference as string });
+    actor.send({ type: "PREDICT", answer: "odd" });
+    actor.send({ type: "PLACE_ONE", quantityId: rel?.reference as string });
+    actor.send({ type: "CONFIRM_YES" });
+    const observed = actor.getSnapshot().context.research;
+    const turns = actor.getSnapshot().context.problem?.voiceTurns;
+    actor.send({ type: "RESTART_PROBLEM" });
+    actor.send({ type: "GUESS", larger: rel?.reference as string });
+    actor.send({ type: "PREDICT", answer: "odd" });
+    actor.send({ type: "PLACE_ONE", quantityId: rel?.reference as string });
+    actor.send({ type: "CONFIRM_YES" });
+    const s = actor.getSnapshot().context;
+    expect(s.research).toEqual(observed);
+    expect(s.problem?.voiceTurns).toBe(turns);
+    expect(s.problem?.firstAided).toBe(true);
+  });
+
   it("does nothing on the intro, before any problem is open", () => {
     const actor = createActor(flowMachine, { input: { introSeen: false, consented: false } });
     actor.start();

@@ -38,8 +38,28 @@ describe("the top page", () => {
     expect(screen.getByTestId("btn-home-start").textContent).toContain(t.home.start);
     expect(screen.queryByTestId("btn-home-resume")).toBeNull();
     expect(screen.getByTestId("btn-parent")).toBeTruthy();
-    // The three buttons belong to the session's screens, not to the top page.
-    expect(screen.queryByTestId("always")).toBeNull();
+    // The three buttons are on the top page too (原則7・8; code and safety review, 2026-11-08).
+    for (const id of ["btn-stop", "btn-dont-know", "btn-hard"]) expect(screen.getByTestId(id)).toBeTruthy();
+  });
+
+  it("「つらい」 on the top page goes to the hard screen", async () => {
+    render(<App storeName="kimi-home-hard" api={null} />);
+    await screen.findByTestId("screen-home");
+    fireEvent.click(screen.getByTestId("btn-hard"));
+    expect(await screen.findByTestId("screen-hard")).toBeTruthy();
+    expect(screen.queryByTestId("screen-home")).toBeNull();
+  });
+
+  it("deleting every record from the grown-up's screen takes the name off the screen too", async () => {
+    render(<App storeName="kimi-home-delete" api={null} parentHoldMs={0} />);
+    await screen.findByTestId("screen-home");
+    fireEvent.change(screen.getByTestId("input-name"), { target: { value: "ゆい" } });
+    fireEvent.pointerDown(screen.getByTestId("btn-parent"));
+    fireEvent.click(await screen.findByRole("button", { name: t.parent.deleteAsk }));
+    fireEvent.click(await screen.findByTestId("btn-delete-all"));
+    await waitFor(() => expect(screen.queryByTestId("btn-delete-all")).toBeNull());
+    fireEvent.click(await screen.findByTestId("btn-parent-back"));
+    expect(((await screen.findByTestId("input-name")) as HTMLInputElement).value).toBe("");
   });
 
   it("starts with the festival story, the child's name in it and AIくん beside it", async () => {

@@ -674,9 +674,9 @@ describe("kohaiReading", () => {
 
 describe("readingCard", () => {
   type Action = Hypothesis["clauses"][number]["then"];
-  const CARD_KNOWN = "後輩の読み方：わかっている数の人を、1とみる";
-  const CARD_FIRST = "後輩の読み方：先に出てきた人を、1とみる";
-  const CARD_SWAP = "後輩の読み方：1とみる人を、入れかえて読む";
+  const CARD_KNOWN = "AIくんの読み方：わかっている数の人を、1とみる";
+  const CARD_FIRST = "AIくんの読み方：先に出てきた人を、1とみる";
+  const CARD_SWAP = "AIくんの読み方：1とみる人を、入れかえて読む";
   const EVERY_ACTION: Action[] = [
     act.chooseBy("first_mentioned"),
     act.chooseBy("second_mentioned"),
@@ -716,8 +716,8 @@ describe("readingCard", () => {
     const card = readingCard(always("h", a));
     expect(card).not.toBeNull();
     const text = card as string;
-    expect(text.startsWith("後輩の読み方：")).toBe(true);
-    expect(text.length).toBeGreaterThan("後輩の読み方：".length);
+    expect(text.startsWith("AIくんの読み方：")).toBe(true);
+    expect(text.length).toBeGreaterThan("AIくんの読み方：".length);
     expect(text).not.toMatch(/\n/);
     expect(text.split("1とみる").join("")).not.toMatch(/[0-9０-９一二三四五六七八九十]/);
     for (const w of BANNED) expect(text, w).not.toContain(w);
@@ -743,12 +743,12 @@ describe("readingCard", () => {
   // HANDOFF §7 の4: the English screen (指示書 第11節 M8). The same rules in English: no operation name, no
   // number but the 1 of "as 1" / "the one", no judging word, nothing placed on the child (原則1・10・11).
   describe("in English", () => {
-    const EN_PREFIX = "Junior's reading: ";
+    const EN_PREFIX = "AI-kun's reading: ";
     const EN_BANNED =
       /\b(?:you|your|yours|wrong|mistakes?|mistaken|correct(?:ly)?|incorrect|right|error|fooled|tricked|add|adds|added|plus|subtract\w*|minus|multipl\w*|times|divid\w*|division|sum|product|quotient|difference|half|halves|twice|double)\b/i;
     const JAPANESE = /[\u3040-\u30ff\u3400-\u9fff\uff01-\uff60]/;
     const strip1 = (t: string): string => t.replace(/\bas 1\b/g, "").replace(/\bthe one\b/gi, "").replace(/"1"/g, "");
-    const EN_KNOWN = "Junior's reading: takes the person whose count is given as 1";
+    const EN_KNOWN = "AI-kun's reading: takes the person whose count is given as 1";
 
     it("defaults to Japanese", () => {
       expect(readingCard(always("h", act.chooseBy("known_value")))).toBe(CARD_KNOWN);
@@ -786,10 +786,10 @@ describe("readingCard", () => {
     it("a word Claude wrote is quoted only when it carries no number or operation", () => {
       for (const word of ["3倍", "わる", "three", "四分の三", "a\nb"]) {
         expect(readingCard(always("h_w", act.chooseByWord("before_word", word)), undefined, "en"), word).toBe(
-          "Junior's reading: takes the person before a certain word as 1",
+          "AI-kun's reading: takes the person before a certain word as 1",
         );
       }
-      expect(readingCard(always("h_w", act.chooseByWord("after_word", "の")), undefined, "en")).toBe('Junior\'s reading: takes the person after "の" as 1');
+      expect(readingCard(always("h_w", act.chooseByWord("after_word", "の")), undefined, "en")).toBe('AI-kun\'s reading: takes the person after "の" as 1');
     });
 
     it("safeWord refuses any word core reads a number in, any operation name the gate knows, and more number words", () => {
@@ -848,7 +848,7 @@ describe("a simulated child who takes the known number as the whole", () => {
     expect(s.unexpressible).toBe(false);
     const known = s.pool.find((e) => e.hypothesis.id === "c_known_whole") as PoolEntry;
     expect(known.splitObservations).toBe(2);
-    expect(readingCard(known.hypothesis)).toBe("後輩の読み方：わかっている数の人を、1とみる");
+    expect(readingCard(known.hypothesis)).toBe("AIくんの読み方：わかっている数の人を、1とみる");
   });
 });
 
@@ -887,15 +887,15 @@ describe("review fixes (Q28)", () => {
 
   it("the card names the clause that acted on the problem, and none when the world does not change", () => {
     const h = hyp("h_two", [clause(p("ratio_kind_is", "gt1"), act.swap()), clause(ALWAYS, act.chooseBy("known_value"))]);
-    expect(readingCard(h, sign())).toBe("後輩の読み方：わかっている数の人を、1とみる");
+    expect(readingCard(h, sign())).toBe("AIくんの読み方：わかっている数の人を、1とみる");
     expect(readingCard(correct, sign())).toBeNull();
   });
 
   it("a word Claude wrote is quoted on the card only when it carries no number or operation", () => {
     for (const word of ["3倍", "わる", "three", "四分の三", "a\nb", "とても長い言葉のかたまりです"]) {
       const card = readingCard(always("h_w", act.chooseByWord("before_word", word)));
-      expect(card, word).toBe("後輩の読み方：ある言葉の前の人を、1とみる");
+      expect(card, word).toBe("AIくんの読み方：ある言葉の前の人を、1とみる");
     }
-    expect(readingCard(always("h_w", act.chooseByWord("before_word", "の")))).toBe("後輩の読み方：「の」の前の人を、1とみる");
+    expect(readingCard(always("h_w", act.chooseByWord("before_word", "の")))).toBe("AIくんの読み方：「の」の前の人を、1とみる");
   });
 });

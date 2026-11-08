@@ -46,13 +46,13 @@ test("「読み上げ」 reads the problem sentence by sentence; ふりがな is
   await page.getByTestId("btn-guess-unknown").click();
   await expect(page.getByTestId("junior-line")).not.toHaveText("…");
   // Furigana over the problem's kanji, on at first.
-  await expect(page.locator('[data-statement="0"] rt').first()).toHaveText("あに");
+  await expect(page.locator('[data-statement="0"] rt').first()).toHaveText("きんぎょ");
   await page.getByTestId("btn-read-aloud").click();
   await expect(page.locator('[data-statement="0"]')).toHaveAttribute("data-reading", "true");
-  expect((await spoken())[0]).toEqual({ text: "あにのきんぎょは6匹。", lang: "ja-JP", rate: 0.85 });
+  expect((await spoken())[0]).toEqual({ text: "なつまつりのきんぎょすくいで、そらはきんぎょを6匹すくいました。", lang: "ja-JP", rate: 0.85 });
   await end();
   await expect(page.locator('[data-statement="1"]')).toHaveAttribute("data-reading", "true");
-  expect((await spoken())[1]?.text).toBe("これは、おとうとのきんぎょのかずの4分の3です。");
+  expect((await spoken())[1]?.text).toBe("これは、AIくんがすくったきんぎょのかずの4分の3です。");
   // Stop: nothing stays lit.
   await page.getByTestId("btn-read-stop").click();
   await expect(page.locator('[data-reading="true"]')).toHaveCount(0);
@@ -62,6 +62,7 @@ test("「読み上げ」 reads the problem sentence by sentence; ふりがな is
   await page.getByTestId("btn-furigana").click();
   await expect(page.locator("[data-statement] ruby")).toHaveCount(0);
   await page.reload();
+  await page.getByTestId("btn-home-start").click();
   await expect(page.getByTestId("btn-furigana")).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator("[data-statement] ruby")).toHaveCount(0);
 });

@@ -2,7 +2,7 @@
 // for the parent; the server passes them to Claude once to judge distress and rephrase them, and keeps nothing. A cry
 // for help never becomes a wish: the screen shows where to talk, and only a mark and the date are kept. When the
 // server cannot judge, nothing says the words were safe: the thanks comes with a gentle way to the hard screen (Q26).
-// The hard button is on the screen the whole time. On the parent screen only the rephrased request, checked by core
+// The three buttons of the top page stay under this screen (Q60), 「つらい」 among them. On the parent screen only the rephrased request, checked by core
 // again here, can be sent to the developer, copied by the parent's own hand.
 import { useEffect, useState, type CSSProperties } from "react";
 import { wishGate, type Lang } from "@kimi/core";
@@ -55,10 +55,6 @@ export function WishScreen(props: {
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<Phase>("write");
   const [unchecked, setUnchecked] = useState(false);
-  const hard = (): void => {
-    void props.store.logSafety("hard_button");
-    setPhase("hard");
-  };
   const send = async (): Promise<void> => {
     const words = text.trim();
     if (words === "") return;
@@ -147,11 +143,6 @@ export function WishScreen(props: {
         {phase === "done" && (
           <Button onClick={() => setPhase("write")} testId="btn-wish-again">
             <RubyText text={t.wish.again} on={ruby} />
-          </Button>
-        )}
-        {phase !== "hard" && (
-          <Button kind="quiet" onClick={hard} testId="btn-wish-hard" highlight={phase === "done" && unchecked}>
-            <RubyText text={t.hard.label} on={ruby} />
           </Button>
         )}
         <Button kind="quiet" onClick={props.onBack} testId="btn-wish-back">

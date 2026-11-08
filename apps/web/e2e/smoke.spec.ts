@@ -38,14 +38,14 @@ test("app shell renders with the AI mark and the three buttons", async ({ page }
     for (const rt of c.querySelectorAll("rt")) rt.remove();
     return c.textContent;
   });
-  expect(title).toBe("後輩と問題を読もう");
-  await expect(page.locator("h1 rt").first()).toHaveText("こうはい");
+  expect(title).toBe("AIくんと問題を読もう");
+  await expect(page.locator("h1 rt").first()).toHaveText("もんだい");
   await expect(page.getByTestId("btn-stop")).toBeVisible();
   await expect(page.getByTestId("btn-dont-know")).toBeVisible();
   await expect(page.getByTestId("btn-hard")).toBeVisible();
 });
 
-test("the signboard problem from the junior's misreading to the answer, then a second problem with the junior's card", async ({ page }) => {
+test("the festival problem from the junior's misreading to the answer, then a second problem with the junior's card", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
   await page.getByTestId("btn-home-start").click();
@@ -79,8 +79,7 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   await page.locator('[data-drop-target="h_ai"]').first().click();
   await expect(page.getByTestId("junior-line")).toContainText("AIくん");
   await page.getByTestId("btn-confirm-yes").click();
-  // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
-  await page.getByTestId("btn-book-close").click();
+  // On the festival story a fix that makes every sentence fit goes straight to the rebuilt world (Q60).
   // The rebuilt world: the junior says nothing here (Q30), so no "…" that looks like the junior thinking
   // (run-through, 2026-11-08).
   await expect(page.getByTestId("btn-next")).toBeVisible();
@@ -95,7 +94,7 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   await expect(page.locator("main")).toContainText("8匹");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-guess-unknown").click();
-  await expect.poll(() => plainOf(page.getByTestId("reading-card"))).toContain("後輩の読み方：");
+  await expect.poll(() => plainOf(page.getByTestId("reading-card"))).toContain("AIくんの読み方：");
   // On the second problem the two prediction buttons come in the other order (指示書 第11節 M7).
   const second = await page.getByTestId("predict").getByRole("button").allTextContents();
   expect(second.slice(0, 2)).toEqual([first[1], first[0]]);
@@ -144,8 +143,7 @@ test("axe-core finds no violation on the intro, consent, prediction and number-p
   await page.locator('[data-role="reference_mark"]').click();
   await page.locator('[data-drop-target="h_ai"]').first().click();
   await page.getByTestId("btn-confirm-yes").click();
-  // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
-  await page.getByTestId("btn-book-close").click();
+  // On the festival story a fix that makes every sentence fit goes straight to the rebuilt world (Q60).
   await page.getByTestId("btn-next").click();
   await expect(page.getByTestId("pad-ok")).toBeVisible();
   await expectNoAxeViolations(page, "number pad");
@@ -162,8 +160,7 @@ test("a wrong unit gets the junior's words, never the right number; a second wro
   await page.locator('[data-role="reference_mark"]').click();
   await page.locator('[data-drop-target="h_ai"]').first().click();
   await page.getByTestId("btn-confirm-yes").click();
-  // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
-  await page.getByTestId("btn-book-close").click();
+  // On the festival story a fix that makes every sentence fit goes straight to the rebuilt world (Q60).
   await page.getByTestId("btn-next").click();
   const before = await page.getByTestId("junior-line").textContent();
   await page.getByTestId("pad-5").click();
@@ -212,9 +209,12 @@ test("in English: switch on the intro, then the first problem with taps; the cho
   await page.goto("/");
   await page.getByTestId("btn-home-start").click();
   await page.getByTestId("lang-en").click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Read problems with the junior");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Read problems with AI-kun");
   await expect(page.getByTestId("btn-next")).toHaveText("Start");
   await page.reload();
+  // After a reload the app opens on the top page again, in English (Q60).
+  await expect(page.getByTestId("btn-home-start")).toHaveText("Start");
+  await page.getByTestId("btn-home-start").click();
   await expect(page.getByTestId("btn-next")).toHaveText("Start");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
@@ -232,8 +232,7 @@ test("in English: switch on the intro, then the first problem with taps; the cho
   // The holder's name stays as in the problem.
   await expect(page.getByTestId("junior-line")).toContainText("AIくん");
   await page.getByTestId("btn-confirm-yes").click();
-  // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
-  await page.getByTestId("btn-book-close").click();
+  // On the festival story a fix that makes every sentence fit goes straight to the rebuilt world (Q60).
   await page.getByTestId("btn-next").click();
   await expect(page.getByTestId("btn-hard")).toHaveText("I feel bad");
   await page.getByTestId("pad-2").click();
@@ -243,7 +242,7 @@ test("in English: switch on the intro, then the first problem with taps; the cho
   await expect(page.getByTestId("btn-next")).toHaveText("Next problem");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-guess-unknown").click();
-  await expect(page.getByTestId("reading-card")).toContainText("Junior's reading: ");
+  await expect(page.getByTestId("reading-card")).toContainText("AI-kun's reading: ");
   await expect(page.locator("main")).not.toContainText(/your rule|wrong|correct|mistake/i);
 });
 
