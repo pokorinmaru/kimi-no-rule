@@ -2,7 +2,7 @@
 // (FESTIVAL_PLACEHOLDER); the screen shows the name the child typed in its place. The name is display only: it is
 // kept on this device (the store's settings, removed with everything else from the grown-up's screen) and is put
 // into the view just before it is drawn, never into the session, so nothing the session sends ever holds it.
-import { FESTIVAL_PLACEHOLDER, festivalRecord, hasDistressWord, hasOperationName, numbersIn } from "@kimi/core";
+import { FESTIVAL_PLACEHOLDER, festivalRecord, festivalWholeRecord, hasDistressWord, hasOperationName, numbersIn } from "@kimi/core";
 import { hasForbiddenPhrase } from "./text.ts";
 import { DONT_KNOW_WORDS, STOP_WORDS } from "./spoken.ts";
 
@@ -15,9 +15,12 @@ const toKatakana = (s: string): string => s.replace(/[ぁ-ゖ]/g, (c) => String.
 
 /** The words of the festival problem: a name that is one of them would read as part of the problem. */
 const PROBLEM_WORDS: ReadonlySet<string> = new Set([
-  ...festivalRecord.statements.flatMap((x) => x.tokens),
-  ...festivalRecord.world.holders.map((h) => h.label),
-  ...festivalRecord.world.item_kinds.map((k) => k.noun),
+  // Both festival stories of the child's route (Q60, Q62).
+  ...[festivalRecord, festivalWholeRecord].flatMap((r) => [
+    ...r.statements.flatMap((x) => x.tokens),
+    ...r.world.holders.map((h) => h.label),
+    ...r.world.item_kinds.map((k) => k.noun),
+  ]),
 ]);
 
 /**
