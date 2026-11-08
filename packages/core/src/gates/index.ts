@@ -343,7 +343,7 @@ export type Action =
   /** An everyday scene (指示書 第6.7節 手順5): only a scene core built; its own numbers are allowed, a problem's hidden values are not. */
   | { kind: "show_scene"; scene: Scene; lang: "ja" | "en" };
 
-export type GateReason = "answer_leak" | "operation_name" | "question_not_hidden" | "too_early" | "unverified" | "grade_down" | "card_on_segment";
+export type GateReason = "answer_leak" | "operation_name" | "question_not_hidden" | "too_early" | "unverified" | "card_on_segment";
 export type GateResult = { ok: true } | { ok: false; reasons: GateReason[] };
 
 /** Names and signs of operations, in every form (指示書 第5.5節 ②). */
@@ -452,7 +452,7 @@ export function gate(action: Action, ctx: GateContext): GateResult {
       if (!correctMarks.has(action.world)) reasons.add("unverified");
       break;
     case "switch_problem":
-      if (action.grade < ctx.grade) reasons.add("grade_down");
+      // Any grade is allowed (Q62): a child may step back to what they need. The rule not to lower the grade is gone.
       break;
     case "show_scene": {
       const sc = action.scene;
