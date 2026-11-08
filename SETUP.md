@@ -46,5 +46,5 @@ pnpm install
 ## つまずいたとき
 
 - `git push` が資格情報の画面待ちで止まる：`git -c credential.helper= -c "credential.helper=!gh auth git-credential" push`
-- テストが赤のまま終われない：Stop フックが `pnpm test` を回している。赤のテストは手元でだけコミットし、緑にしてから push する。
+- 全体の確かめ：締切までは、書き込みの後と終わる前のテストのフックを外している（CLAUDE.md）。公開の前に `pnpm verify`（型チェック・lint・全体の単体テスト・e2e）を回し、全部通してから公開する。
 - 書き込みがフックに止められる：設計文書と10語以上一致していないか、個人情報らしき文字列が無いかを見て、自分の言葉に直す。
