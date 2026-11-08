@@ -13,6 +13,8 @@ import { PALETTE, itemPartFor } from "../draw/assets/spec.ts";
 import { itemSvg } from "../draw/parts.ts";
 import { BORDER, COLOR, RADIUS, SPACE, TYPE } from "../ui/tokens.ts";
 import { stepsText } from "./text.ts";
+import { RubyText } from "../ui/Ruby.tsx";
+import type { Readings } from "@kimi/core";
 
 /** Where a thing sits: a plate (its index) or the pool of things left over. */
 type Spot = number | "pool";
@@ -59,6 +61,8 @@ export function DealBoard({
   mode = "unit",
   onEqual,
   onTalk,
+  ruby = false,
+  readings,
 }: {
   attempt: DealAttempt;
   lang: Lang;
@@ -66,6 +70,9 @@ export function DealBoard({
   mode?: "unit" | "total";
   onEqual?: (equal: boolean) => void;
   onTalk?: (line: string | null) => void;
+  /** Furigana over the board's words, as on the rest of the step (code review, 2026-11-08). */
+  ruby?: boolean;
+  readings?: Readings;
 }) {
   const t = stepsText(lang);
   const [plates, setPlates] = useState<number[]>(() => [...attempt.plates]);
@@ -74,16 +81,9 @@ export function DealBoard({
   const [moved, setMoved] = useState(false);
   const [drag, setDrag] = useState<{ from: Spot; x: number; y: number; over: Spot | null; dragging: boolean } | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
-  useEffect(() => {
-    setPlates([...attempt.plates]);
-    setPool(attempt.left);
-    setPicked(null);
-    setMoved(false);
-    setDrag(null);
-  }, [attempt]);
   const part = itemPartFor(attempt.noun, holderLabel);
   const svg = itemSvg(part ?? "token");
-  const raw = dealStatus(plates, attempt.total, attempt.worth);
+  const raw = dealStatus(plates, attempt.total, attempt.worth, pool, attempt.hidden);
   const status = mode === "unit" ? raw : { ...raw, equal: false };
   useEffect(() => {
     onEqual?.(status.equal);
@@ -142,7 +142,9 @@ export function DealBoard({
 
   const size = attempt.parts >= 5 ? 30 : 36;
   const unit = attempt.unitCounter;
-  const totalValue = attempt.total * attempt.worth;
+  const totalValue = status.totalValue;
+  /** A value core gives, or 「？」 for one part or the answer before the plates are all the same. */
+  const said = (v: number | null): string => (v === null ? "？" : `${String(v)}${unit}`);
   const dragging = drag !== null && drag.dragging;
   const wiggle = !moved && !dragging;
   const box = (s: Spot, n: number, label: string, sub: string | null): React.ReactElement => {
@@ -155,10 +157,14 @@ export function DealBoard({
         data-count={String(n)}
         role="button"
         tabIndex={0}
-        aria-label={label}
+        // No aria-label: the plate's visible words are its name, so a screen reader says what is shown (axe, 2026-11-08).
         onClick={() => tapSpot(s)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") tapSpot(s);
+          if (e.key === "Enter" || e.key === " ") {
+            // Space would scroll the page (code review, 2026-11-08).
+            e.preventDefault();
+            tapSpot(s);
+          }
         }}
         style={plateStyle(s === "pool", picked === s || over, status.equal && s !== "pool")}
       >
@@ -181,12 +187,14 @@ export function DealBoard({
             );
           })}
         </div>
-        <p style={{ margin: `${String(SPACE.xs)}px 0 0`, fontSize: TYPE.small, lineHeight: 1.4, textAlign: "center", color: COLOR.ink }}>{label}</p>
+        <p style={{ margin: `${String(SPACE.xs)}px 0 0`, fontSize: TYPE.small, lineHeight: 1.4, textAlign: "center", color: COLOR.ink }}>
+          <RubyText text={label} on={ruby} {...(readings === undefined ? {} : { readings })} />
+        </p>
         {sub !== null && <p data-role="deal-share" style={{ margin: 0, fontSize: TYPE.small, textAlign: "center", fontWeight: 700, color: COLOR.ink }}>{sub}</p>}
       </div>
     );
   };
-  const now = plates.map((_, i) => `${String(status.plates[i]?.value ?? 0)}${unit}`).join("・");
+  const now = plates.map((_, i) => said(status.plates[i]?.value ?? null)).join("・");
   // AI-kun says what the plates are now once the child has moved one (and the cheer's question when they are the same).
   const talk = status.equal ? t.deal.equalSay(attempt.parts, unit) : moved || dragging ? (mode === "unit" ? t.deal.notYet(attempt.parts, now) : t.deal.nowSay(now)) : null;
   useEffect(() => {
@@ -206,16 +214,17 @@ export function DealBoard({
           <span aria-hidden="true" style={{ marginRight: 6 }}>
             ☝
           </span>
-          {t.deal.hint(attempt.noun)}
+          <RubyText text={t.deal.hint(attempt.noun)} on={ruby} {...(readings === undefined ? {} : { readings })} />
         </p>
       )}
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${String(attempt.parts)}, minmax(0, 1fr))`, gap: SPACE.xs }}>
         {plates.map((n, i) => {
-          const value = status.plates[i]?.value ?? 0;
-          return box(i, n, t.deal.plate(`${String(totalValue)}${unit}`, `${String(value)}${unit}`), `${String(n)}/${String(attempt.total)}`);
+          const shown = status.plates[i];
+          const fraction = shown?.fraction ?? null;
+          return box(i, n, t.deal.plate(`${String(totalValue)}${unit}`, said(shown?.value ?? null)), fraction === null ? "？" : `${String(fraction.num)}/${String(fraction.den)}`);
         })}
       </div>
-      {(pool > 0 || attempt.left > 0) && <div style={{ marginTop: SPACE.xs }}>{box("pool", pool, t.deal.pool(`${String(pool * attempt.worth)}${unit}`), null)}</div>}
+      {(pool > 0 || attempt.left > 0) && <div style={{ marginTop: SPACE.xs }}>{box("pool", pool, t.deal.pool(said(status.poolValue)), null)}</div>}
       {status.equal ? (
         <p
           data-testid="deal-status"
@@ -224,7 +233,7 @@ export function DealBoard({
           className="k-deal-pop"
           style={{ margin: `${String(SPACE.sm)}px 0 0`, padding: `${String(SPACE.sm)}px ${String(SPACE.md)}px`, borderRadius: RADIUS.md, background: PALETTE.greenLight, border: `${String(BORDER.thin)}px solid ${PALETTE.green}`, fontSize: TYPE.large, fontWeight: 800, color: COLOR.ink, textAlign: "center", lineHeight: 1.5 }}
         >
-          {t.deal.equal(attempt.parts)}
+          <RubyText text={t.deal.equal(attempt.parts)} on={ruby} {...(readings === undefined ? {} : { readings })} />
         </p>
       ) : (
         // AI-kun says what the plates are now (onTalk), and the big call says how to move them: the board keeps one
