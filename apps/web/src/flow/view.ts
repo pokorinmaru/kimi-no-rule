@@ -430,6 +430,10 @@ export function childTexts(v: FlowView): string[] {
         out.push(p.typed.label, p.typed.hint, p.typed.send);
         if (v.voice.missed !== null) out.push(v.voice.missed);
       }
+      // The solved screen's line, and the board's words (reviewer, 2026-11-08). The 「せいかい！」 title alone is left out:
+      // it is the one place the steps say right, after the child's own answer (Q65).
+      if (v.cheer !== null) out.push(v.cheer.line);
+      if (v.deal !== null) out.push(st.deal.label, st.deal.how, st.deal.equal(v.deal.attempt.parts), st.deal.pool(""), st.deal.plate("", ""));
       break;
     }
     case "help":

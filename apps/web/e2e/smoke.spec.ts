@@ -111,17 +111,24 @@ test("the festival problem one sentence at a time: a wrong count, the other read
   await expect(page.locator("main")).not.toContainText("君のルール");
 });
 
-// Q62: a wrong one part opens the smaller step (the plates dealt); two wrong answers keep the problem for later.
-test("a wrong one part opens the smaller step, never the number; two wrong answers hold the problem", async ({ page }) => {
+// Q62・Q65: a wrong one part is dealt as the child said it (the plates run out), the child can move the things, and
+// the plates' shares come from core; two wrong answers keep the problem for later.
+test("a wrong one part is dealt as the child said it and can be moved, never the number; two wrong answers hold the problem", async ({ page }) => {
   await startChild(page);
   await typeNumber(page, 8);
   await page.getByTestId("btn-step-h_me").click();
   await expect(stepScreen(page)).toHaveAttribute("data-step", "unit");
-  const before = await plainOf(page.getByTestId("steps-question"));
   await typeNumber(page, 5);
   await expect(stepScreen(page)).toHaveAttribute("data-step", "unit");
-  await expect.poll(() => plainOf(page.getByTestId("steps-question"))).not.toBe(before);
-  await expect(page.locator('[data-role="thing"]').first()).toBeAttached();
+  await expect(page.getByTestId("deal-board")).toBeVisible();
+  await expect(page.getByTestId("deal-plate-0")).toHaveAttribute("data-count", "5");
+  await expect(page.getByTestId("deal-plate-1")).toHaveAttribute("data-count", "3");
+  await expect(page.getByTestId("deal-plate-2")).toHaveAttribute("data-count", "0");
+  // Tap one goldfish from the first plate onto the third: the plates follow.
+  await page.getByTestId("deal-plate-0").click();
+  await page.getByTestId("deal-plate-2").click();
+  await expect(page.getByTestId("deal-plate-0")).toHaveAttribute("data-count", "4");
+  await expect(page.getByTestId("deal-plate-2")).toHaveAttribute("data-count", "1");
   await expect(page.locator("main")).not.toContainText("6匹");
   await typeNumber(page, 2);
   await expect(stepScreen(page)).toHaveAttribute("data-step", "total");
@@ -165,8 +172,8 @@ test("axe-core finds no violation on the intro, consent, a fact step, the relati
   await page.getByTestId("btn-step-h_me").click();
   await expect(stepScreen(page)).toHaveAttribute("data-step", "unit");
   await typeNumber(page, 5);
-  await expect(page.locator('[data-role="thing"]').first()).toBeAttached();
-  await expectNoAxeViolations(page, "one part, the smaller step with the number pad");
+  await expect(page.getByTestId("deal-board")).toBeVisible();
+  await expectNoAxeViolations(page, "one part, the child's own dealing with the number pad");
 });
 
 // The old screens (guess, prediction, the "1" card, the junior's words at the pad) are on the adults' try route

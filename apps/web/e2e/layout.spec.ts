@@ -81,8 +81,8 @@ for (const size of SIZES) {
     await expect(steps).toHaveAttribute("data-step", "unit");
     await expectBarClear(page, "one part");
     await typeNumber(page, 5);
-    await expect(page.locator('[data-role="thing"]').first()).toBeAttached();
-    await expectBarClear(page, "one part, the plates dealt");
+    await expect(page.getByTestId("deal-board")).toBeVisible();
+    await expectBarClear(page, "one part, the child's own dealing");
     await typeNumber(page, 2);
     await expect(steps).toHaveAttribute("data-step", "total");
     await expectBarClear(page, "the answer");

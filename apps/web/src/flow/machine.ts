@@ -10,6 +10,7 @@ import { and, assign, not, or, setup, stateIn } from "xstate";
 import {
   CARD_RULES,
   dealAttempt,
+  dealTotal,
   CHILD_FIRST_PROBLEM_ID,
   CHILD_ROUTE,
   CHILD_SECOND_PROBLEM_ID,
@@ -769,6 +770,18 @@ function stepNumber(ctx: FlowContext, value: Rational): Partial<FlowContext> {
   if (step.kind === "unit") {
     const fact = s.steps.find((x) => x.kind === "fact");
     const attempt = fact?.kind === "fact" ? dealAttempt(p.record, step, fact, value) : null;
+    if (s.tries + 1 < MAX_UNIT_TRIES) {
+      // A number that cannot be dealt as things (a fraction, 0, not a whole number of coins): the smaller step, the
+      // dealing drawn to count, and the child keeps the tries left (reviewer, 2026-11-08).
+      const next: StepState = attempt !== null ? { ...s, tries: s.tries + 1, tried: value, help: false } : { ...s, tries: s.tries + 1, tried: null, help: true };
+      return { problem: { ...p, ...extra, steps: next } };
+    }
+  }
+  // The answer, wrong (user request, 2026-11-08 夜): the child's number dealt one part per plate, so the plates run out
+  // or things are left over; the child may move them and answer again, up to MAX_UNIT_TRIES.
+  if (step.kind === "total") {
+    const unit = s.steps.find((x) => x.kind === "unit");
+    const attempt = unit?.kind === "unit" ? dealTotal(p.record, step, unit.value, value) : null;
     if (attempt !== null && s.tries + 1 < MAX_UNIT_TRIES) return { problem: { ...p, ...extra, steps: { ...s, tries: s.tries + 1, tried: value, help: false } } };
   }
   if (s.tries === 0) {

@@ -199,3 +199,41 @@ describe("the step flow", () => {
     });
   });
 });
+
+describe("one part answered wrong (user request and reviewer, 2026-11-08)", () => {
+  const atUnit = () => {
+    const a = run();
+    a.send({ type: "STEP_NUMBER", value: r(8) });
+    a.send({ type: "STEP_CHOOSE", holderId: "h_me" });
+    return a;
+  };
+  it("deals a number that can be dealt, and gives the smaller step to one that cannot, keeping the tries left", () => {
+    const a = atUnit();
+    a.send({ type: "STEP_NUMBER", value: r(4) });
+    expect(steps(a)?.tried).toEqual(r(4));
+    a.send({ type: "STEP_NUMBER", value: { num: 3, den: 2 } });
+    expect(steps(a)?.tried).toBeNull();
+    expect(steps(a)?.help).toBe(true);
+    expect(steps(a)?.index).toBe(2);
+  });
+
+  it("passes the step on as stopped at the fourth wrong number", () => {
+    const a = atUnit();
+    for (const v of [4, 3, 1]) a.send({ type: "STEP_NUMBER", value: r(v) });
+    expect(steps(a)?.index).toBe(2);
+    a.send({ type: "STEP_NUMBER", value: r(5) });
+    expect(steps(a)?.index).toBe(3);
+    expect(steps(a)?.entries.at(-1)).toEqual({ kind: "unit", tries: 4, outcome: "stopped" });
+  });
+
+  it("forgets the child's number on the next step and on 「この問題をさいしょから」", () => {
+    const a = atUnit();
+    a.send({ type: "STEP_NUMBER", value: r(4) });
+    a.send({ type: "STEP_NUMBER", value: r(2) });
+    expect(steps(a)?.tried).toBeNull();
+    const b = atUnit();
+    b.send({ type: "STEP_NUMBER", value: r(4) });
+    b.send({ type: "RESTART_PROBLEM" });
+    expect(steps(b)?.tried).toBeNull();
+  });
+});
