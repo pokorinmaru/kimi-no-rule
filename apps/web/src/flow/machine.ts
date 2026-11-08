@@ -168,6 +168,8 @@ export interface ProblemState {
   shown: Shown;
   /** The junior's world as the problem opened (「この問題をさいしょから」 shows it again). */
   startShown: Shown;
+  /** The child went back to the start of this problem (Q60): what the child does now is no longer an unaided first reading, so nothing more is observed on it. */
+  restarted: boolean;
   /** Where the child has put the "1" card and not yet confirmed. */
   placement: string | null;
   /** The problem words the child tapped as the reason (statement, token), or heard in the child's voice. */
@@ -436,9 +438,9 @@ function restartProblem(ctx: FlowContext): Partial<FlowContext> {
     words: [],
     heard: null,
     listening: false,
-    voiceTurns: 0,
+    // The voice turns used stay used (they bound the requests sent for this problem).
     firstPlacement: null,
-    firstAided: false,
+    firstAided: true,
     taughtOps: [],
     fixes: 0,
     unitTries: 0,
@@ -449,6 +451,7 @@ function restartProblem(ctx: FlowContext): Partial<FlowContext> {
     bookOpens: 0,
     orderGuesses: [],
     help: null,
+    restarted: true,
   };
   return { problem, ...noLine(ctx) };
 }
@@ -644,10 +647,15 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
   const rel = relationOf(record);
   if (rel === undefined) return { problem: null, ...noLine(ctx) };
   const pages = pagesOf(record);
-  const earlier = new Set(ctx.done.flatMap((id) => {
-    const r = ctx.bank.find((b) => b.world.problem_id === id);
-    return r === undefined ? [] : pagesOf(r);
-  }));
+  // A wording counts as met on an earlier problem, except on the festival story, where the book does not open by
+  // itself after a fix that fits (Q60): there it counts only when its page was opened.
+  const earlier = new Set([
+    ...ctx.done.flatMap((id) => {
+      const r = ctx.bank.find((b) => b.world.problem_id === id);
+      return r === undefined || id === CHILD_FIRST_PROBLEM_ID ? [] : pagesOf(r);
+    }),
+    ...ctx.wordbookOpened,
+  ]);
   const session: SessionMisread =
     ctx.session ?? {
       id: junior.reading.sessionMisreadId ?? junior.reading.hypothesis.id,
@@ -669,6 +677,7 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     base: junior.base,
     shown: junior.shown,
     startShown: junior.shown,
+    restarted: false,
     placement: null,
     words: [],
     heard: null,
@@ -725,8 +734,8 @@ export function helpHolders(p: ProblemState): string[] {
 function guess(ctx: FlowContext, larger: string | null): Partial<FlowContext> {
   const p = ctx.problem;
   if (p === null || p.guess !== null) return {};
-  let research: ResearchState;
-  try {
+  let research: ResearchState = ctx.research;
+  if (!p.restarted) try {
     research = observePrediction(ctx.research, {
       record: p.record,
       larger,
@@ -750,8 +759,8 @@ function guess(ctx: FlowContext, larger: string | null): Partial<FlowContext> {
 function predict(ctx: FlowContext, answer: PredictionAnswer): Partial<FlowContext> {
   const p = ctx.problem;
   if (p === null || p.prediction !== null) return {};
-  let research: ResearchState;
-  try {
+  let research: ResearchState = ctx.research;
+  if (!p.restarted) try {
     // The junior's world as its reading built it, with its "1" card drawn (so the reference is observed).
     research = observeAgreement(ctx.research, { record: p.record, shownWorld: p.base, answer, referencePlaced: true });
   } catch {
@@ -786,8 +795,9 @@ function confirmFirst(ctx: FlowContext): Partial<FlowContext> {
   const p = ctx.problem;
   if (p === null || p.placement === null || p.firstPlacement !== null) return {};
   // A reading after the word book showed one of this problem's wordings is not counted by core (countsAsObservation).
-  const aided = p.pages.some((pg) => ctx.wordbookOpened.includes(pg));
-  const reading = firstReading(p.record, p.relationId, p.placement, aided);
+  const aided = p.restarted || p.pages.some((pg) => ctx.wordbookOpened.includes(pg));
+  // After 「この問題をさいしょから」 the child has seen this problem's worlds: nothing more is observed on it.
+  const reading = p.restarted ? null : firstReading(p.record, p.relationId, p.placement, aided);
   const research = reading === null ? ctx.research : observe(ctx.research, reading);
   const problem = { ...p, firstPlacement: p.placement, firstAided: aided };
   const firstOfSession = ctx.done.length === 1 && ctx.researchRequest === null && !ctx.researchApplied;

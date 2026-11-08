@@ -28,4 +28,23 @@ describe("the festival story", () => {
     expect(s.context.problem?.shown.failing).toEqual([]);
     expect(s.matches({ active: { problem: "rebuilt" } })).toBe(true);
   });
+
+  // Code review, 2026-11-08: the story's wording, met without its book, does not make the next 「の」 problem old.
+  it("the next problem with the same wording still opens the book after its first fix", () => {
+    const actor = run();
+    actor.send({ type: "PLACE_ONE", quantityId: "q_ai" });
+    actor.send({ type: "CONFIRM_YES" });
+    actor.send({ type: "NEXT" });
+    actor.send({ type: "ANSWER_UNIT", value: { num: 2, den: 1 } });
+    actor.send({ type: "ANSWER_TOTAL", value: { num: 8, den: 1 } });
+    expect(actor.getSnapshot().matches({ active: { problem: "solved" } })).toBe(true);
+    actor.send({ type: "NEXT" });
+    // The research layer may be asked after the first problem; with no answer it goes on with the common readings.
+    if (actor.getSnapshot().context.problem?.record.world.problem_id === "p_festival") actor.send({ type: "RESEARCH_RESULT", pool: null });
+    const snap = actor.getSnapshot();
+    const next = snap.context.problem;
+    if (next === null || next.record.world.problem_id === "p_festival") throw new Error(`no second problem: ${JSON.stringify(snap.value)}`);
+    expect(snap.context.wordbookOpened).toEqual([]);
+    if (next.pages[0] === "no") expect(next.newWording).toBe(true);
+  });
 });

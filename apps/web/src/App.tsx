@@ -1071,7 +1071,7 @@ export function App({
   // The words heard go to the session only (in memory); nothing here keeps them.
   const voice = useMemo<VoiceHooks | null>(
     // The child's name in the words heard or typed goes back to the problem's placeholder before they are sent (Q60).
-    () => (session === null ? null : { make: speech, canHear: session.canHear, hear: (text) => void session.hear(unnamed(text, name)) }),
+    () => (session === null ? null : { make: speech, canHear: session.canHear, hear: (text) => void session.hear(text, (t) => unnamed(t, name)) }),
     [session, speech, name],
   );
   // The screen's words follow the device's choice; the session takes it while no problem is open.
@@ -1122,7 +1122,7 @@ export function App({
         {/* The way back (Q60): the top page from every screen of the session, and the open problem from its start. */}
         {!home && !parent && !check && view !== null && (
           <nav aria-label={t.home.label} style={{ display: "flex", gap: SPACE.sm, flexWrap: "wrap", marginLeft: "auto" }}>
-            {PROBLEM_SCREENS.has(view.screen) && (
+            {PROBLEM_SCREENS.has(view.screen) && !(view.screen === "problem" && (view.step === "solved" || view.step === "held")) && (
               <Button kind="quiet" onClick={() => send({ type: "RESTART_PROBLEM" })} testId="btn-problem-restart">
                 {t.nav.restartProblem}
               </Button>
@@ -1147,6 +1147,8 @@ export function App({
             session?.stop();
             await session?.settle();
             await store.deleteAll();
+            // The name is gone from the device: it goes from the screen too (Q60).
+            setNameDraft("");
             setRestart((n) => n + 1);
           }}
         />
@@ -1213,7 +1215,20 @@ export function App({
           </p>
         </section>
       )}
-      {view !== null && !home && !check && view.screen !== "ended" && <Always view={view} send={send} />}
+      {/* The three buttons are on the top page too (原則7・8): from there they go into the session first (Q60). */}
+      {view !== null && !check && view.screen !== "ended" && (
+        <Always
+          view={view}
+          send={
+            home
+              ? (e) => {
+                  enter();
+                  send(e);
+                }
+              : send
+          }
+        />
+      )}
     </main>
   );
 }

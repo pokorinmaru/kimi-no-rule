@@ -14,8 +14,17 @@ describe("cleanName", () => {
     expect(cleanName("ゆいちゃん")).toBe("ゆいちゃん");
   });
 
-  it("refuses an empty, long, numbered or marked name (a number must never look like part of the problem)", () => {
-    for (const bad of ["", "   ", "ゆい1", "ゆい６", "1/2", "あいうえおかきくけこさ", "ゆい!", "<b>", "ゆい ちゃん"]) expect(cleanName(bad), bad).toBeNull();
+  it("refuses an empty, short, long, numbered or marked name (a number must never look like part of the problem)", () => {
+    for (const bad of ["", "   ", "ら", "ゆい1", "ゆい６", "1/2", "あいうえおかきくけこさ", "ゆい!", "<b>", "ゆい ちゃん"]) expect(cleanName(bad), bad).toBeNull();
+  });
+
+  // Safety review, 2026-11-08 (Q60): a name is shown in the problem and in AI-kun's lines without the gate.
+  it("refuses a name that says a number, an operation, a word of distress or a stop word", () => {
+    for (const bad of ["はち", "八重", "eight", "かける", "たす", "たすけて", "つらい", "しにたい", "ツライ", "やめる", "わからない", "stop"]) expect(cleanName(bad), bad).toBeNull();
+  });
+
+  it("refuses a name that is a word of the problem or AI-kun", () => {
+    for (const bad of ["AIくん", "金魚", "すくい", "これ"]) expect(cleanName(bad), bad).toBeNull();
   });
 });
 
@@ -24,6 +33,9 @@ describe("unnamed", () => {
     expect(unnamed("ゆいの金魚が1だよ", "ゆい")).toBe(`${FESTIVAL_PLACEHOLDER}の金魚が1だよ`);
     expect(unnamed("AIくんが1", "ゆい")).toBe("AIくんが1");
     expect(unnamed("ゆいの金魚", null)).toBe("ゆいの金魚");
+    // Speech recognition may write a kana name in the other kana.
+    expect(unnamed("ユイの金魚", "ゆい")).toBe(`${FESTIVAL_PLACEHOLDER}の金魚`);
+    expect(unnamed("ゆいの金魚", "ユイ")).toBe(`${FESTIVAL_PLACEHOLDER}の金魚`);
   });
 });
 

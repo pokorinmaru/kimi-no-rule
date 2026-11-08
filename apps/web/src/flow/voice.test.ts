@@ -251,6 +251,37 @@ describe("the session: what the child said goes to /safety and /interpret togeth
     s.stop();
   });
 
+  // Safety review, 2026-11-08 (Q60): the words leave the screen with the child's name put back to the problem's
+  // placeholder; the stop words and the device's own distress check see the words as the child said them.
+  it("sends the words as the screen hands them on, but checks stop words and distress on the words as said", async () => {
+    const st = await readyStore();
+    const { api: a, calls } = api({ safety: () => Promise.resolve({ flag: "none" }) });
+    const s = await startSession({ store: st, api: a });
+    s.send({ type: "GUESS", larger: null });
+    s.send({ type: "PREDICT", answer: "fits" });
+    const blank = (t: string): string => t.replaceAll("たすけて", "そら");
+    await s.hear("たすけて", blank);
+    expect(s.actor.getSnapshot().matches("hard")).toBe(true);
+    expect(calls.interpret).toEqual([]);
+    s.stop();
+
+    const s2 = await startSession({ store: await readyStore(), api: a });
+    s2.send({ type: "GUESS", larger: null });
+    s2.send({ type: "PREDICT", answer: "fits" });
+    await s2.hear("やめる", (t) => t.replaceAll("やめる", "そら"));
+    expect(s2.actor.getSnapshot().matches("ended")).toBe(true);
+    s2.stop();
+
+    const s3 = await startSession({ store: await readyStore(), api: a });
+    s3.send({ type: "GUESS", larger: null });
+    s3.send({ type: "PREDICT", answer: "fits" });
+    await s3.hear("ゆいが1だよ", (t) => t.replaceAll("ゆい", "そら"));
+    expect(calls.safety.at(-1)).toBe("そらが1だよ");
+    expect(JSON.stringify(calls.interpret.at(-1))).toContain("そらが1だよ");
+    expect(JSON.stringify(s3.actor.getSnapshot().context)).not.toContain("ゆい");
+    s3.stop();
+  });
+
   it("a distress result goes to the hard screen and the ops are not used", async () => {
     const st = await readyStore();
     const { api: a } = api({ safety: () => Promise.resolve({ flag: "distress" }) });
@@ -424,10 +455,11 @@ describe("the session: safety review of the voice (Q46)", () => {
     const st = await readyStore();
     const { api: a, calls } = api({ safety: () => Promise.resolve({ flag: "distress" }) });
     const s = await startSession({ store: st, api: a });
-    // Before the prediction the flow does not hear (the step does not take the voice).
-    await s.hear("もういやだ");
+    // Before the prediction the flow does not hear (the step does not take the voice). Words the device's own list
+    // does not know (Claude judges them) still go to the safety check.
+    await s.hear("ずっとひとりでいる");
     expect(calls.interpret).toEqual([]);
-    expect(calls.safety).toEqual(["もういやだ"]);
+    expect(calls.safety).toEqual(["ずっとひとりでいる"]);
     expect(s.actor.getSnapshot().matches("hard")).toBe(true);
     s.stop();
   });

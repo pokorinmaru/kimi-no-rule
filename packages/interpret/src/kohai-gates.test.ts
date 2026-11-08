@@ -171,6 +171,11 @@ describe("gate 5: feeling", () => {
 });
 
 describe("gate 6: off_topic", () => {
+  // Q60: AI-kun calls the child by no title; a generated 「先輩」 is not let through (the child has a name on screen).
+  it.each(["合わない文が出てきました。先輩、どこがおかしいでしょう", "せんぱい、この文を見てください。"])("stops a line that calls the child senpai: %s", (t) => {
+    expect(rules(say("which", t))).toContain("off_topic");
+  });
+
   it.each([
     ["which", "先輩の学校はどこですか？"],
     ["read", "きょうは雨がふっています。"],

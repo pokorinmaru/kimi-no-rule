@@ -223,7 +223,8 @@ function Sentence({
                         // A word's target is the word itself and a few px on each side, and never reaches into its neighbour's:
                         // with targets that overlapped, the middle of 「弟」 pressed 「の」 (whole-app review, 2026-11-08). Words in a
                         // sentence are inline targets, so the target follows the word's width; the height stays 44 px.
-                        padding: `0 ${String(WORD_PAD)}px`,
+                        // A closing mark sits right after its word, with no room of its own (it is still its own target).
+                        padding: CLOSING.test(t) ? 0 : `0 ${String(WORD_PAD)}px`,
                         margin: 0,
                         border: "none",
                         borderRadius: 6,
@@ -255,12 +256,15 @@ function Sentence({
   );
 }
 
+/** A closing mark (、。」 and the like), kept on the line of the word before it. */
+const CLOSING = /^[、。，．！？!?」』）)]+$/;
+
 /** The words' indices in groups that must not be split across lines: a closing mark joins the word before it. */
 export function wordGroups(tokens: readonly string[]): number[][] {
   const out: number[][] = [];
   tokens.forEach((t, i) => {
     const last = out[out.length - 1];
-    if (last !== undefined && /^[、。，．！？!?」』）)]+$/.test(t))
+    if (last !== undefined && CLOSING.test(t))
       last.push(i);
     else out.push([i]);
   });

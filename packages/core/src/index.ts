@@ -178,6 +178,7 @@ export {
 } from "./wordbook/index.ts";
 export { countsAsObservation } from "./rules/weights.ts";
 export { FRACTION_BANK } from "../fixtures/problems/fraction-bank.ts";
+export { DISTRESS_WORDS, hasDistressWord } from "./safety/distress.ts";
 export { PREPARED_BANK, CHILD_FIRST_PROBLEM_ID } from "./problems/prepared.ts";
 export { FESTIVAL_PLACEHOLDER, festivalRecord } from "../fixtures/problems/festival.ts";
 export { acceptStored, withStored } from "./problems/stored.ts";

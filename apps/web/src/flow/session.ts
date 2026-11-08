@@ -6,6 +6,7 @@ import { createActor, type Actor } from "xstate";
 import { MAX_HEARD_CHARS, flowMachine, type FlowEvent, type FlowInput, type Line, type ResearchRequest, type ScenesRequest } from "./machine.ts";
 import { WorkerError, createHttpApi, type FlowApi } from "./api.ts";
 import { spokenCommand } from "./spoken.ts";
+import { hasDistressWord } from "@kimi/core";
 import type { AnyOp, Hypothesis } from "@kimi/core";
 import type { FlowStore } from "../store/store.ts";
 
@@ -50,7 +51,11 @@ export interface Session {
    * A whole utterance from a short fixed list (stop, I don't know) is handled on the device and sends nothing;
    * words the flow does not take go through the safety check only (Q46).
    */
-  hear(text: string): Promise<void>;
+  /**
+   * What the child said or typed. `outgoing` is how the words leave the screen (the child's name put back to the
+   * problem's placeholder, Q60); the stop words and the device's own distress check see the words as said.
+   */
+  hear(text: string, outgoing?: (text: string) => string): Promise<void>;
   /** Resolves when every record so far is on the device. */
   settle(): Promise<void>;
   stop(): void;
@@ -217,15 +222,23 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
     send: (e) => actor.send(e),
     checkWords,
     canHear: api !== null && api.interpret !== undefined,
-    async hear(text) {
-      if (stopped || typeof text !== "string" || text.trim() === "") return;
+    async hear(said, outgoing = (t) => t) {
+      if (stopped || typeof said !== "string" || said.trim() === "") return;
       // A short fixed list (stop, I don't know) is handled here on the device: nothing is sent (Q46).
-      const command = spokenCommand(text);
+      const command = spokenCommand(said);
       if (command !== null) {
         actor.send({ type: command === "stop" ? "STOP" : "DONT_KNOW" });
         await writes;
         return;
       }
+      // Words of distress the device knows go to the hard screen at once, before anything is sent: a name put
+      // back to the placeholder can never hide them (safety review, 2026-11-08, Q60).
+      if (hasDistressWord(said)) {
+        actor.send({ type: "SAFETY_RESULT", flag: "distress" });
+        await writes;
+        return;
+      }
+      const text = outgoing(said);
       const before = actor.getSnapshot().context;
       const p = before.problem;
       actor.send({ type: "VOICE_HEARD", transcript: text });

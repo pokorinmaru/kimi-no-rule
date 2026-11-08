@@ -5,6 +5,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { FRACTION_BANK } from "../../fixtures/problems/fraction-bank.ts";
+import { PREPARED_BANK } from "../problems/prepared.ts";
 import { PROBLEM_READINGS } from "../../fixtures/problems/readings.ts";
 import { UI_READINGS, readingsFor, rubySegments, rubyTokens, spokenText, templateRuby, type RubySegment } from "./furigana.ts";
 
@@ -25,7 +26,8 @@ const transfer = readdirSync(transferDir)
 const READINGS_PENDING = new Set(["p_transfer_c_additive_different_1"]);
 
 const problems = [
-  ...FRACTION_BANK.map((r) => ({ id: r.world.problem_id, statements: r.statements, answer: r.expected_answer })),
+  // The festival story the child's route opens with (Q60; code review, 2026-11-08: it was missing here).
+  ...PREPARED_BANK.map((r) => ({ id: r.world.problem_id, statements: r.statements, answer: r.expected_answer })),
   ...disc.map((r) => ({ id: r.world.problem_id, statements: r.statements, answer: r.expected_answer })),
   ...transfer.filter((r) => !READINGS_PENDING.has(r.world.problem_id)).map((r) => ({ id: r.world.problem_id, statements: r.statements, answer: r.expected_answer })),
 ];

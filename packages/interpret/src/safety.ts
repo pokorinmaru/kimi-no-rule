@@ -2,7 +2,7 @@
 // answer, a small dictionary on the device decides. The words below are a first list and wait for a
 // person's check (BLOCKED.md); nothing is logged.
 import { z } from "zod";
-import { schemas } from "@kimi/core";
+import { DISTRESS_WORDS, schemas } from "@kimi/core";
 import { MODELS, withDeadline, type ClaudeClient } from "./client.ts";
 
 export type SafetyFlag = "none" | "distress" | "inappropriate";
@@ -15,19 +15,8 @@ export type SafetyFlag = "none" | "distress" | "inappropriate";
  */
 export type SafetyResult = { flag: SafetyFlag; source: "claude" } | { flag: "distress" | "unchecked"; source: "dictionary" };
 
-export const DISTRESS_WORDS: { ja: string[]; en: string[] } = {
-  // Written in hiragana where a word has a kana form: the text is folded to hiragana before matching.
-  ja: [
-    "しにたい", "死にたい", "しんじゃいたい", "死んじゃいたい", "きえたい", "消えたい", "いなくなりたい", "いきていたくない", "生きていたくない",
-    "たすけて", "助けて", "つらい", "辛い", "くるしい", "苦しい", "こわい", "怖い", "恐い", "かなしい", "悲しい", "さみしい", "寂しい", "ひとりぼっち",
-    "いじめ", "苛め", "虐め", "なぐられ", "殴られ", "たたかれ", "叩かれ", "けられ", "蹴られ", "ぶたれ", "さわられ", "触られ", "むしされ", "無視され",
-    "いたい", "痛い", "なきたい", "泣きたい", "もういやだ", "ひみつにしろ", "だれにもいうな", "ごはんもらえない", "しね", "死ね", "ころす", "殺",
-  ],
-  en: [
-    "want to die", "wanna die", "kill myself", "suicide", "hurt myself", "help me", "scared", "afraid", "bullied", "hurts me", "it hurts",
-    "hit me", "sad", "lonely", "hate myself", "nobody likes me", "touched me", "keep it secret", "kill",
-  ],
-};
+// The dictionary lives in core (Q60), so the screen can keep a child's name from hiding these words; the worker reads the same list.
+export { DISTRESS_WORDS };
 
 export const SAFETY_TIMEOUT_MS = 1500;
 /**
