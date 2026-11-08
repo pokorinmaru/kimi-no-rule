@@ -66,7 +66,7 @@ const rule = (id: string) => COMMON_FRACTION_READINGS.find((h) => h.id === id) a
 
 describe("the junior's rule card on the screen", () => {
   it("opens after two solved problems; a pick builds every gallery world again and only the sentences light", async () => {
-    render(<App storeName="kimi-app-rulecard" api={null} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName="kimi-app-rulecard" api={null} />);
     fireEvent.click(await screen.findByTestId("btn-next"));
     fireEvent.click(await screen.findByTestId("btn-consent-yes"));
     await solveOnScreen();

@@ -5,7 +5,7 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
-import { FRACTION_BANK, redactInterpretation, sameWorld, sceneAvoidValues, schemas, validateWorld, type GateContext, type Hypothesis, type ProblemRecord, type ResearchState, type WorldScene } from "@kimi/core";
+import { PREPARED_BANK, redactInterpretation, sameWorld, sceneAvoidValues, schemas, validateWorld, type GateContext, type Hypothesis, type ProblemRecord, type ResearchState, type WorldScene } from "@kimi/core";
 import { INTERPRET_TIMEOUT_MS, WORD_KINDS, checkSafety, interpret, kohai, proposeScenes, writeHypotheses, type AgentClient, type ClaudeClient, type ResearchReading, type WordKind } from "@kimi/interpret";
 
 export interface WorkerDeps {
@@ -148,7 +148,7 @@ async function jsonOf(req: Request): Promise<unknown> {
 }
 
 export function createApp(deps: WorkerDeps): Hono {
-  const bank = deps.bank ?? FRACTION_BANK;
+  const bank = deps.bank ?? PREPARED_BANK;
   const recordOf = (id: string): ProblemRecord | undefined => bank.find((r) => r.world.problem_id === id);
   const app = new Hono();
   const tooLarge = (c: { json: (b: unknown, s: 413) => Response }) => c.json({ error: "too_large" }, 413);

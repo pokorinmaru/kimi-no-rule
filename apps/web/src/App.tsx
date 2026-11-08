@@ -1,7 +1,7 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type Readings, type StatementCheck } from "@kimi/core";
+import { CHILD_FIRST_PROBLEM_ID, UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type Readings, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { Kohai, KohaiBeside, KohaiSays } from "./draw/Kohai.tsx";
 import type { KohaiPose } from "./flow/pose.ts";
@@ -15,6 +15,7 @@ import { startSession, type Session } from "./flow/session.ts";
 import { TRANSFER_LINKS, bankFor } from "./flow/bank.ts";
 import { viewOf, type CardScreenView, type FlowSnapshot, type FlowView, type GuessView, type HelpView, type ProblemView, type WordbookView } from "./flow/view.ts";
 import { ui, type UiText } from "./flow/text.ts";
+import { cleanName, namedView, unnamed } from "./flow/name.ts";
 import { openStore, type CheckRow, type FlowStore } from "./store/store.ts";
 import { CheckMode } from "./check/CheckMode.tsx";
 import { ParentNote, parentCard } from "./parent/ParentNote.tsx";
@@ -258,7 +259,7 @@ function ProblemScreen({ view, send, voice, reading }: { view: ProblemView; send
       {voice !== null && voice.canHear && (
         // The child may tell the junior by talking (指示書 第7.1節 手順5), another way beside the answers; the card always stays.
         <div style={{ marginTop: SPACE.lg }}>
-          <VoicePanel lang={view.lang} text={t.voice} make={voice.make} canTalk={view.voice.canTalk} off={view.voice.off} onFinal={voice.hear} />
+          <VoicePanel lang={view.lang} text={t.voice} typed={t.typed} make={voice.make} canTalk={view.voice.canTalk} off={view.voice.off} onFinal={voice.hear} />
         </div>
       )}
       </div>
@@ -899,6 +900,79 @@ function Screen({
   }
 }
 
+/**
+ * The top page (Q60): what the app is in two lines, the child's name (shown on the screen only, kept on this device),
+ * and where to start: 「はじめる」, or 「つづきから」 and 「さいしょから」 while a session is under way.
+ */
+function HomeScreen(props: {
+  t: UiText;
+  ruby: boolean;
+  name: string;
+  onName: (raw: string) => void;
+  underWay: boolean;
+  onStart: () => void;
+  onResume: () => void;
+  onRestart: () => void;
+}) {
+  const { t } = props;
+  const bad = props.name.trim() !== "" && cleanName(props.name) === null;
+  return (
+    <section aria-label={t.home.label} data-testid="screen-home">
+      <KohaiBeside pose="read">
+        <div>
+          {t.home.lead.map((l) => (
+            <p key={l} style={{ ...prose, fontSize: TYPE.large, margin: `0 0 ${String(SPACE.sm)}px` }}>
+              <RubyText text={l} on={props.ruby} />
+            </p>
+          ))}
+        </div>
+      </KohaiBeside>
+      <div style={{ margin: `${String(SPACE.lg)}px 0`, maxWidth: 420 }}>
+        <label htmlFor="child-name" style={{ display: "block", fontWeight: 700, marginBottom: SPACE.sm }}>
+          {t.home.nameLabel}
+        </label>
+        <input
+          id="child-name"
+          data-testid="input-name"
+          type="text"
+          value={props.name}
+          maxLength={20}
+          autoComplete="off"
+          placeholder={t.home.nameHint}
+          aria-invalid={bad}
+          {...(bad ? { "aria-describedby": "child-name-bad" } : {})}
+          onChange={(e) => props.onName(e.target.value)}
+          style={{ width: "100%", boxSizing: "border-box", minHeight: 56, fontSize: TYPE.large, padding: "8px 14px", border: `2px solid ${bad ? COLOR.danger : COLOR.line}`, borderRadius: RADIUS.md, color: COLOR.ink, background: COLOR.surface }}
+        />
+        {bad && (
+          <p id="child-name-bad" data-testid="name-bad" style={{ ...note, color: COLOR.danger, marginTop: SPACE.sm }}>
+            {t.home.nameBad}
+          </p>
+        )}
+      </div>
+      <p style={actions}>
+        {props.underWay ? (
+          <>
+            <Button kind="primary" onClick={props.onResume} testId="btn-home-resume">
+              {t.home.resume}
+            </Button>
+            <Button onClick={props.onRestart} testId="btn-home-restart">
+              {t.home.restart}
+            </Button>
+          </>
+        ) : (
+          <Button kind="primary" onClick={props.onStart} testId="btn-home-start">
+            {t.home.start}
+          </Button>
+        )}
+      </p>
+    </section>
+  );
+}
+
+/** The screens with a problem open, where 「この問題をさいしょから」 is offered (Q60). */
+const PROBLEM_SCREENS: ReadonlySet<string> = new Set(["guess", "problem", "help", "wordbook"]);
+
 /** The screens that draw the junior with its AI mark (its line, or the junior beside the child). */
 const JUNIOR_SCREENS: ReadonlySet<string> = new Set(["guess", "problem", "help", "wordbook", "card"]);
 
@@ -925,6 +999,8 @@ export function App({
   bank = CHILD_BANK,
   speech = browserSpeech,
   speaker = browserSpeaker,
+  home: startAtHome = true,
+  firstProblemId = CHILD_FIRST_PROBLEM_ID,
 }: {
   storeName?: string;
   api?: Parameters<typeof startSession>[0]["api"];
@@ -937,6 +1013,10 @@ export function App({
   speech?: RecognizerFactory;
   /** The speech synthesis for 「読み上げ」 (the browser's own; a fake in the tests). */
   speaker?: Speaker;
+  /** Open on the top page (Q60); the tests of a single screen may start the session straight away. */
+  home?: boolean;
+  /** The problem the session opens with: the festival story on the child's route (Q60), when the bank has it. */
+  firstProblemId?: string;
 }) {
   const onSessionRef = useRef(onSession);
   onSessionRef.current = onSession;
@@ -948,6 +1028,12 @@ export function App({
   const [restart, setRestart] = useState(0);
   const [check, setCheck] = useState(false);
   const [furigana, setFurigana] = useState(true);
+  const [home, setHome] = useState(startAtHome);
+  // Whether the child has gone from the top page into the session in this run (「つづきから」 is offered only then).
+  const [entered, setEntered] = useState(!startAtHome);
+  // The name as typed on the top page; only a clean name is kept (on this device) and shown in the problem.
+  const [nameDraft, setNameDraft] = useState("");
+  const name = cleanName(nameDraft);
 
   useEffect(() => {
     let live = true;
@@ -957,7 +1043,8 @@ export function App({
       const settings = await st.getSettings();
       const furiganaOn = await st.getFurigana();
       // A transfer problem is offered only when it is in the bank (on the child's route: once a person has checked it).
-      const started = await startSession({ store: st, input: { bank, transfers: TRANSFER_LINKS }, ...(api === undefined ? {} : { api }) });
+      const first = bank.some((r) => r.world.problem_id === firstProblemId) ? { firstProblemId } : {};
+      const started = await startSession({ store: st, input: { bank, transfers: TRANSFER_LINKS, ...first }, ...(api === undefined ? {} : { api }) });
       if (!live) {
         started.stop();
         return;
@@ -966,6 +1053,8 @@ export function App({
       setStore(st);
       setLang(settings.lang);
       setFurigana(furiganaOn);
+      const kept = await st.getName();
+      if (kept !== null) setNameDraft((d) => (d === "" ? kept : d));
       setSession(started);
       setSnap(started.actor.getSnapshot());
       started.actor.subscribe((x) => setSnap(x));
@@ -976,16 +1065,34 @@ export function App({
       if (s !== null) onSessionRef.current?.(null);
       s?.stop();
     };
-  }, [storeName, api, restart, bank]);
+  }, [storeName, api, restart, bank, firstProblemId]);
 
   const send = useMemo<Session["send"]>(() => (e) => session?.send(e), [session]);
   // The words heard go to the session only (in memory); nothing here keeps them.
   const voice = useMemo<VoiceHooks | null>(
-    () => (session === null ? null : { make: speech, canHear: session.canHear, hear: (text) => void session.hear(text) }),
-    [session, speech],
+    // The child's name in the words heard or typed goes back to the problem's placeholder before they are sent (Q60).
+    () => (session === null ? null : { make: speech, canHear: session.canHear, hear: (text) => void session.hear(unnamed(text, name)) }),
+    [session, speech, name],
   );
   // The screen's words follow the device's choice; the session takes it while no problem is open.
   const view = useMemo(() => (snap === null ? null : viewOf(snap, lang)), [snap, lang]);
+  // The child's name goes into what is drawn only (Q60): the session, and so every request, keeps core's placeholder.
+  const shown = useMemo(() => (view === null ? null : namedView(view, name)), [view, name]);
+  const onName = (raw: string): void => {
+    setNameDraft(raw);
+    const clean = cleanName(raw);
+    if (clean !== null || raw.trim() === "") void store?.setName(clean);
+  };
+  // A session is under way once it has left the intro and consent and has not ended.
+  const underWay = entered && view !== null && !["intro", "consent", "ended"].includes(view.screen);
+  const enter = (): void => {
+    setEntered(true);
+    setHome(false);
+  };
+  const startOver = (): void => {
+    setRestart((n) => n + 1);
+    enter();
+  };
   const t = ui(lang);
   const reading = useMemo<ReadingHooks>(
     () => ({
@@ -1009,11 +1116,24 @@ export function App({
       <style>{GLOBAL_CSS}</style>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: SPACE.md, margin: `0 0 ${String(SPACE.md)}px` }}>
         {/* On a landscape tablet the junior's screens give the title's row to the problem and its world (it stays for screen readers). */}
-        <h1 className={view !== null && !parent && !check && JUNIOR_SCREENS.has(view.screen) ? "k-title-wide-hide" : undefined} style={{ fontSize: TYPE.title, lineHeight: 1.5, margin: 0, ...(view !== null && !parent && !check && (view.screen === "hard" || view.screen === "rest") ? srOnly : {}) }}>
+        <h1 className={view !== null && !home && !parent && !check && JUNIOR_SCREENS.has(view.screen) ? "k-title-wide-hide" : undefined} style={{ fontSize: TYPE.title, lineHeight: 1.5, margin: 0, ...(view !== null && !parent && !check && (view.screen === "hard" || view.screen === "rest") ? srOnly : {}) }}>
           <RubyText text={t.title} on={furigana && lang === "ja"} />
         </h1>
+        {/* The way back (Q60): the top page from every screen of the session, and the open problem from its start. */}
+        {!home && !parent && !check && view !== null && (
+          <nav aria-label={t.home.label} style={{ display: "flex", gap: SPACE.sm, flexWrap: "wrap", marginLeft: "auto" }}>
+            {PROBLEM_SCREENS.has(view.screen) && (
+              <Button kind="quiet" onClick={() => send({ type: "RESTART_PROBLEM" })} testId="btn-problem-restart">
+                {t.nav.restartProblem}
+              </Button>
+            )}
+            <Button kind="quiet" onClick={() => setHome(true)} testId="btn-home">
+              {t.nav.home}
+            </Button>
+          </nav>
+        )}
         {/* The AI mark sits beside the junior where it is drawn; elsewhere it stays here, so every screen has it. */}
-        {!(view !== null && !parent && !check && JUNIOR_SCREENS.has(view.screen)) && <AiBadge />}
+        {(home || !(view !== null && !parent && !check && JUNIOR_SCREENS.has(view.screen))) && <AiBadge />}
       </header>
       {view === null && <p>{t.preparing}</p>}
       {view !== null && store !== null && parent && (
@@ -1035,7 +1155,8 @@ export function App({
         <CheckMode
           store={store}
           lang={lang}
-          bank={bank}
+          // The AI-free check takes the bank's problems of the type, not the festival story the session opens with (Q60).
+          bank={bank.filter((r) => r.world.problem_id !== CHILD_FIRST_PROBLEM_ID)}
           speaker={reading.speaker}
           furigana={reading.furigana}
           onFurigana={reading.onFurigana}
@@ -1051,14 +1172,26 @@ export function App({
             : {})}
         />
       )}
-      {view !== null && !parent && !check && (
+      {view !== null && home && !parent && !check && (
+        <HomeScreen
+          t={t}
+          ruby={furigana && lang === "ja"}
+          name={nameDraft}
+          onName={onName}
+          underWay={underWay}
+          onStart={() => (view.screen === "ended" ? startOver() : enter())}
+          onResume={enter}
+          onRestart={startOver}
+        />
+      )}
+      {shown !== null && !home && !parent && !check && (
         // Only the screens laid out in two columns use the landscape page's full width; the others keep one column.
-        <Screen view={view} send={send} onLang={changeLang} voice={voice} reading={reading} />
+        <Screen view={shown} send={send} onLang={changeLang} voice={voice} reading={reading} />
       )}
       {/* The grown-ups' doors: quiet, under the child's screen, apart from its one main action. */}
-      {!parent && !check && (view?.screen === "intro" || view?.screen === "consent" || view?.screen === "ended") && (
+      {!parent && !check && view !== null && (home || view.screen === "intro" || view.screen === "consent" || view.screen === "ended") && (
         <section data-role="adult-doors" aria-label={t.parent.label} style={{ marginTop: SPACE.xxxl, padding: `${String(SPACE.md)}px ${String(SPACE.lg)}px`, border: `${String(BORDER.thin)}px solid ${COLOR.line}`, borderRadius: RADIUS.md, background: COLOR.surfaceSoft }}>
-          {view.screen === "intro" && (
+          {!home && view.screen === "intro" && (
             <details data-testid="intro-adult">
               <summary style={{ cursor: "pointer", fontSize: TYPE.small, fontWeight: 700, minHeight: 44, lineHeight: "44px" }}>{view.text.intro.adultTitle}</summary>
               {view.text.intro.adultLines.map((l) => (
@@ -1069,7 +1202,7 @@ export function App({
             </details>
           )}
           <p style={{ display: "flex", gap: SPACE.md, flexWrap: "wrap", margin: `${String(SPACE.sm)}px 0 0` }}>
-            {(view.screen === "intro" || view.screen === "ended") && (
+            {(home || view.screen === "intro" || view.screen === "ended") && (
               <Button kind="quiet" onClick={() => setCheck(true)} testId="btn-check">
                 {checkText(lang).entry}
               </Button>
@@ -1080,7 +1213,7 @@ export function App({
           </p>
         </section>
       )}
-      {view !== null && !check && view.screen !== "ended" && <Always view={view} send={send} />}
+      {view !== null && !home && !check && view.screen !== "ended" && <Always view={view} send={send} />}
     </main>
   );
 }

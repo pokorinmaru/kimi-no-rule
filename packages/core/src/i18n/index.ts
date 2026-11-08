@@ -152,7 +152,7 @@ export const TEMPLATES = {
     slots: [],
     ja: [
       "この読み方だと、合わない文があります。どこがおかしいんでしょう",
-      "合わない文が出てきました。先輩、どこがおかしいでしょう",
+      "合わない文が出てきました。どこがおかしいでしょう",
       "この文が合わないみたいです。どこを直せばいいでしょう",
     ],
     en: [
@@ -193,7 +193,7 @@ export const TEMPLATES = {
   },
   "kohai.result": {
     slots: [],
-    ja: ["先輩の読み方で読んだら、どの文も合いました", "教わった読み方にしたら、文がぜんぶそろいました", "その読み方だと、合わない文がなくなりました"],
+    ja: ["教えてもらった読み方で読んだら、どの文も合いました", "教わった読み方にしたら、文がぜんぶそろいました", "その読み方だと、合わない文がなくなりました"],
     en: ["Reading it that way, every sentence fit.", "With that reading, all the sentences fit.", "With that reading, the sentences all lined up."],
   },
   "kohai.wordbook": {

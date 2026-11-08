@@ -45,7 +45,7 @@ describe("「読み上げ」 on the problem screen", () => {
   it("reads the sentences one by one in Japanese, a little slower, lighting the one being read, then the junior's line", async () => {
     const { name } = await ready();
     const sp = new FakeSpeaker();
-    render(<App storeName={name} api={null} speaker={sp} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={sp} />);
     // Past the child's own first prediction, on the screen with the junior's line.
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     const btn = await screen.findByTestId("btn-read-aloud");
@@ -76,7 +76,7 @@ describe("「読み上げ」 on the problem screen", () => {
   it("stops at once with the stop button, and nothing stays lit", async () => {
     const { name } = await ready();
     const sp = new FakeSpeaker();
-    render(<App storeName={name} api={null} speaker={sp} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={sp} />);
     fireEvent.click(await screen.findByTestId("btn-read-aloud"));
     expect(reading().length).toBe(1);
     const stop = screen.getByTestId("btn-read-stop");
@@ -92,7 +92,7 @@ describe("「読み上げ」 on the problem screen", () => {
 
   it("is not offered when the browser cannot speak", async () => {
     const { name } = await ready();
-    render(<App storeName={name} api={null} speaker={new FakeSpeaker(false)} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={new FakeSpeaker(false)} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     await screen.findByTestId("btn-predict-fits");
     expect(screen.queryByTestId("btn-read-aloud")).toBeNull();
@@ -101,7 +101,7 @@ describe("「読み上げ」 on the problem screen", () => {
   it("on the English screen: the button in English, the problem in Japanese, the junior's line in English", async () => {
     const { name } = await ready("en");
     const sp = new FakeSpeaker();
-    render(<App storeName={name} api={null} speaker={sp} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={sp} />);
     // Past the child's own first prediction, on the screen with the junior's line.
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     const btn = await screen.findByTestId("btn-read-aloud");
@@ -116,7 +116,7 @@ describe("「読み上げ」 on the problem screen", () => {
 describe("ふりがな", () => {
   it("is on at first: ruby readings over the kanji of the sentences and the fixed lines", async () => {
     const { name } = await ready();
-    render(<App storeName={name} api={null} speaker={new FakeSpeaker()} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={new FakeSpeaker()} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     await screen.findByTestId("btn-predict-fits");
     const rts = [...document.querySelectorAll('[data-statement] rt')].map((e) => e.textContent);
@@ -134,7 +134,7 @@ describe("ふりがな", () => {
 
   it("turns off with the switch, and the choice is kept on the device", async () => {
     const { name, store } = await ready();
-    render(<App storeName={name} api={null} speaker={new FakeSpeaker()} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={new FakeSpeaker()} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     await screen.findByTestId("btn-predict-fits");
     fireEvent.click(screen.getByTestId("btn-furigana"));
@@ -142,7 +142,7 @@ describe("ふりがな", () => {
     expect(screen.getByTestId("btn-furigana").getAttribute("aria-pressed")).toBe("false");
     await waitFor(async () => expect(await store.getFurigana()).toBe(false));
     cleanup();
-    render(<App storeName={name} api={null} speaker={new FakeSpeaker()} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={new FakeSpeaker()} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     await screen.findByTestId("btn-predict-fits");
     await waitFor(() => expect(screen.getByTestId("btn-furigana").getAttribute("aria-pressed")).toBe("false"));

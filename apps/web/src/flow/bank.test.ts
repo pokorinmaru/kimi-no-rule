@@ -2,7 +2,7 @@
 // discriminating problems. On the child's route only those a person has checked join; the adults' try route may
 // add the unchecked ones behind a toggle. A stored record that core does not accept never joins.
 import { describe, expect, it } from "vitest";
-import { FRACTION_BANK, type ProblemRecord } from "@kimi/core";
+import { FRACTION_BANK, PREPARED_BANK, type ProblemRecord } from "@kimi/core";
 import { STORED_DISCRIMINATING, STORED_PROBLEMS, STORED_TRANSFER, TRANSFER_LINKS, bankFor, discriminatingFrom, uncheckedCount } from "./bank.ts";
 
 const base = FRACTION_BANK[0] as ProblemRecord;
@@ -29,7 +29,7 @@ describe("bankFor", () => {
 
   it("the child's bank: the prepared bank and the checked problems only", () => {
     const ids = bankFor({ includeUnchecked: false, stored }).map((r) => r.world.problem_id);
-    expect(ids).toEqual([...FRACTION_BANK.map((r) => r.world.problem_id), "p_disc_ok_1"]);
+    expect(ids).toEqual([...PREPARED_BANK.map((r) => r.world.problem_id), "p_disc_ok_1"]);
   });
 
   it("the try route with the toggle on: the unchecked ones too", () => {
@@ -41,8 +41,8 @@ describe("bankFor", () => {
   it("a stored problem never replaces a prepared one with the same id", () => {
     const clash = made(base.world.problem_id, true);
     const bank = bankFor({ includeUnchecked: true, stored: [clash] });
-    expect(bank).toHaveLength(FRACTION_BANK.length);
-    expect(bank[0]).toBe(FRACTION_BANK[0]);
+    expect(bank).toHaveLength(PREPARED_BANK.length);
+    expect(bank[0]).toBe(PREPARED_BANK[0]);
   });
 
   it("the stored folder reads as records core accepts (whatever is in it now)", () => {

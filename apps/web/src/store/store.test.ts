@@ -69,6 +69,19 @@ describe("settings", () => {
     await s.deleteAll();
     expect(await s.getSettings()).toEqual({ consented: false, introSeen: false, lang: "en" });
   });
+
+  // Q60: the child's name stays on this device only, and goes with every other record.
+  it("keeps the child's name on the device, and deleting every record removes it", async () => {
+    const s = fresh();
+    expect(await s.getName()).toBeNull();
+    await s.setName("ゆい");
+    expect(await s.getName()).toBe("ゆい");
+    await s.setName(null);
+    expect(await s.getName()).toBeNull();
+    await s.setName("ゆい");
+    await s.deleteAll();
+    expect(await s.getName()).toBeNull();
+  });
 });
 
 describe("attempts", () => {

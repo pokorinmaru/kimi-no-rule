@@ -12,6 +12,8 @@ const BROTHERS: Readings = { 兄: "あに", 弟: "おとうと" };
 export const PROBLEM_READINGS: Readonly<Record<string, Readings>> = {
   // 姉のリボンは8本です。妹のリボンは、姉のリボンの3/4です。妹のリボンは何本ですか。
   p_fraction_c: { ...SISTERS, "8本": "ぽん", 何本: "なん|ぼん" },
+  // なつまつりの金魚すくいで、そらは金魚を6匹すくいました。これは、AIくんがすくった金魚の数の3/4です。…
+  p_festival: { 金魚: "きんぎょ", "6匹": "ぴき", 数: "かず", 何匹: "なん|びき" },
   // 兄の金魚は6匹。これは、弟の金魚の数の3/4です。弟の金魚は何匹ですか。
   p_signboard: { ...BROTHERS, 金魚: "きんぎょ", "6匹": "ぴき", 数: "かず", 何匹: "なん|びき" },
   p_bank_sticker: { ...SISTERS, 何: "なん" },

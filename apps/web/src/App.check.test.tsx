@@ -10,7 +10,7 @@ afterEach(cleanup);
 
 describe("the AI-free check from the intro screen", () => {
   it("runs three problems with the AI mark and the three buttons, then the grown-up sees 3問中k問 with the date", async () => {
-    render(<App storeName="kimi-app-check" api={null} parentHoldMs={0} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName="kimi-app-check" api={null} parentHoldMs={0} />);
     fireEvent.click(await screen.findByRole("button", { name: "AIなしで ためしてみる" }));
     for (let i = 0; i < 3; i++) {
       const el = await screen.findByTestId("check-problem");
@@ -37,7 +37,7 @@ describe("the parent screen's door (safety review, Q31)", () => {
   it("a tap does not open it; holding it does", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
-      render(<App storeName="kimi-app-hold" api={null} parentHoldMs={2000} />);
+      render(<App home={false} firstProblemId="p_signboard" storeName="kimi-app-hold" api={null} parentHoldMs={2000} />);
       const door = await screen.findByTestId("btn-parent");
       fireEvent.click(door);
       expect(screen.queryByTestId("check-results")).toBeNull();

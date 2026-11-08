@@ -5,7 +5,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FRACTION_BANK, acceptStored, withStored, type ProblemRecord } from "@kimi/core";
+import { PREPARED_BANK, acceptStored, withStored, type ProblemRecord } from "@kimi/core";
 
 export const CONTENT_DIR = fileURLToPath(new URL("../../../content/problems/", import.meta.url));
 
@@ -35,5 +35,5 @@ export function readStored(root: string = CONTENT_DIR): ProblemRecord[] {
 
 /** The prepared bank, then the stored records (a prepared id is never replaced). */
 export function workerBank(root: string = CONTENT_DIR): readonly ProblemRecord[] {
-  return withStored(FRACTION_BANK, readStored(root));
+  return withStored(PREPARED_BANK, readStored(root));
 }

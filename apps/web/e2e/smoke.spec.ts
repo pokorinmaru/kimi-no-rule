@@ -31,6 +31,7 @@ async function expectNoAxeViolations(page: Page, screen: string): Promise<void> 
 
 test("app shell renders with the AI mark and the three buttons", async ({ page }) => {
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   // The title as written, its furigana aside (指示書 第8.4b節).
   const title = await page.getByRole("heading", { level: 1 }).evaluate((el) => {
     const c = el.cloneNode(true) as Element;
@@ -47,6 +48,7 @@ test("app shell renders with the AI mark and the three buttons", async ({ page }
 test("the signboard problem from the junior's misreading to the answer, then a second problem with the junior's card", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   // The child's own first prediction comes first (指示書 第7.1節 手順2): plain outlines, no junior's world or line yet.
@@ -54,7 +56,7 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   await expect(page.getByTestId("junior-line")).toHaveCount(0);
   await expect(page.locator('[data-role="tape"]')).toHaveCount(0);
   await expect(page.locator("main")).not.toContainText("8匹");
-  await page.getByTestId("btn-guess-h_otouto").click();
+  await page.getByTestId("btn-guess-h_ai").click();
   // The junior's world: the younger brother's tape is asked, so it shows ？ and never the answer.
   await expect(page.getByTestId("junior-line")).not.toHaveText("…");
   await expect(page.locator("main")).not.toContainText("8匹");
@@ -74,8 +76,8 @@ test("the signboard problem from the junior's misreading to the answer, then a s
   await expect(page.locator('[data-glow="true"]').first()).toBeAttached();
   // The child teaches with the 1 card: tap it, then tap the younger brother's whole tape.
   await page.locator('[data-role="reference_mark"]').click();
-  await page.locator('[data-drop-target="h_otouto"]').first().click();
-  await expect(page.getByTestId("junior-line")).toContainText("弟");
+  await page.locator('[data-drop-target="h_ai"]').first().click();
+  await expect(page.getByTestId("junior-line")).toContainText("AIくん");
   await page.getByTestId("btn-confirm-yes").click();
   // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
   await page.getByTestId("btn-book-close").click();
@@ -103,6 +105,7 @@ test("the signboard problem from the junior's misreading to the answer, then a s
 
 test("つらい stops the math from a problem and shows no phone number", async ({ page }) => {
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   await page.getByTestId("btn-hard").click();
@@ -116,6 +119,7 @@ test("つらい stops the math from a problem and shows no phone number", async 
 
 test("the three buttons stay on the parent screen too", async ({ page }) => {
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await page.getByTestId("btn-parent").click({ delay: 2200 });
   await expect(page.getByTestId("btn-stop")).toBeVisible();
   await expect(page.getByTestId("btn-hard")).toBeVisible();
@@ -124,6 +128,7 @@ test("the three buttons stay on the parent screen too", async ({ page }) => {
 test("axe-core finds no violation on the intro, consent, prediction and number-pad screens", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await expect(page.getByTestId("btn-next")).toBeVisible();
   await expectNoAxeViolations(page, "intro");
   await page.getByTestId("btn-next").click();
@@ -137,7 +142,7 @@ test("axe-core finds no violation on the intro, consent, prediction and number-p
   await expectNoAxeViolations(page, "prediction");
   await page.getByTestId("btn-predict-odd").click();
   await page.locator('[data-role="reference_mark"]').click();
-  await page.locator('[data-drop-target="h_otouto"]').first().click();
+  await page.locator('[data-drop-target="h_ai"]').first().click();
   await page.getByTestId("btn-confirm-yes").click();
   // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
   await page.getByTestId("btn-book-close").click();
@@ -149,12 +154,13 @@ test("axe-core finds no violation on the intro, consent, prediction and number-p
 test("a wrong unit gets the junior's words, never the right number; a second wrong one holds the problem", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   await page.getByTestId("btn-guess-unknown").click();
   await page.getByTestId("btn-predict-unknown").click();
   await page.locator('[data-role="reference_mark"]').click();
-  await page.locator('[data-drop-target="h_otouto"]').first().click();
+  await page.locator('[data-drop-target="h_ai"]').first().click();
   await page.getByTestId("btn-confirm-yes").click();
   // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
   await page.getByTestId("btn-book-close").click();
@@ -173,6 +179,7 @@ test("a wrong unit gets the junior's words, never the right number; a second wro
 test("the AI-free check: three problems, a neutral line after each, and the result on the parent screen", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await page.getByRole("button", { name: "AIなしで ためしてみる" }).click();
   for (let i = 0; i < 3; i++) {
     const problem = page.getByTestId("check-problem");
@@ -203,6 +210,7 @@ test("the AI-free check: three problems, a neutral line after each, and the resu
 test("in English: switch on the intro, then the first problem with taps; the choice stays after a reload", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await page.getByTestId("lang-en").click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Read problems with the junior");
   await expect(page.getByTestId("btn-next")).toHaveText("Start");
@@ -220,9 +228,9 @@ test("in English: switch on the intro, then the first problem with taps; the cho
   await expect(page.getByTestId("predict-question")).toHaveText("Does this world fit the problem?");
   await page.getByTestId("btn-predict-odd").click();
   await page.locator('[data-role="reference_mark"]').click();
-  await page.locator('[data-drop-target="h_otouto"]').first().click();
+  await page.locator('[data-drop-target="h_ai"]').first().click();
   // The holder's name stays as in the problem.
-  await expect(page.getByTestId("junior-line")).toContainText("弟");
+  await expect(page.getByTestId("junior-line")).toContainText("AIくん");
   await page.getByTestId("btn-confirm-yes").click();
   // The word book opens by itself after the first fix on the session's first wording (指示書 第11節 M7).
   await page.getByTestId("btn-book-close").click();
@@ -245,6 +253,7 @@ test("in dark mode the page keeps its light background and readable text", async
   const ctx = await browser.newContext({ colorScheme: "dark" });
   const page = await ctx.newPage();
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   // The warm off-white of the tokens (ui/tokens.ts COLOR.page), the same in every device mode.
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);

@@ -22,12 +22,13 @@ async function keepsTheRules(page: Page): Promise<void> {
   await expect(page.getByTestId("btn-dont-know")).toBeVisible();
   await expect(page.getByTestId("btn-hard")).toBeVisible();
   await expect(page.locator("main")).not.toContainText("8匹");
-  await expect(page.getByTestId("junior-line")).not.toContainText("弟");
+  await expect(page.getByTestId("junior-line")).not.toContainText("AIくん");
 }
 
 async function start(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   await page.getByTestId("btn-guess-unknown").click();
@@ -46,7 +47,7 @@ test("「わからない」 opens the staged questions, and the word book draws 
   await expect(page.getByTestId("screen-help")).toHaveAttribute("data-stage", "order");
   await expect(page.getByTestId("help-order").getByRole("button")).toHaveCount(2);
   await keepsTheRules(page);
-  await page.getByTestId("btn-order-h_ani").click();
+  await page.getByTestId("btn-order-h_me").click();
   await expect(page.getByTestId("screen-help")).toHaveAttribute("data-stage", "offer");
   await keepsTheRules(page);
   await page.getByTestId("btn-open-book").click();
@@ -73,7 +74,7 @@ test("two failed fixes open the word book by itself", async ({ page }) => {
   for (let fix = 1; fix <= 2; fix++) {
     await page.locator('[data-role="reference_mark"]').click();
     // The card already lies on 兄 (the junior's reading): put it there again, so a sentence stays lit.
-    await page.locator('[data-drop-target="h_ani"]').first().dispatchEvent("click");
+    await page.locator('[data-drop-target="h_me"]').first().dispatchEvent("click");
     await page.getByTestId("btn-confirm-yes").click();
     // The first fix on the session's first wording, and the second failed fix: the book, each time.
     await expect(page.getByTestId("screen-wordbook")).toBeVisible();

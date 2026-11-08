@@ -60,16 +60,16 @@ function expectEnglishOnly(records: readonly ProblemRecord[] = FRACTION_BANK): v
 describe("the language switch", () => {
   it("switches the intro to English, and the choice stays after the app is opened again", async () => {
     const name = "kimi-app-lang-1";
-    render(<App storeName={name} api={null} parentHoldMs={0} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} parentHoldMs={0} />);
     await screen.findByTestId("btn-next");
-    expect(plainText(screen.getByRole("heading", { level: 1 }))).toBe("後輩と問題を読もう");
+    expect(plainText(screen.getByRole("heading", { level: 1 }))).toBe("AIくんと問題を読もう");
     fireEvent.click(screen.getByTestId("lang-en"));
     expect(await screen.findByText("Start")).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Read problems with the junior");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Read problems with AI-kun");
     expect(screen.getByTestId("lang-en").getAttribute("aria-pressed")).toBe("true");
     expectEnglishOnly();
     cleanup();
-    render(<App storeName={name} api={null} parentHoldMs={0} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} parentHoldMs={0} />);
     expect(await screen.findByText("Start")).toBeTruthy();
     expect(screen.getByTestId("btn-stop").textContent).toBe("Stop");
   });
@@ -78,7 +78,7 @@ describe("the language switch", () => {
     const store = openStore("kimi-app-lang-2");
     stores.push(store);
     await store.setLang("en");
-    render(<App storeName="kimi-app-lang-2" api={null} parentHoldMs={0} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName="kimi-app-lang-2" api={null} parentHoldMs={0} />);
     fireEvent.click(await screen.findByTestId("btn-next"));
     expect(await screen.findByText("I agree")).toBeTruthy();
     expectEnglishOnly();
@@ -102,7 +102,7 @@ describe("the language switch", () => {
     const store = openStore("kimi-app-lang-3");
     stores.push(store);
     await store.setLang("en");
-    render(<App storeName="kimi-app-lang-3" api={null} parentHoldMs={0} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName="kimi-app-lang-3" api={null} parentHoldMs={0} />);
     fireEvent.click(await screen.findByTestId("btn-hard"));
     const list = await screen.findByTestId("helplines");
     expect(list.querySelectorAll("li")).toHaveLength(4);
@@ -124,7 +124,7 @@ describe("the language switch", () => {
     const store = openStore("kimi-app-lang-4");
     stores.push(store);
     await store.setLang("en");
-    render(<App storeName="kimi-app-lang-4" api={null} parentHoldMs={0} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName="kimi-app-lang-4" api={null} parentHoldMs={0} />);
     fireEvent.pointerDown(await screen.findByTestId("btn-parent"));
     expect(await screen.findByText("Delete all records")).toBeTruthy();
     expectEnglishOnly();

@@ -40,6 +40,7 @@ test("「読み上げ」 reads the problem sentence by sentence; ふりがな is
 
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   await page.getByTestId("btn-guess-unknown").click();

@@ -28,7 +28,7 @@ describe("the bank on the screens", () => {
   it("App hands the bank it is given to the flow", async () => {
     let handle: SessionHandle | null = null;
     const bank = [...FRACTION_BANK, made("p_disc_x_1", true)];
-    render(<App storeName="kimi-bank-test" api={null} bank={bank} onSession={(h) => (handle = h)} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName="kimi-bank-test" api={null} bank={bank} onSession={(h) => (handle = h)} />);
     await waitFor(() => expect(handle).not.toBeNull());
     const ids = (handle as unknown as SessionHandle).session.actor.getSnapshot().context.bank.map((r) => r.world.problem_id);
     expect(ids).toContain("p_disc_x_1");
@@ -52,7 +52,8 @@ describe("the bank on the screens", () => {
   it("the child's route has no such toggle", async () => {
     window.location.hash = "";
     render(<Root api={null} />);
-    await screen.findByTestId("btn-next");
+    // The child's route opens on the top page (Q60).
+    await screen.findByTestId("screen-home");
     expect(screen.queryByLabelText(UNCHECKED_TOGGLE_LABEL)).toBeNull();
     expect(document.body.textContent).not.toMatch(/未確認/);
   });

@@ -50,6 +50,7 @@ for (const size of SIZES) {
   }) => {
     await page.setViewportSize(size);
     await page.goto("/");
+    await page.getByTestId("btn-home-start").click();
     await expect(page.getByTestId("btn-next")).toBeVisible();
     await expectBarClear(page, "intro");
     await page.getByTestId("btn-next").click();
@@ -65,7 +66,7 @@ for (const size of SIZES) {
     await expect(page.locator('[data-role="reference_mark"]')).toBeVisible();
     await expectBarClear(page, "the lit sentence");
     await page.locator('[data-role="reference_mark"]').click();
-    await page.locator('[data-drop-target="h_otouto"]').first().click();
+    await page.locator('[data-drop-target="h_ai"]').first().click();
     await expect(page.getByTestId("btn-confirm-yes")).toBeVisible();
     await expectBarClear(page, "restatement");
     await page.getByTestId("btn-confirm-yes").click();

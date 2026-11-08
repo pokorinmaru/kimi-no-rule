@@ -145,7 +145,22 @@ export interface UiText {
     totalPad: string;
     /** The child's voice (指示書 第7.1節 手順5): the mic button, its stop, the waiting line, and why it is not offered. */
     voice: { talk: string; stop: string; listening: string; unsupported: string; denied: string; off: string };
+    /** Teaching in typed words (Q60): the box's name, its hint and the send button. Sent the same way as the voice. */
+    typed: { label: string; hint: string; send: string };
   };
+  /** The top page (Q60): the app's lead, the child's name, and where to start from. */
+  home: {
+    label: string;
+    lead: readonly string[];
+    nameLabel: string;
+    nameHint: string;
+    nameBad: string;
+    start: string;
+    resume: string;
+    restart: string;
+  };
+  /** The buttons at the top of the child's screens (Q60): the top page, and the open problem from its start. */
+  nav: { home: string; restartProblem: string };
   pad: { clear: string; ok: string };
   research: { label: string; wait: string };
   /** The junior's rule card (指示書 第7.1節 後輩のルールカード): no word says right or wrong, nothing is put on the child. */
@@ -292,7 +307,7 @@ const JA: UiText = {
   lang: "ja",
   // The work's name (君のルールで世界を作る) is not shown to the child: it would attribute the reading to the
   // child (原則10, 指示書 第11節 M7).
-  title: "後輩と問題を読もう",
+  title: "AIくんと問題を読もう",
   preparing: "じゅんびしています…",
   langSwitch: { label: "ことば", ja: "日本語", en: "English" },
   reading: { label: "読むのを手伝う", aloud: "読み上げ", stop: "止める", furigana: "ふりがな" },
@@ -302,16 +317,16 @@ const JA: UiText = {
     label: "はじめに",
     cards: [
       {
-        title: "後輩は AI です",
+        title: "AIくんは AI です",
         lines: [
-          "いっしょに問題を読む「後輩」は、AIです。",
-          "後輩は人ではありません。心や気持ちもありません。",
+          "いっしょに問題を読む「AIくん」は、コンピューターの中の AI です。",
+          "AIくんは人ではありません。心や気持ちもありません。",
         ],
       },
       {
-        title: "後輩の読み方",
+        title: "AIくんの読み方",
         lines: [
-          "後輩は、いろいろな読み方で問題を読みます。まちがえることもあります。",
+          "AIくんは、いろいろな読み方で問題を読みます。まちがえることもあります。",
           "きみが置いた「1」の札や、直したルールカードの読み方で、つぎの問題を読むこともあります。",
         ],
       },
@@ -319,7 +334,7 @@ const JA: UiText = {
         title: "記録と声",
         lines: [
           "記録は、このタブレットの中にだけしまいます。",
-          "「話して教える」で話したことは、文字にして AI の Claude に送ります。タブレットにはのこりません。",
+          "「話して教える」で話したことや、「文字で教える」に書いたことは、AI の Claude に送ります。タブレットにはのこりません。",
         ],
       },
       {
@@ -329,10 +344,10 @@ const JA: UiText = {
     ],
     adultTitle: "おうちの人へ（くわしく）",
     adultLines: [
-      "後輩は AI（Anthropic の Claude）で、人ではなく、心や気持ちもありません。",
-      "2問目からの後輩は、1問目で子どもが「1」の札を置いた場所から作った読み方や、子どもが直したルールカードの読み方で、問題を読むことがあります。",
+      "AIくんは AI（Anthropic の Claude）で、人ではなく、心や気持ちもありません。",
+      "2問目からのAIくんは、1問目で子どもが「1」の札を置いた場所から作った読み方や、子どもが直したルールカードの読み方で、問題を読むことがあります。",
       "このアプリの記録は、この端末の中にだけしまいます。",
-      "「話して教える」で話したことは、ブラウザの音声認識が文字にし、後輩がわかるようにその文字を AI の Claude に送ります。話したことは、この端末には残しません。",
+      "「話して教える」で話したことは、ブラウザの音声認識が文字にし、AIくんがわかるようにその文字を AI の Claude に送ります。話したことは、この端末には残しません。",
     ],
     start: "はじめる",
   }),
@@ -341,10 +356,10 @@ const JA: UiText = {
     child: "ここは、おうちの人が読むところです。おうちの人に見せてね。",
     lines: [
       "保護者の方へ",
-      "後輩の言葉と読み方の研究のために、問題、子どもが置いた「1」の札（この端末に残っている前の回の置き方も含みます）、子どもがタップした問題文の言葉、子どもが直したルールカードの読み方（後輩の世界として）を、Anthropic の Claude に送ります。",
-      "子どもが「話して教える」で話したことは、ブラウザの音声認識が文字にし、その文字を Claude に送ります。送るのは、後輩がその意味をわかるため、安全の確認（つらい気持ちの言葉がないかを見ること）のため、その回の読み方の研究のためです。Claude に送るのは文字だけで、声の録音は送りません。話したことの文字は、この端末には残しません。",
-      "子どもの名前や、自由に書いた言葉は送りません。送ったものは、Anthropic の方針に従って Anthropic 側に一定の期間残ることがあります。",
-      "このアプリの記録はこの端末の中にだけしまい、保護者の画面からいつでも消せます。2問目からの後輩は、1問目の子どもの置き方から作った読み方や、子どもが直したルールカードの読み方で読むことがあります。",
+      "AIくんの言葉と読み方の研究のために、問題、子どもが置いた「1」の札（この端末に残っている前の回の置き方も含みます）、子どもがタップした問題文の言葉、子どもが直したルールカードの読み方（AIくんの世界として）を、Anthropic の Claude に送ります。",
+      "子どもが「話して教える」で話したことは、ブラウザの音声認識が文字にし、その文字を Claude に送ります。送るのは、AIくんがその意味をわかるため、安全の確認（つらい気持ちの言葉がないかを見ること）のため、その回の読み方の研究のためです。Claude に送るのは文字だけで、声の録音は送りません。話したことの文字は、この端末には残しません。",
+      "子どもが「文字で教える」に書いたことは、「話して教える」の文字と同じように Claude に送り、この端末には残しません。子どもが入れた名前は、画面に出すだけで、送りません。送ったものは、Anthropic の方針に従って Anthropic 側に一定の期間残ることがあります。",
+      "このアプリの記録はこの端末の中にだけしまい、保護者の画面からいつでも消せます。2問目からのAIくんは、1問目の子どもの置き方から作った読み方や、子どもが直したルールカードの読み方で読むことがあります。",
       "「同意する」は、保護者の方が押してください。",
       "同意して始めますか？",
     ],
@@ -354,12 +369,12 @@ const JA: UiText = {
   problem: {
     label: "問題",
     sentences: "問題の文",
-    world: "後輩が作った世界",
+    world: "AIくんが作った世界",
     note: null,
     next: "つぎへ",
-    guess: { label: "先輩のよそう", question: "どっちが多いと思う？", unknown: "まだわからない", card: "「1」にする人がいたら、その人のテープをタップしてね。", optional: "しなくても、だいじょうぶ。" },
-    predict: { label: "後輩の世界を見て", question: "この世界、問題とぴったり？ へん？", fits: "ぴったり", odd: "へん", unknown: "まだわからない" },
-    looking: "「1」の札を、1とみる人のテープに動かして、後輩に教えてね。",
+    guess: { label: "じぶんのよそう", question: "どっちが多いと思う？", unknown: "まだわからない", card: "「1」にする人がいたら、その人のテープをタップしてね。", optional: "しなくても、だいじょうぶ。" },
+    predict: { label: "AIくんの世界を見て", question: "この世界、問題とぴったり？ へん？", fits: "ぴったり", odd: "へん", unknown: "まだわからない" },
+    looking: "「1」の札を、1とみる人のテープに動かして、AIくんに教えてね。",
     yes: "うん、そう",
     no: "ちがう",
     nextProblem: "つぎの問題へ",
@@ -373,17 +388,29 @@ const JA: UiText = {
       denied: "マイクが使えないので、札で教えてね。",
       off: "いまは、声は使えません。札で教えてね。",
     },
+    typed: { label: "文字で教える", hint: "AIくんに、ことばで教えてね", send: "教える" },
   },
+  home: {
+    label: "トップ",
+    lead: ["AIくんは、問題を読みまちがえることがあります。", "AIくんが作った世界を見て、どこがへんか見つけて、教えてあげてね。"],
+    nameLabel: "きみの名前（よびかた）",
+    nameHint: "なまえ",
+    nameBad: "ひらがな・カタカナ・漢字・ローマ字で、10文字まで。数字や記号は入れられません。",
+    start: "はじめる",
+    resume: "つづきから",
+    restart: "さいしょから",
+  },
+  nav: { home: "トップへ", restartProblem: "この問題をさいしょから" },
   pad: { clear: "けす", ok: "これでいい" },
-  research: { label: "じゅんび", wait: "後輩が、つぎの問題をえらんでいます。" },
+  research: { label: "じゅんび", wait: "AIくんが、つぎの問題をえらんでいます。" },
   ruleCard: {
-    label: "後輩のルールカード",
-    lines: ["後輩が、自分のカードを持ってきました。", "1とみる人を、えらびなおせます。"],
+    label: "AIくんのルールカード",
+    lines: ["AIくんが、自分のカードを持ってきました。", "1とみる人を、えらびなおせます。"],
     slot: "1とみる人",
     gallery: "この回の問題",
     next: "つぎへ",
     scenes: "身近な場面で見てみる",
-    scenesNote: "後輩のカードの読み方で、身近な場面を読むと、こうなります。",
+    scenesNote: "AIくんのカードの読み方で、身近な場面を読むと、こうなります。",
     sceneDrawing: "場面の絵",
   },
   finished: { label: "おわり", lines: ["きょうは、ここまでです。", "「おわる」をおすと、おわります。"], end: "おわる" },
@@ -404,18 +431,18 @@ const JA: UiText = {
     label: "おうちの人へ",
     lines: [
       "このアプリの記録は、この端末の中にだけ保存されます。子どもの言葉の本文は保存しません。",
-      "後輩は AI（Anthropic の Claude）で、人ではありません。2問目からは、1問目の子どもの「1」の札の置き方から作った読み方や、多くの子がする別の読み方で問題を読みます。後輩は答えを知らされていません。",
+      "AIくんは AI（Anthropic の Claude）で、人ではありません。2問目からは、1問目の子どもの「1」の札の置き方から作った読み方や、多くの子がする別の読み方で問題を読みます。AIくんは答えを知らされていません。",
     ],
     checksTitle: "AIなしで ためした記録",
     checksNone: "まだありません。",
     checkRow: (date, right, total) => `${date}：${String(total)}問中${String(right)}問 プログラムの答えと同じ数を入れました`,
     checksNote:
-      "後輩も図もなしで、問題の文と数の入力だけで解いた結果です。答えはプログラムが確かめています。「わからない」でとばした問題は、同じ数を入れた問題に数えません。",
+      "AIくんも図もなしで、問題の文と数の入力だけで解いた結果です。答えはプログラムが確かめています。「わからない」でとばした問題は、同じ数を入れた問題に数えません。",
     researchTitle: "研究ノート（アプリの今の考え）",
     researchLines: [
-      "後輩が問題を読むために、アプリが子どもの「1」の札の置き方から立てている、読み方についての今の考えです。",
+      "AIくんが問題を読むために、アプリが子どもの「1」の札の置き方から立てている、読み方についての今の考えです。",
       "数問から立てた仮の考えで、子どもを判定したものではありません。読み方は日によって変わります。",
-      "ここは子どもの画面には出ません。子どもの画面では、どれも後輩が問題を読む時の読み方として出るだけで、子どもから作ったとは伝えていません。問題の答えは、ここには出しません。",
+      "ここは子どもの画面には出ません。子どもの画面では、どれもAIくんが問題を読む時の読み方として出るだけで、子どもから作ったとは伝えていません。問題の答えは、ここには出しません。",
     ],
     researchNone: "まだありません。問題を解くと、ここに出ます。",
     researchUnsettled: "今のところ、読み方は定まっていません。ここにあるどの考えとも合わない置き方が多いためです。",
@@ -424,18 +451,18 @@ const JA: UiText = {
     trendTitle: "日ごとのようす",
     trendNone: "まだありません。",
     trendNote: "この端末に残っている記録だけから作っています。どこにも送りません。途中で終えた問題は数えていません。",
-    trendRow: (date, solved, held, fixes) => `${date}：解いた問題 ${String(solved)}問、あとにした問題 ${String(held)}問、後輩の世界を直した回数 ${String(fixes)}回`,
+    trendRow: (date, solved, held, fixes) => `${date}：解いた問題 ${String(solved)}問、あとにした問題 ${String(held)}問、AIくんの世界を直した回数 ${String(fixes)}回`,
     trendSettled: (line) => `『${line}』が、今のところの読み方になりました`,
     trendBack: (line) => `『${line}』は、仮説にもどりました`,
     trendDropped: (line) => `『${line}』は、考えから外れました`,
     wordingTitle: "ことばに頼らない読み方",
     wordingLines: [
-      "後輩の世界を直したあとに、同じ関係を別の言い回し（「に対して」「をもとにすると」など）で書いた問題が出ることがあります。",
-      "その問題で、直す前の後輩の読み方にもどらずに最初の「1」を置き、最後まで解けた時だけ、ここに残します。言い回しの手がかりだけで直したのではないことの、ひとつの手がかりです。",
+      "AIくんの世界を直したあとに、同じ関係を別の言い回し（「に対して」「をもとにすると」など）で書いた問題が出ることがあります。",
+      "その問題で、直す前のAIくんの読み方にもどらずに最初の「1」を置き、最後まで解けた時だけ、ここに残します。言い回しの手がかりだけで直したのではないことの、ひとつの手がかりです。",
     ],
     wordingNone: "まだありません。",
     wordingUnknown: "前の読み方",
-    wordingRow: (date, line) => `${date}：後輩の『${line}』を直したあと、別の言い回しの問題でも、その読み方にもどらずに読みました`,
+    wordingRow: (date, line) => `${date}：AIくんの『${line}』を直したあと、別の言い回しの問題でも、その読み方にもどらずに読みました`,
     deleteAsk: "記録をすべて消す",
     deleteWarn: "この端末の記録と同意を、すべて消します。元には戻せません。",
     deleteYes: "消す",
@@ -482,7 +509,7 @@ const JA: UiText = {
 
 const EN: UiText = {
   lang: "en",
-  title: "Read problems with the junior",
+  title: "Read problems with AI-kun",
   preparing: "Getting ready…",
   langSwitch: { label: "Language", ja: "日本語", en: "English" },
   reading: { label: "Reading help", aloud: "Read aloud", stop: "Stop reading", furigana: "Furigana" },
@@ -492,16 +519,16 @@ const EN: UiText = {
     label: "Welcome",
     cards: [
       {
-        title: "The junior is an AI",
+        title: "AI-kun is an AI",
         lines: [
-          'The "junior" who reads the problems with you is an AI.',
-          "The junior is not a person. It has no heart and no feelings.",
+          'The "AI-kun" who reads the problems with you is an AI.',
+          "AI-kun is not a person. It has no heart and no feelings.",
         ],
       },
       {
-        title: "How the junior reads",
+        title: "How AI-kun reads",
         lines: [
-          "The junior reads problems in different ways. Sometimes it cannot read well.",
+          "AI-kun reads problems in different ways. Sometimes it cannot read well.",
           'It may read the next problem the way you placed the "1" card, or with the rule card you fixed.',
         ],
       },
@@ -509,7 +536,7 @@ const EN: UiText = {
         title: "Records and your voice",
         lines: [
           "Records are kept only on this tablet.",
-          'What you say with "Tell by talking" is turned into text and sent to Claude, an AI. It is not kept on this tablet.',
+          'What you say with "Tell by talking" or type in "Tell by typing" is sent to Claude, an AI. It is not kept on this tablet.',
         ],
       },
       {
@@ -521,10 +548,10 @@ const EN: UiText = {
     ],
     adultTitle: "For parents (details)",
     adultLines: [
-      "The junior is an AI (Anthropic's Claude). It is not a person and has no heart or feelings.",
-      'From the second problem, the junior may read with a way of reading made from where the child put the "1" card on the first problem, or with the rule card the child fixed.',
+      "AI-kun is an AI (Anthropic's Claude). It is not a person and has no heart or feelings.",
+      'From the second problem, AI-kun may read with a way of reading made from where the child put the "1" card on the first problem, or with the rule card the child fixed.',
       "This app keeps its records only on this device.",
-      'What the child says with "Tell by talking" is turned into text by the browser’s speech recognition, and that text is sent to Claude, an AI, so the junior can understand it. What was said is not kept on this device.',
+      'What the child says with "Tell by talking" is turned into text by the browser’s speech recognition, and that text is sent to Claude, an AI, so AI-kun can understand it. What was said is not kept on this device.',
     ],
     start: "Start",
   }),
@@ -533,10 +560,10 @@ const EN: UiText = {
     child: "This part is for a grown-up at home. Please show it to them.",
     lines: [
       "For parents and guardians",
-      'For the junior\'s words and for research on ways of reading, this app sends the problem, where the child put the "1" card (including earlier placements kept on this device) the words of the problem the child tapped, and the way of reading on the rule card the child fixed (as the junior world) to Anthropic\'s Claude.',
-      'What the child says with "Tell by talking" is turned into text by the browser\'s speech recognition, and that text is sent to Claude: so the junior can understand it, for the safety check (looking for words of distress), and for research on that session\'s way of reading. Only text is sent to Claude, not a recording of the voice. The text of what the child said is not kept on this device.',
-      "It does not send the child's name or anything the child wrote freely. What is sent may be kept by Anthropic for some time under Anthropic's policies.",
-      "This app keeps its records only on this device, and you can delete them at any time from the parent screen. From the second problem, the junior may read with a way of reading made from how the child placed the card on the first problem, or with the rule card the child fixed.",
+      'For AI-kun\'s words and for research on ways of reading, this app sends the problem, where the child put the "1" card (including earlier placements kept on this device) the words of the problem the child tapped, and the way of reading on the rule card the child fixed (as AI-kun world) to Anthropic\'s Claude.',
+      'What the child says with "Tell by talking" is turned into text by the browser\'s speech recognition, and that text is sent to Claude: so AI-kun can understand it, for the safety check (looking for words of distress), and for research on that session\'s way of reading. Only text is sent to Claude, not a recording of the voice. The text of what the child said is not kept on this device.',
+      "What the child types in \"Tell by typing\" is sent to Claude in the same way as the text of \"Tell by talking\", and is not kept on this device. The name the child enters is only shown on the screen and is never sent. What is sent may be kept by Anthropic for some time under Anthropic's policies.",
+      "This app keeps its records only on this device, and you can delete them at any time from the parent screen. From the second problem, AI-kun may read with a way of reading made from how the child placed the card on the first problem, or with the rule card the child fixed.",
       'Please have a parent or guardian press "I agree".',
       "Do you agree and start?",
     ],
@@ -546,12 +573,12 @@ const EN: UiText = {
   problem: {
     label: "Problem",
     sentences: "The problem's sentences",
-    world: "The world the junior made",
+    world: "The world AI-kun made",
     note: "The problem is written in Japanese.",
     next: "Next",
     guess: { label: "Your guess first", question: "Who has more, do you think?", unknown: "Not sure yet", card: "If someone is taken as 1, tap their tape.", optional: "It is fine to leave it." },
-    predict: { label: "Look at the junior's world", question: "Does this world fit the problem?", fits: "It fits", odd: "Something's odd", unknown: "Not sure yet" },
-    looking: 'Move the "1" card onto the tape of the person you take as 1, and show the junior.',
+    predict: { label: "Look at AI-kun's world", question: "Does this world fit the problem?", fits: "It fits", odd: "Something's odd", unknown: "Not sure yet" },
+    looking: 'Move the "1" card onto the tape of the person you take as 1, and show AI-kun.',
     yes: "Yes, that's it",
     no: "Not that",
     nextProblem: "Next problem",
@@ -565,17 +592,29 @@ const EN: UiText = {
       denied: "The microphone is not available. Show it with the card.",
       off: "Talking does not work right now. Show it with the card.",
     },
+    typed: { label: "Tell by typing", hint: "Tell AI-kun in words", send: "Tell" },
   },
+  home: {
+    label: "Top",
+    lead: ["AI-kun sometimes misreads a problem.", "Look at the world AI-kun made, find what is odd, and tell AI-kun."],
+    nameLabel: "Your name",
+    nameHint: "name",
+    nameBad: "Letters only (kana, kanji or roman letters), up to 10. No numbers or marks.",
+    start: "Start",
+    resume: "Continue",
+    restart: "Start over",
+  },
+  nav: { home: "Top", restartProblem: "This problem from the start" },
   pad: { clear: "Clear", ok: "Done" },
-  research: { label: "Getting ready", wait: "The junior is choosing the next problem." },
+  research: { label: "Getting ready", wait: "AI-kun is choosing the next problem." },
   ruleCard: {
-    label: "The junior's rule card",
-    lines: ["The junior brought its reading card.", "Pick again who the junior takes as 1."],
+    label: "AI-kun's rule card",
+    lines: ["AI-kun brought its reading card.", "Pick again who AI-kun takes as 1."],
     slot: "Who is taken as 1",
     gallery: "Problems from this time",
     next: "Next",
     scenes: "See it in everyday scenes",
-    scenesNote: "Everyday scenes, read with the junior's card, look like this.",
+    scenesNote: "Everyday scenes, read with AI-kun's card, look like this.",
     sceneDrawing: "Scene drawing",
   },
   finished: { label: "The end", lines: ["That's all for today.", 'Press "Finish" to finish.'], end: "Finish" },
@@ -596,18 +635,18 @@ const EN: UiText = {
     label: "For parents and guardians",
     lines: [
       "This app keeps its records only on this device. It does not keep the text of the child's words.",
-      'The junior is an AI (Anthropic\'s Claude), not a person. From the second problem, it reads problems with a way of reading made from how the child placed the "1" card on the first problem, or with a way of reading many children use. The junior is not told the answers.',
+      'AI-kun is an AI (Anthropic\'s Claude), not a person. From the second problem, it reads problems with a way of reading made from how the child placed the "1" card on the first problem, or with a way of reading many children use. AI-kun is not told the answers.',
     ],
     checksTitle: "Records of trying without AI",
     checksNone: "None yet.",
     checkRow: (date, right, total) => `${date}: ${String(right)} of ${String(total)} entered the same number as the program's answer`,
     checksNote:
-      'These are results of solving with only the problem text and number entry, without the junior or pictures. The program checks the answers. A problem skipped with "I don\'t know" is not counted as the same number.',
+      'These are results of solving with only the problem text and number entry, without AI-kun or pictures. The program checks the answers. A problem skipped with "I don\'t know" is not counted as the same number.',
     researchTitle: "Research note (what the app thinks for now)",
     researchLines: [
-      "These are the app's current ideas about how the child reads, made from where the child placed the \"1\" card, so that the junior can read problems.",
+      "These are the app's current ideas about how the child reads, made from where the child placed the \"1\" card, so that AI-kun can read problems.",
       "They are guesses from a few problems, not an assessment of the child. Ways of reading change from day to day.",
-      "None of this is on the child's screens. There, each one only appears as a way the junior reads a problem, and the child is not told it was made from the child. The answers of the problems are not shown here.",
+      "None of this is on the child's screens. There, each one only appears as a way AI-kun reads a problem, and the child is not told it was made from the child. The answers of the problems are not shown here.",
     ],
     researchNone: "None yet. Ideas appear here after the child solves problems.",
     researchUnsettled: "For now, no way of reading stands out: most placements fit none of these ideas.",
@@ -616,18 +655,18 @@ const EN: UiText = {
     trendTitle: "Day by day",
     trendNone: "None yet.",
     trendNote: "Made only from the records kept on this device; nothing is sent anywhere. Problems ended partway are not counted.",
-    trendRow: (date, solved, held, fixes) => `${date}: ${String(solved)} problems solved, ${String(held)} kept for later, the junior's world fixed ${String(fixes)} times`,
+    trendRow: (date, solved, held, fixes) => `${date}: ${String(solved)} problems solved, ${String(held)} kept for later, AI-kun's world fixed ${String(fixes)} times`,
     trendSettled: (line) => `"${line}" became the way of reading for now`,
     trendBack: (line) => `"${line}" went back to being a guess`,
     trendDropped: (line) => `"${line}" is no longer considered`,
     wordingTitle: "Reading that does not lean on the wording",
     wordingLines: [
-      "After the junior's world is fixed, a problem may come that says the same relation with another of the known Japanese phrasings for which amount is the base.",
-      'Only when the "1" card first went where the sentence puts it there, without going back to the junior\'s earlier way of reading, and the problem was solved, is it kept here. It is one sign that the fix did not rest on the words alone.',
+      "After AI-kun's world is fixed, a problem may come that says the same relation with another of the known Japanese phrasings for which amount is the base.",
+      'Only when the "1" card first went where the sentence puts it there, without going back to AI-kun\'s earlier way of reading, and the problem was solved, is it kept here. It is one sign that the fix did not rest on the words alone.',
     ],
     wordingNone: "None yet.",
     wordingUnknown: "the earlier way of reading",
-    wordingRow: (date, line) => `${date}: after the junior's "${line}" was fixed, a problem in another phrasing was read without going back to that way of reading`,
+    wordingRow: (date, line) => `${date}: after AI-kun's "${line}" was fixed, a problem in another phrasing was read without going back to that way of reading`,
     deleteAsk: "Delete all records",
     deleteWarn: "This deletes every record and the consent on this device. It cannot be undone. The language choice stays.",
     deleteYes: "Delete",

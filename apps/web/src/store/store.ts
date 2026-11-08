@@ -121,6 +121,9 @@ export interface FlowStore {
   /** Ruby readings over the kanji (指示書 第8.4b節); on until switched off. A display setting like the language. */
   getFurigana(): Promise<boolean>;
   setFurigana(on: boolean): Promise<void>;
+  /** The name the child typed (Q60), shown on the screen only; null when none. Removed by deleteAll. */
+  getName(): Promise<string | null>;
+  setName(name: string | null): Promise<void>;
   addAttempt(log: ProblemLog): Promise<void>;
   listAttempts(): Promise<AttemptRow[]>;
   saveResearch(state: ResearchState): Promise<void>;
@@ -191,6 +194,14 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
     },
     async setConsent(v) {
       await db.settings.put({ key: "consented", value: v });
+    },
+    async getName() {
+      const v = (await db.settings.get("name"))?.value;
+      return typeof v === "string" && v !== "" ? v : null;
+    },
+    async setName(name) {
+      if (name === null) await db.settings.delete("name");
+      else await db.settings.put({ key: "name", value: name });
     },
     async setIntroSeen(v) {
       await db.settings.put({ key: "introSeen", value: v });

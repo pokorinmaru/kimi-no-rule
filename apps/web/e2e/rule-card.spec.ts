@@ -82,6 +82,7 @@ async function gallery(page: Page): Promise<string> {
 test("two solved problems open the junior's card; choosing who is 1 builds the gallery again", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   await solve(page);

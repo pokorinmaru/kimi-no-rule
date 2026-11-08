@@ -2,7 +2,7 @@
 // of the bank, the correct world before and after the child's answer, and each common misreading's world. core
 // computes each scene; this file only lists them. Used by the adults' #/stages page and by the scene check
 // (tools/asset-builder/src/scenes-cli.ts), never by a child's screen.
-import { COMMON_FRACTION_READINGS, FRACTION_BANK, objectScene, readingLine, runRule, sameWorld, solve, type ObjectScene, type ProblemRecord, type Rational, type WorldScene } from "@kimi/core";
+import { COMMON_FRACTION_READINGS, PREPARED_BANK, objectScene, readingLine, runRule, sameWorld, solve, type ObjectScene, type ProblemRecord, type Rational, type WorldScene } from "@kimi/core";
 
 export interface SceneCase {
   id: string;
@@ -21,7 +21,7 @@ const asked = (r: ProblemRecord): Rational[] => {
   return v === undefined ? [] : [{ num: Number(v.num), den: Number(v.den) }];
 };
 
-export function sceneCases(bank: readonly ProblemRecord[] = FRACTION_BANK): SceneCase[] {
+export function sceneCases(bank: readonly ProblemRecord[] = PREPARED_BANK): SceneCase[] {
   const out: SceneCase[] = [];
   for (const r of bank) {
     const text = r.statements.map((s) => s.text).join("");

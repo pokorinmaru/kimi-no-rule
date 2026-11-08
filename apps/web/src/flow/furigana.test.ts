@@ -125,7 +125,7 @@ describe("furigana over the child's fixed lines", () => {
       rubySegments(text, UI_READINGS)
         .map((s) => s.ruby ?? s.text)
         .join("");
-    expect(said(ui("ja").title)).toBe("こうはいともんだいをよもう");
+    expect(said(ui("ja").title)).toBe("AIくんともんだいをよもう");
     expect(said("ひと区切りの大きさは、いくつでしょう")).toBe(
       "ひとくぎりのおおきさは、いくつでしょう",
     );

@@ -73,6 +73,8 @@ describe("the child's route", () => {
   it("never shows the research note or the try route's controls", async () => {
     window.location.hash = "";
     render(<Root api={null} />);
+    // The child's route opens on the top page (Q60).
+    fireEvent.click(await screen.findByTestId("btn-home-start"));
     fireEvent.click(await screen.findByTestId("btn-next"));
     fireEvent.click(await screen.findByTestId("btn-consent-yes"));
     await screen.findByTestId("guess");

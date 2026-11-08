@@ -24,7 +24,7 @@ afterEach(cleanup);
 
 describe("placing the card from the screen", () => {
   it("asks core's gate about a whole-tape card before the junior hears the placement", async () => {
-    render(<App storeName="kimi-app-card" api={null} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName="kimi-app-card" api={null} />);
     fireEvent.click(await screen.findByTestId("btn-next"));
     fireEvent.click(await screen.findByTestId("btn-consent-yes"));
     // The child first says whether the junior's world fits (指示書 第7.1節 手順4).

@@ -1,13 +1,13 @@
 // The list of every stage picture the app can show for the bank (the premise harness).
 import { describe, expect, it } from "vitest";
-import { FRACTION_BANK } from "@kimi/core";
+import { PREPARED_BANK } from "@kimi/core";
 import { sceneCases } from "./scenes.ts";
 
 describe("sceneCases", () => {
   const cases = sceneCases();
   it("has the correct world before and after the answer, and misread worlds, for every countable bank problem", () => {
     const ids = new Set(cases.map((c) => c.problemId));
-    expect(ids.size).toBe(FRACTION_BANK.length);
+    expect(ids.size).toBe(PREPARED_BANK.length);
     for (const id of ids) {
       expect(cases.some((c) => c.id === `${id}/correct`)).toBe(true);
       expect(cases.some((c) => c.id === `${id}/correct_answered`)).toBe(true);

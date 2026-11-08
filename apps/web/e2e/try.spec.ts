@@ -31,6 +31,7 @@ test("#/try: the simulated child plays two problems and the research note follow
 
 test("the child's route has no research note", async ({ page }) => {
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   await expect(page.getByTestId("guess")).toBeVisible();

@@ -14,7 +14,7 @@ afterEach(cleanup);
 
 describe("the child's first prediction on the screen", () => {
   it("shows outlines and the question first; the card toggles; one tap goes on to the junior's world", async () => {
-    render(<App storeName="kimi-app-guess" api={null} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName="kimi-app-guess" api={null} />);
     fireEvent.click(await screen.findByTestId("btn-next"));
     fireEvent.click(await screen.findByTestId("btn-consent-yes"));
     expect(await screen.findByTestId("screen-guess")).toBeTruthy();
@@ -39,7 +39,7 @@ describe("the child's first prediction on the screen", () => {
   // Safety review, 2026-11-07: a child who listens must hear what is asked and which button is whom.
   it("reads aloud the problem, then the card line, the question and each button's name", async () => {
     const sp = new FakeSpeaker();
-    render(<App storeName="kimi-app-guess-read" api={null} speaker={sp} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName="kimi-app-guess-read" api={null} speaker={sp} />);
     fireEvent.click(await screen.findByTestId("btn-next"));
     fireEvent.click(await screen.findByTestId("btn-consent-yes"));
     await screen.findByTestId("screen-guess");
@@ -59,7 +59,7 @@ describe("the child's first prediction on the screen", () => {
   });
 
   it("puts furigana on the holders' names when furigana is on", async () => {
-    render(<App storeName="kimi-app-guess-ruby" api={null} />);
+    render(<App home={false} firstProblemId="p_signboard" storeName="kimi-app-guess-ruby" api={null} />);
     fireEvent.click(await screen.findByTestId("btn-next"));
     fireEvent.click(await screen.findByTestId("btn-consent-yes"));
     await screen.findByTestId("screen-guess");

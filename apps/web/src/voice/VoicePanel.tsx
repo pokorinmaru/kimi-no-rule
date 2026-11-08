@@ -16,6 +16,8 @@ type Status = "idle" | "talking" | "denied";
 export function VoicePanel(props: {
   lang: Lang;
   text: UiText["problem"]["voice"];
+  /** Teaching in typed words (Q60): offered whenever the voice could be (canTalk), with or without a microphone. */
+  typed: UiText["problem"]["typed"];
   make: RecognizerFactory;
   /** The flow offers the mic now (looking or placed, turns left, not waiting, the worker reachable). */
   canTalk: boolean;
@@ -57,9 +59,23 @@ export function VoicePanel(props: {
       {line}
     </p>
   );
-  if (!rec.isSupported()) return note(props.text.unsupported);
-  if (status === "denied") return note(props.text.denied);
+  // The typed words go the same way as the voice's final words; the box keeps them only until they are sent.
+  const typedBox = props.canTalk && !props.off ? <TypedTeach text={props.typed} onSend={onFinal} /> : null;
   if (props.off) return note(props.text.off);
+  if (!rec.isSupported())
+    return (
+      <>
+        {note(props.text.unsupported)}
+        {typedBox}
+      </>
+    );
+  if (status === "denied")
+    return (
+      <>
+        {note(props.text.denied)}
+        {typedBox}
+      </>
+    );
   if (status === "talking") {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
@@ -74,17 +90,59 @@ export function VoicePanel(props: {
   }
   if (!props.canTalk) return null;
   return (
-    <p style={{ margin: "8px 0 0" }}>
-      <Button
-        testId="btn-talk"
-        onClick={() => {
-          setInterim("");
-          setStatus("talking");
-          rec.start();
-        }}
-      >
-        {props.text.talk}
+    <>
+      <p style={{ margin: "8px 0 0" }}>
+        <Button
+          testId="btn-talk"
+          onClick={() => {
+            setInterim("");
+            setStatus("talking");
+            rec.start();
+          }}
+        >
+          {props.text.talk}
+        </Button>
+      </p>
+      {typedBox}
+    </>
+  );
+}
+
+/** One line of typed words for AI-kun and its send button (Enter sends too); empty words are never sent. */
+function TypedTeach(props: { text: UiText["problem"]["typed"]; onSend: (text: string) => void }) {
+  const [value, setValue] = useState("");
+  const send = (): void => {
+    const words = value.trim();
+    if (words === "") return;
+    setValue("");
+    props.onSend(words);
+  };
+  return (
+    <form
+      data-role="typed-teach"
+      onSubmit={(e) => {
+        e.preventDefault();
+        send();
+      }}
+      style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, margin: "12px 0 0" }}
+    >
+      <label htmlFor="teach-typed" style={{ fontSize: TYPE.small, fontWeight: 700, color: COLOR.ink, width: "100%" }}>
+        {props.text.label}
+      </label>
+      <input
+        id="teach-typed"
+        data-testid="input-teach"
+        type="text"
+        value={value}
+        maxLength={80}
+        autoComplete="off"
+        placeholder={props.text.hint}
+        onChange={(e) => setValue(e.target.value)}
+        style={{ flex: "1 1 220px", minHeight: 48, fontSize: TYPE.body, padding: "6px 12px", border: `2px solid ${COLOR.line}`, borderRadius: 10, color: COLOR.ink, background: COLOR.surface }}
+      />
+      <Button testId="btn-teach-send" onClick={send}>
+        {props.text.send}
       </Button>
-    </p>
+    </form>
   );
 }

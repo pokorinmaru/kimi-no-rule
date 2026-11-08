@@ -8,6 +8,7 @@
 import { and, assign, not, or, setup, stateIn } from "xstate";
 import {
   CARD_RULES,
+  CHILD_FIRST_PROBLEM_ID,
   CORRECT_READING_ID,
   FRACTION_BANK,
   cardFits,
@@ -165,6 +166,8 @@ export interface ProblemState {
   base: WorldScene;
   /** The world on screen now, with its failing sentences. */
   shown: Shown;
+  /** The junior's world as the problem opened (「この問題をさいしょから」 shows it again). */
+  startShown: Shown;
   /** Where the child has put the "1" card and not yet confirmed. */
   placement: string | null;
   /** The problem words the child tapped as the reason (statement, token), or heard in the child's voice. */
@@ -366,6 +369,8 @@ export type FlowEvent =
   | { type: "ANSWER_UNIT"; value: Rational }
   | { type: "ANSWER_TOTAL"; value: Rational }
   | { type: "STOP" }
+  /** 「この問題をさいしょから」 (Q60): back to the first step of the open problem, with nothing the child did on it kept. */
+  | { type: "RESTART_PROBLEM" }
   | { type: "DONT_KNOW" }
   | { type: "HARD" }
   | { type: "RESUME" }
@@ -414,6 +419,40 @@ function lineOf(ctx: FlowContext, key: TemplateKey, slots: SlotValues, intent: K
 }
 
 /** Clears the junior's line and keeps its number, so the next line has a later one. */
+/**
+ * The open problem as it was when it opened (Q60): the same record, reading and junior's world, and nothing the child
+ * did on it (the guess, the prediction, the card, the words, the voice, the fixes, the answers, the help).
+ */
+function restartProblem(ctx: FlowContext): Partial<FlowContext> {
+  const p = ctx.problem;
+  if (p === null) return {};
+  const problem: ProblemState = {
+    ...p,
+    guessOne: null,
+    guess: null,
+    prediction: null,
+    shown: p.startShown,
+    placement: null,
+    words: [],
+    heard: null,
+    listening: false,
+    voiceTurns: 0,
+    firstPlacement: null,
+    firstAided: false,
+    taughtOps: [],
+    fixes: 0,
+    unitTries: 0,
+    unitValue: null,
+    totalTries: 0,
+    totalValue: null,
+    bookAt: null,
+    bookOpens: 0,
+    orderGuesses: [],
+    help: null,
+  };
+  return { problem, ...noLine(ctx) };
+}
+
 function noLine(ctx: FlowContext): { line: null; lastSeq: number } {
   return { line: null, lastSeq: Math.max(ctx.lastSeq, ctx.line?.seq ?? 0) };
 }
@@ -629,6 +668,7 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     predictionOrder: predictionOrder(ctx.done.length + 1),
     base: junior.base,
     shown: junior.shown,
+    startShown: junior.shown,
     placement: null,
     words: [],
     heard: null,
@@ -1037,11 +1077,14 @@ export function bookPageId(ctx: FlowContext): WordbookPageId | null {
 
 /**
  * The book opens by itself after the first fix on a wording new in this session, and after the second fix when a
- * sentence still does not fit (指示書 第7.1節 手順5); once for each fix.
+ * sentence still does not fit (指示書 第7.1節 手順5); once for each fix. On the festival story the child's route opens
+ * with, a fix that makes every sentence fit goes straight to the rebuilt world, the story's own ending (Q60: the
+ * book's unrelated example there broke the story); the book is still there from 「わからない」.
  */
 function bookNeeded(ctx: FlowContext): boolean {
   const p = ctx.problem;
   if (p === null || p.bookAt === p.fixes || bookPageId(ctx) === null) return false;
+  if (p.record.world.problem_id === CHILD_FIRST_PROBLEM_ID && p.shown.failing.length === 0) return false;
   return (p.fixes === 1 && p.newWording) || (p.fixes === 2 && p.shown.failing.length > 0);
 }
 
@@ -1127,6 +1170,7 @@ export const flowMachine = setup({
     checkedNone: ({ event }) => event.type === "SAFETY_RESULT" && event.flag === "none",
     researchOpen: ({ context }) => !context.researchApplied && context.researchRequest !== null,
     noOpenProblem: ({ context }) => context.problem === null || context.problem.logged,
+    restartable: ({ context }) => context.problem !== null && !context.problem.logged,
     needsCard: ({ context }) => needsCard(context),
     hearable: ({ context, event }) =>
       event.type === "VOICE_HEARD" &&
@@ -1223,7 +1267,11 @@ export const flowMachine = setup({
   states: {
     active: {
       initial: "entry",
-      on: { DONT_KNOW: "stuck" },
+      on: {
+        DONT_KNOW: "stuck",
+        // From any step of an open problem (its help and word book too), back to its first step (Q60).
+        RESTART_PROBLEM: { guard: "restartable", target: ".problem", reenter: true, actions: assign(({ context }) => restartProblem(context)) },
+      },
       states: {
         hist: { type: "history", history: "deep" },
         entry: {

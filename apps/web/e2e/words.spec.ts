@@ -10,6 +10,7 @@ const SIZES = [
 
 async function toWords(page: Page): Promise<void> {
   await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   await page.getByTestId("btn-guess-unknown").click();

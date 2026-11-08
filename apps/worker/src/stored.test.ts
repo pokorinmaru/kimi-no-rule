@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { FRACTION_BANK, type ProblemRecord } from "@kimi/core";
+import { FRACTION_BANK, PREPARED_BANK, type ProblemRecord } from "@kimi/core";
 import { CONTENT_DIR, readStored, workerBank } from "./stored.ts";
 import { WORKER_BANK } from "./index.ts";
 
@@ -29,7 +29,7 @@ afterEach(() => {
 describe("the worker's bank", () => {
   it("is the prepared bank, then every stored discriminating and transfer problem (checked by a person or not)", () => {
     const bank = workerBank();
-    expect(ids(bank).slice(0, FRACTION_BANK.length)).toEqual(ids(FRACTION_BANK));
+    expect(ids(bank).slice(0, PREPARED_BANK.length)).toEqual(ids(PREPARED_BANK));
     for (const id of [...filesIn("discriminating"), ...filesIn("transfer")]) expect(ids(bank)).toContain(id);
     expect(ids(WORKER_BANK)).toEqual(ids(bank));
   });
@@ -52,6 +52,6 @@ describe("the worker's bank", () => {
   it("is the prepared bank alone when the folders are missing", () => {
     tmp = mkdtempSync(join(tmpdir(), "kimi-stored-"));
     expect(readStored(tmp)).toEqual([]);
-    expect(workerBank(tmp)).toBe(FRACTION_BANK);
+    expect(workerBank(tmp)).toBe(PREPARED_BANK);
   });
 });

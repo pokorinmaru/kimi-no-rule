@@ -5,7 +5,7 @@
 // only when core accepts it (core acceptStored: the same check the local worker runs on the same files). The
 // child's route takes only those a person has checked (human_checked true); the adults' try route may add the
 // unchecked ones behind a visible toggle. Nothing here computes a number or a world.
-import { FRACTION_BANK, acceptStored, transferLinks, withStored, type ProblemRecord, type TransferLink } from "@kimi/core";
+import { PREPARED_BANK, acceptStored, transferLinks, withStored, type ProblemRecord, type TransferLink } from "@kimi/core";
 import transfersJson from "../../../../content/problems/transfer/transfers.json";
 
 /** The stored records as core accepts them, from the modules of the folder (path to parsed JSON). */
@@ -31,7 +31,7 @@ export const STORED_PROBLEMS: readonly ProblemRecord[] = [...STORED_DISCRIMINATI
 /** The bank of a route: the prepared problems first, then the stored ones it may use (a prepared id is never replaced). */
 export function bankFor(o: { includeUnchecked: boolean; stored?: readonly ProblemRecord[] }): readonly ProblemRecord[] {
   return withStored(
-    FRACTION_BANK,
+    PREPARED_BANK,
     (o.stored ?? STORED_PROBLEMS).filter((r) => o.includeUnchecked || r.checks.human_checked),
   );
 }
