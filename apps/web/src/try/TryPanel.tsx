@@ -129,8 +129,8 @@ export function TryPanel({ note }: { note: NoteView | null }) {
             )}
           </section>
 
-          <section style={box} aria-label="後輩の読み方" data-testid="note-junior">
-            <h3 style={h3}>後輩の読み方（子どもの画面には出しません）</h3>
+          <section style={box} aria-label="AIくんの読み方" data-testid="note-junior">
+            <h3 style={h3}>AIくんの読み方（子どもの画面には出しません）</h3>
             {note.junior === null ? (
               <p style={small}>問題が開いていません。</p>
             ) : (

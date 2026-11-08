@@ -39,7 +39,7 @@ test("「わからない」 opens the staged questions, and the word book draws 
   await start(page);
   await page.getByTestId("btn-dont-know").click();
   await expect(page.getByTestId("screen-help")).toHaveAttribute("data-stage", "read");
-  await expect(page.locator('[data-role="lit-word"]')).toHaveText(["の", "の", "の"]);
+  await expect(page.locator('[data-role="lit-word"]')).toHaveText(["の", "の"]);
   await expect(page.getByTestId("btn-read-aloud")).toBeVisible();
   await keepsTheRules(page);
   await expectNoAxeViolations(page, "help: read");

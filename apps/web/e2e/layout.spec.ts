@@ -70,9 +70,7 @@ for (const size of SIZES) {
     await expect(page.getByTestId("btn-confirm-yes")).toBeVisible();
     await expectBarClear(page, "restatement");
     await page.getByTestId("btn-confirm-yes").click();
-    await expect(page.getByTestId("btn-book-close")).toBeVisible();
-    await expectBarClear(page, "word book");
-    await page.getByTestId("btn-book-close").click();
+    // On the festival story a fix that makes every sentence fit goes straight to the rebuilt world (Q60).
     await expect(page.getByTestId("btn-next")).toBeVisible();
     await expectBarClear(page, "rebuilt world");
     await page.getByTestId("btn-next").click();

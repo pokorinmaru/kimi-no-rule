@@ -755,7 +755,7 @@ describe("the research layer in the flow (F3)", () => {
     actor.send({ type: "NEXT" });
     actor.send({ type: "RESEARCH_RESULT", pool: null });
     const card = actor.getSnapshot().context.problem?.card;
-    expect(card).toMatch(/^後輩の読み方：/);
+    expect(card).toMatch(/^AIくんの読み方：/);
   });
 
   it("uses one misreading kind in the session, and never a problem where it builds the correct world", () => {
@@ -1040,7 +1040,7 @@ describe("the English screen", () => {
     solveProblem(actor);
     actor.send({ type: "RESEARCH_RESULT", pool: null });
     const card = actor.getSnapshot().context.problem?.card;
-    expect(card).toMatch(/^Junior's reading: /);
+    expect(card).toMatch(/^AI-kun's reading: /);
   });
 
   it("the language changes only while no problem is on screen", () => {
