@@ -1,7 +1,7 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { CHILD_FIRST_PROBLEM_ID, CHILD_ROUTE, CHILD_SECOND_PROBLEM_ID, UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type Readings, type StatementCheck } from "@kimi/core";
+import { CHILD_FIRST_PROBLEM_ID, CHILD_ROUTE, UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type Readings, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { Kohai, KohaiBeside, KohaiSays } from "./draw/Kohai.tsx";
 import type { KohaiPose } from "./flow/pose.ts";
@@ -1123,6 +1123,11 @@ export function App({
       setLang(settings.lang);
       setFurigana(furiganaOn);
       const kept = await st.getName();
+      // A newer session may have been asked for while the name was read: this one is not handed out then.
+      if (!live) {
+        started.stop();
+        return;
+      }
       if (kept !== null) setNameDraft((d) => (d === "" ? kept : d));
       setSession(started);
       setSnap(started.actor.getSnapshot());
@@ -1237,8 +1242,9 @@ export function App({
             session?.stop();
             await session?.settle();
             await store.deleteAll();
-            // The name is gone from the device: it goes from the screen too (Q60).
+            // The name is gone from the device: it goes from the screen too (Q60); so is the picked problem (Q64).
             setNameDraft("");
+            setStartId(firstProblemId);
             setRestart((n) => n + 1);
           }}
         />
@@ -1247,8 +1253,8 @@ export function App({
         <CheckMode
           store={store}
           lang={lang}
-          // The AI-free check takes the bank's problems of the type, not the festival story the session opens with (Q60).
-          bank={bank.filter((r) => r.world.problem_id !== CHILD_FIRST_PROBLEM_ID && r.world.problem_id !== CHILD_SECOND_PROBLEM_ID)}
+          // The AI-free check takes the bank's problems of the type, not the route's story problems (Q60, Q64).
+          bank={bank.filter((r) => !CHILD_ROUTE.includes(r.world.problem_id))}
           speaker={reading.speaker}
           furigana={reading.furigana}
           onFurigana={reading.onFurigana}
