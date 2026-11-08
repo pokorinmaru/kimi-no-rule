@@ -70,12 +70,13 @@ describe("the step flow", () => {
     expect(steps(a)?.choices).toEqual(["unknown"]);
   });
 
-  it("a wrong one part opens the smaller step (the dealing to count); the answer twice wrong keeps the problem for later", () => {
+  it("a wrong one part deals the child's own number (the plates run out); the answer twice wrong keeps the problem for later", () => {
     const a = run();
     a.send({ type: "STEP_NUMBER", value: r(8) });
     a.send({ type: "STEP_CHOOSE", holderId: "h_me" });
     a.send({ type: "STEP_NUMBER", value: r(4) });
-    expect(steps(a)?.help).toBe(true);
+    expect(steps(a)?.tried).toEqual(r(4));
+    expect(steps(a)?.help).toBe(false);
     a.send({ type: "STEP_NUMBER", value: r(2) });
     expect(steps(a)?.entries[2]).toEqual({ kind: "unit", tries: 2, outcome: "helped" });
     a.send({ type: "STEP_NUMBER", value: r(5) });

@@ -222,7 +222,8 @@ export function NumberPad({
     padding: 0,
     fontSize: TYPE.title,
   };
-  const press = (d: string) => setDigits((x) => (x.length < 3 ? x + d : x));
+  // Up to 4 digits: the sale problem pays in hundreds of 円 (1000円, Q63).
+  const press = (d: string) => setDigits((x) => (x.length < 4 ? x + d : x));
   return (
     <div
       role="group"

@@ -9,6 +9,7 @@
 import { and, assign, not, or, setup, stateIn } from "xstate";
 import {
   CARD_RULES,
+  dealAttempt,
   CHILD_FIRST_PROBLEM_ID,
   CHILD_ROUTE,
   CHILD_SECOND_PROBLEM_ID,
@@ -256,6 +257,8 @@ export interface StepState {
   heardFrom: string | null;
   /** The child's words at the relation step gave nothing usable: a fixed line, the buttons stay. */
   missed: boolean;
+  /** One part: the child's wrong number, dealt as it is so the plates run out or things are left over (null: none). */
+  tried: Rational | null;
 }
 
 export type Outcome = "solved" | "held" | "stopped" | "hard" | "rest";
@@ -520,7 +523,7 @@ function restartProblem(ctx: FlowContext): Partial<FlowContext> {
     steps:
       p.steps === null
         ? null
-        : { ...p.steps, index: 0, tries: 0, hint: false, help: false, misread: null, choices: [], said: [], entries: [], held: false, heardFrom: null, missed: false },
+        : { ...p.steps, index: 0, tries: 0, hint: false, help: false, misread: null, choices: [], said: [], entries: [], held: false, heardFrom: null, missed: false, tried: null },
   };
   return { problem, ...noLine(ctx) };
 }
@@ -713,6 +716,7 @@ function stepStateOf(ctx: FlowContext, record: ProblemRecord): StepState | null 
     flip: ctx.done.length % 2 === 1,
     heardFrom: null,
     missed: false,
+    tried: null,
   };
 }
 
@@ -737,7 +741,7 @@ function passStep(s: StepState, outcome: StepLogEntry["outcome"], said: Rational
     outcome,
     ...(step.kind === "relation" ? { choices: [...s.choices], firstRight: first === step.referenceHolderId } : {}),
   };
-  return { ...s, index: s.index + 1, tries: 0, hint: false, help: false, misread: null, choices: [], said, entries: [...s.entries, entry], heardFrom: null, missed: false };
+  return { ...s, index: s.index + 1, tries: 0, hint: false, help: false, misread: null, choices: [], said, entries: [...s.entries, entry], heardFrom: null, missed: false, tried: null };
 }
 
 /**
@@ -745,20 +749,30 @@ function passStep(s: StepState, outcome: StepLogEntry["outcome"], said: Rational
  * or the smaller step opens (one part: the dealing drawn to count; the answer: its parts lit). Wrong twice: a fact or
  * one part is passed on (kept as stopped there); the answer keeps the problem for later.
  */
+/** How many answers one part takes before it is passed on, when the child's numbers can be dealt (user request, 2026-11-08). */
+export const MAX_UNIT_TRIES = 4;
+
 function stepNumber(ctx: FlowContext, value: Rational): Partial<FlowContext> {
   const p = ctx.problem;
   const s = p?.steps;
   if (p == null || s == null) return {};
   const step = s.steps[s.index];
   if (step === undefined || step.kind === "relation") return {};
-  const helped = s.hint || s.help;
+  const helped = s.hint || s.help || s.tried !== null;
   const extra = step.kind === "unit" ? { unitTries: p.unitTries + 1, unitValue: value } : step.kind === "total" ? { totalTries: p.totalTries + 1, totalValue: value } : {};
   if (sameNumber(value, step.value)) {
     const said = step.kind === "fact" ? s.said : [...s.said, step.value];
     return { problem: { ...p, ...extra, steps: passStep(s, helped ? "helped" : "ok", said) } };
   }
+  // One part, wrong: the child's own number is dealt as it is (the plates run out, or things are left over), and the
+  // child may move the things and answer again; after MAX_UNIT_TRIES the step is passed on as stopped.
+  if (step.kind === "unit") {
+    const fact = s.steps.find((x) => x.kind === "fact");
+    const attempt = fact?.kind === "fact" ? dealAttempt(p.record, step, fact, value) : null;
+    if (attempt !== null && s.tries + 1 < MAX_UNIT_TRIES) return { problem: { ...p, ...extra, steps: { ...s, tries: s.tries + 1, tried: value, help: false } } };
+  }
   if (s.tries === 0) {
-    const next: StepState = step.kind === "fact" ? { ...s, tries: 1, hint: true } : { ...s, tries: 1, help: true };
+    const next: StepState = step.kind === "fact" ? { ...s, tries: 1, hint: true } : { ...s, tries: 1, help: true, tried: null };
     return { problem: { ...p, ...extra, steps: next } };
   }
   if (step.kind === "total") {

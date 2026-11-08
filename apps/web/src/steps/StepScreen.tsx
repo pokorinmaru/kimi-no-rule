@@ -2,7 +2,7 @@
 // the picture of this step, and one question with its answers. No tape diagram, no "1" card, no word book here.
 // At the relation step the child may also answer in words (voice or typing): the words go to the session, which
 // sends them to /safety and /interpret; what comes back is checked by core before it chooses anything.
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { UI_READINGS, readingsFor, spokenText, type Lang, type StatementCheck } from "@kimi/core";
 import { KohaiBeside } from "../draw/Kohai.tsx";
 import { ObjectSceneView } from "../draw/ObjectScene.tsx";
@@ -12,6 +12,7 @@ import type { Session } from "../flow/session.ts";
 import { ui } from "../flow/text.ts";
 import type { StepsView } from "./view.ts";
 import { stepsText } from "./text.ts";
+import { DealBoard } from "./DealBoard.tsx";
 import { Button, NumberPad } from "../ui/controls.tsx";
 import { ReadingTools, type ReadLine } from "../ui/ReadAloud.tsx";
 import { RubyText } from "../ui/Ruby.tsx";
@@ -65,6 +66,54 @@ export function StepScreen({
   // The current sentence is lit by the reading outline; the others are plain.
   const checks: StatementCheck[] = view.statements.map((s) => ({ index: s.index, verdict: "holds", cues: [] }) as StatementCheck);
   const lineIndex = readingIndex ?? view.current;
+  const wide = useWide();
+  // The 「せいかい！」 is brought into view: the child has just pressed the pad at the bottom of the page.
+  const cheerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (view.cheer !== null) cheerRef.current?.scrollIntoView?.({ block: "center" });
+  }, [view.cheer]);
+  // One part after a wrong number (user request, 2026-11-08): the problem, AI-kun's words, the answer and the child's own
+  // dealing on one screen, with no scrolling (two columns on a landscape tablet).
+  if (view.deal !== null) {
+    return (
+      <section aria-label={t.label} data-testid="screen-steps" data-step={view.kind} data-deal="true" data-problem-id={view.problemId}>
+        {view.note !== null && (
+          <p data-testid="problem-note" style={quiet}>
+            {view.note}
+          </p>
+        )}
+        <div style={{ display: "grid", gridTemplateColumns: wide ? "minmax(0, 5fr) minmax(0, 6fr)" : "minmax(0, 1fr)", gap: SPACE.md, alignItems: "start" }}>
+          <div>
+            <KohaiBeside pose="look">
+              <div>
+                {view.lead !== null && (
+                  <p data-testid="steps-lead" style={{ ...prose, fontSize: TYPE.small, lineHeight: 1.6, margin: `0 0 ${String(SPACE.xs)}px`, padding: `${String(SPACE.xs)}px ${String(SPACE.sm)}px`, border: `${String(BORDER.thin)}px solid ${COLOR.line}`, borderRadius: RADIUS.md, background: COLOR.surfaceSoft }}>
+                    <RubyText text={view.lead} on={rubyUi} readings={readings} />
+                  </p>
+                )}
+                {view.question !== null && (
+                  <p data-testid="steps-question" style={{ ...prose, margin: 0, fontWeight: 700 }}>
+                    <RubyText text={view.question} on={rubyUi} readings={readings} />
+                  </p>
+                )}
+              </div>
+            </KohaiBeside>
+            {view.pad !== null && (
+              <div style={{ marginTop: SPACE.xs }}>
+                <NumberPad key={`deal-${view.deal.key}`} lang={lang} label={view.pad} labelNode={<RubyText text={view.pad} on={rubyUi} />} onAnswer={(v) => send({ type: "STEP_NUMBER", value: v })} />
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="k-deal-sentences" style={{ ...card, padding: `0 ${String(SPACE.sm)}px`, marginBottom: SPACE.sm }}>
+              <SentenceList statements={view.statements} readings={furigana ? problemReadings : null} readingIndex={lineIndex} holders={holderColors(view.holders)} checks={checks} label={t.label} lang={lang} />
+            </div>
+            <DealBoard key={view.deal.key} attempt={view.deal.attempt} lang={lang} holderLabel={view.holders[0]?.label ?? ""} />
+          </div>
+        </div>
+      </section>
+    );
+  }
   return (
     <section aria-label={t.label} data-testid="screen-steps" data-step={view.kind} data-problem-id={view.problemId}>
       {view.note !== null && (
@@ -154,6 +203,17 @@ export function StepScreen({
           <NumberPad key={`${view.kind}-${String(view.at)}`} lang={lang} label={view.pad} labelNode={<RubyText text={view.pad} on={rubyUi} />} onAnswer={(v) => send({ type: "STEP_NUMBER", value: v })} />
         </div>
       )}
+      {view.cheer !== null && (
+        // The solved screen (user request, 2026-11-08): a clear, happy 「せいかい！」 and the child's own answer.
+        <div ref={cheerRef} data-testid="steps-cheer" role="status" className="k-cheer" style={{ ...card, textAlign: "center", padding: `${String(SPACE.md)}px ${String(SPACE.lg)}px`, marginTop: SPACE.lg, background: "#fff6d6", borderColor: "#f2c94c" }}>
+          <p style={{ margin: 0, fontSize: 44, fontWeight: 800, letterSpacing: "0.08em", color: "#c0392b", lineHeight: 1.2 }}>
+            <span aria-hidden="true" className="k-cheer-star">★</span> <RubyText text={view.cheer.title} on={rubyUi} readings={readings} /> <span aria-hidden="true" className="k-cheer-star">★</span>
+          </p>
+          <p style={{ ...prose, margin: `${String(SPACE.xs)}px 0 0`, fontSize: TYPE.large, fontWeight: 700 }}>
+            <RubyText text={view.cheer.line} on={rubyUi} readings={readings} />
+          </p>
+        </div>
+      )}
       {(view.kind === "solved" || view.kind === "held") && (
         <p style={actions}>
           <Button kind="primary" onClick={() => send({ type: "NEXT" })} testId="btn-next">
@@ -163,4 +223,18 @@ export function StepScreen({
       )}
     </section>
   );
+}
+
+/** A landscape tablet or wider: the child's dealing beside the problem, so nothing needs scrolling. */
+function useWide(): boolean {
+  const query = "(min-width: 900px)";
+  const [wide, setWide] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(query).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const m = window.matchMedia(query);
+    const on = (): void => setWide(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return wide;
 }
