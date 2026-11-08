@@ -1,7 +1,8 @@
 // 指示書 第7.1節「後輩のルールカード」, 第2節「自分で直す」in a real browser with the local server down: two
 // problems solved by taps, then the junior's card; choosing who is taken as 1 builds every world of the gallery
 // again, and only the sentences' light changes; the everyday scenes are read with the picked rule too. The answers
-// are found here with core and never read off the screen.
+// are found here with core and never read off the screen. The old screens and the card are on the adults' try route
+// (#/try) since the child's route runs one sentence at a time (Q62).
 import { createRequire } from "node:module";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { PREPARED_BANK, judgeAnswer, judgeUnitValue, numbersIn, sceneAvoidValues, type ProblemRecord } from "@kimi/core";
@@ -53,7 +54,7 @@ async function solve(page: Page): Promise<void> {
   const record = await recordOnScreen(page);
   const rel = record.world.relations[0];
   const holder = record.world.quantities.find((q) => q.id === rel?.reference)?.holder;
-  await page.locator('[data-role="reference_mark"]').click();
+  await page.locator('main [data-role="reference_mark"]').click();
   await page.locator(`[data-drop-target="${String(holder)}"]`).first().click();
   await page.getByTestId("btn-confirm-yes").click();
   // The word book opens by itself after the first fix on a wording new in the session (指示書 第7.1節).
@@ -80,9 +81,12 @@ async function gallery(page: Page): Promise<string> {
 }
 
 test("two solved problems open the junior's card; choosing who is 1 builds the gallery again", async ({ page }) => {
-  await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto("/");
-  await page.getByTestId("btn-home-start").click();
+  // 900 px wide: on #/try at 1000 px and wider the app column sits beside the research note, but the problem
+  // screen still splits by the window's width (ui/tokens.ts PAGE.splitAt) and its text column is squeezed to
+  // almost nothing. Below that width the note wraps under the app and the screen is laid out as on a tablet.
+  await page.setViewportSize({ width: 900, height: 768 });
+  // The old screens live on the adults' try route now (Q62): no top page there; its first problem is the festival one.
+  await page.goto("/#/try");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   await solve(page);

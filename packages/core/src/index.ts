@@ -179,8 +179,9 @@ export {
 export { countsAsObservation } from "./rules/weights.ts";
 export { FRACTION_BANK } from "../fixtures/problems/fraction-bank.ts";
 export { DISTRESS_WORDS, hasDistressWord } from "./safety/distress.ts";
-export { PREPARED_BANK, CHILD_FIRST_PROBLEM_ID } from "./problems/prepared.ts";
-export { FESTIVAL_PLACEHOLDER, festivalRecord } from "../fixtures/problems/festival.ts";
+export { PREPARED_BANK, CHILD_FIRST_PROBLEM_ID, CHILD_SECOND_PROBLEM_ID } from "./problems/prepared.ts";
+export { FESTIVAL_PLACEHOLDER, festivalRecord, festivalWholeRecord } from "../fixtures/problems/festival.ts";
+export { stepScene, stepsOf, type Step } from "./steps/index.ts";
 export { acceptStored, withStored } from "./problems/stored.ts";
 export { judgeAnswer, judgeUnitValue } from "./answers/index.ts";
 export { MAX_THINGS, amountValue, drawnValues, objectScene, type ObjectScene, type StageAmount, type StageHolder } from "./stage/index.ts";

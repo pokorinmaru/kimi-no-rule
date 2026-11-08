@@ -5,7 +5,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it } from "vitest";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { CARD_RULE_IDS, FRACTION_BANK, cardFailing, COMMON_FRACTION_READINGS, numbersIn, sceneAvoidValues, type ProblemRecord, type Rational } from "@kimi/core";
+import { CARD_RULE_IDS, FRACTION_BANK, PREPARED_BANK, cardFailing, COMMON_FRACTION_READINGS, numbersIn, sceneAvoidValues, type ProblemRecord, type Rational } from "@kimi/core";
 import { App } from "./App.tsx";
 import { judgeTotal, judgeUnit } from "./flow/problem.ts";
 import { hasForbiddenPhrase } from "./flow/text.ts";
@@ -15,7 +15,7 @@ afterEach(cleanup);
 
 function recordOnScreen(): ProblemRecord {
   const id = document.querySelector("[data-problem-id]")?.getAttribute("data-problem-id");
-  const r = FRACTION_BANK.find((x) => x.world.problem_id === id);
+  const r = PREPARED_BANK.find((x) => x.world.problem_id === id);
   if (r === undefined) throw new Error(`no problem on screen: ${String(id)}`);
   return r;
 }
@@ -66,7 +66,7 @@ const rule = (id: string) => COMMON_FRACTION_READINGS.find((h) => h.id === id) a
 
 describe("the junior's rule card on the screen", () => {
   it("opens after two solved problems; a pick builds every gallery world again and only the sentences light", async () => {
-    render(<App home={false} firstProblemId="p_signboard" storeName="kimi-app-rulecard" api={null} />);
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName="kimi-app-rulecard" api={null} />);
     fireEvent.click(await screen.findByTestId("btn-next"));
     fireEvent.click(await screen.findByTestId("btn-consent-yes"));
     await solveOnScreen();
@@ -89,7 +89,7 @@ describe("the junior's rule card on the screen", () => {
       fireEvent.click(within(cardScreen).getByTestId(`card-option-${id}`));
       expect(within(cardScreen).getByTestId(`card-option-${id}`).getAttribute("aria-pressed")).toBe("true");
       for (const item of screen.getAllByTestId("gallery-item")) {
-        const rec = FRACTION_BANK.find((r) => r.world.problem_id === item.getAttribute("data-problem-id")) as ProblemRecord;
+        const rec = PREPARED_BANK.find((r) => r.world.problem_id === item.getAttribute("data-problem-id")) as ProblemRecord;
         expect(litOf(item), `${id} ${rec.world.problem_id}`).toEqual(cardFailing(rule(id), rec));
         // The worlds are drawn again (tapes on screen) and the asked value is never drawn.
         expect(item.querySelectorAll('[data-role="tape"]').length).toBeGreaterThan(0);

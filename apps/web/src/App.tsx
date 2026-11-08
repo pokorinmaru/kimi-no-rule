@@ -1,7 +1,7 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { CHILD_FIRST_PROBLEM_ID, UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type Readings, type StatementCheck } from "@kimi/core";
+import { CHILD_FIRST_PROBLEM_ID, CHILD_SECOND_PROBLEM_ID, UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type Readings, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { Kohai, KohaiBeside, KohaiSays } from "./draw/Kohai.tsx";
 import type { KohaiPose } from "./flow/pose.ts";
@@ -28,6 +28,8 @@ import { createSpeaker, type Speaker } from "./voice/speaker.ts";
 import { ReadingTools, type ReadLine } from "./ui/ReadAloud.tsx";
 import { JuniorText, RubyText } from "./ui/Ruby.tsx";
 import { Helplines } from "./ui/Helplines.tsx";
+import { StepScreen } from "./steps/StepScreen.tsx";
+import { StepsNote } from "./steps/StepsNote.tsx";
 import { BAR_SPACE, BORDER, COLOR, GLOBAL_CSS, PAGE, RADIUS, SPACE, TYPE, card, prose } from "./ui/tokens.ts";
 
 /** The browser's own speech recognition, in the screen's language (the user chose the Web Speech API). */
@@ -715,6 +717,7 @@ function ParentScreen({
           </p>
         ))}
       </div>
+      <StepsNote store={store} lang={lang} reload={done} />
       <CheckResults rows={checks} text={t} />
       <ParentNote store={store} lang={lang} reload={done} />
       {/* Deleting every record stands apart, in its own outlined area, and always asks first. */}
@@ -840,6 +843,9 @@ function Screen({
       return <GuessScreen view={view} send={send} reading={reading} />;
     case "problem":
       return <ProblemScreen view={view} send={send} voice={voice} reading={reading} />;
+    case "steps":
+      // The problem one sentence at a time (Q62): one column, so the picture stays under its sentence.
+      return <StepScreen view={view} lang={view.lang} send={send} speaker={reading.speaker} furigana={reading.furigana} onFurigana={reading.onFurigana} stagePx={STAGE_PX.single} />;
     case "card":
       return <CardScreen view={view} send={send} ruby={ruby} />;
     case "help":
@@ -1001,6 +1007,7 @@ export function App({
   speaker = browserSpeaker,
   home: startAtHome = true,
   firstProblemId = CHILD_FIRST_PROBLEM_ID,
+  stepFlow = true,
 }: {
   storeName?: string;
   api?: Parameters<typeof startSession>[0]["api"];
@@ -1017,6 +1024,8 @@ export function App({
   home?: boolean;
   /** The problem the session opens with: the festival story on the child's route (Q60), when the bank has it. */
   firstProblemId?: string;
+  /** The problem one sentence at a time (Q62): on for the child; the adults' try route keeps the old steps. */
+  stepFlow?: boolean;
 }) {
   const onSessionRef = useRef(onSession);
   onSessionRef.current = onSession;
@@ -1044,7 +1053,7 @@ export function App({
       const furiganaOn = await st.getFurigana();
       // A transfer problem is offered only when it is in the bank (on the child's route: once a person has checked it).
       const first = bank.some((r) => r.world.problem_id === firstProblemId) ? { firstProblemId } : {};
-      const started = await startSession({ store: st, input: { bank, transfers: TRANSFER_LINKS, ...first }, ...(api === undefined ? {} : { api }) });
+      const started = await startSession({ store: st, input: { bank, transfers: TRANSFER_LINKS, stepFlow, ...first }, ...(api === undefined ? {} : { api }) });
       if (!live) {
         started.stop();
         return;
@@ -1065,7 +1074,7 @@ export function App({
       if (s !== null) onSessionRef.current?.(null);
       s?.stop();
     };
-  }, [storeName, api, restart, bank, firstProblemId]);
+  }, [storeName, api, restart, bank, firstProblemId, stepFlow]);
 
   const send = useMemo<Session["send"]>(() => (e) => session?.send(e), [session]);
   // The words heard go to the session only (in memory); nothing here keeps them.
@@ -1158,7 +1167,7 @@ export function App({
           store={store}
           lang={lang}
           // The AI-free check takes the bank's problems of the type, not the festival story the session opens with (Q60).
-          bank={bank.filter((r) => r.world.problem_id !== CHILD_FIRST_PROBLEM_ID)}
+          bank={bank.filter((r) => r.world.problem_id !== CHILD_FIRST_PROBLEM_ID && r.world.problem_id !== CHILD_SECOND_PROBLEM_ID)}
           speaker={reading.speaker}
           furigana={reading.furigana}
           onFurigana={reading.onFurigana}

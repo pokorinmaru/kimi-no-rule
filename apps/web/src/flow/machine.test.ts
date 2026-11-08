@@ -110,7 +110,9 @@ function checkAll(paths: { steps: { state: Snap }[] }[]): number {
 }
 
 /** States left at once by an always transition: never a resting screen. */
-const TRANSIENT = new Set(["flow.active.entry", "flow.active.loading", "flow.active.next", "flow.active.problem.checking"]);
+const TRANSIENT = new Set(["flow.active.entry", "flow.active.loading", "flow.active.next", "flow.active.problem.checking", "flow.active.problem.entry"]);
+/** The step flow (Q62) is off in this walk (the adults' route); steps.test.ts walks it. */
+const STEP_FLOW_ONLY = new Set(["flow.active.problem.steps"]);
 
 const FRESH: FlowInput = { introSeen: false, consented: false, maxProblems: 2 };
 
@@ -174,7 +176,7 @@ describe("the session machine: every state is reachable and every screen keeps t
     const reached = new Set<string>();
     for (const p of paths) for (const st of p.steps) for (const id of st.state._nodes.map((n) => n.id)) reached.add(id);
     const all = getStateNodes(flowMachine.root)
-      .filter((n) => n.type !== "history" && !TRANSIENT.has(n.id))
+      .filter((n) => n.type !== "history" && !TRANSIENT.has(n.id) && !STEP_FLOW_ONLY.has(n.id))
       .map((n) => n.id);
     expect(all.filter((id) => !reached.has(id))).toEqual([]);
   });

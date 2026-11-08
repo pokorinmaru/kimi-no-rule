@@ -1,6 +1,7 @@
 // The child's voice in a real browser (指示書 第7.1節 手順5, 第11節 M6): a fake speech recognizer is put on the page
 // (window.__kimiFakeSpeech) and the local worker's /safety and /interpret are answered by the test. The child
-// says who is taken as 1; the junior acknowledges, restates with the words heard, and the child confirms.
+// says who is taken as 1; the junior acknowledges, restates with the words heard, and the child confirms. Telling the
+// junior by voice is on the old screens, which are on the adults' try route (#/try) since Q62.
 import { expect, test } from "@playwright/test";
 import { E2E_API_BASE } from "./api-base.ts";
 
@@ -59,8 +60,8 @@ test("the child tells the junior by talking, sees the words live, and confirms t
   });
 
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto("/");
-  await page.getByTestId("btn-home-start").click();
+  // The old screens live on the adults' try route now (Q62): no top page there; its first problem is the festival one.
+  await page.goto("/#/try");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   await page.getByTestId("btn-guess-unknown").click();

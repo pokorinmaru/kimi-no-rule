@@ -58,7 +58,7 @@ describe("the junior's staged questions on the screen", () => {
   it.each(["ja", "en"] as const)("「わからない」 → lit words read aloud → which is longer → the word book (%s)", async (lang) => {
     const name = await ready(lang);
     const sp = new FakeSpeaker();
-    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={sp} />);
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={sp} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-odd"));
     fireEvent.click(screen.getByTestId("btn-dont-know"));
@@ -123,7 +123,7 @@ describe("the junior's staged questions on the screen", () => {
   // Safety review, 2026-11-07: the help screen had no furigana on the sentences, names or buttons.
   it("puts furigana on the sentences, the holders' names and the buttons when furigana is on", async () => {
     const name = await ready("ja");
-    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} />);
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName={name} api={null} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-odd"));
     fireEvent.click(screen.getByTestId("btn-dont-know"));
@@ -140,7 +140,7 @@ describe("the junior's staged questions on the screen", () => {
   it("puts furigana on the word book's page and reads its kanji by their readings", async () => {
     const name = await ready("ja");
     const sp = new FakeSpeaker();
-    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={sp} />);
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={sp} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-odd"));
     fireEvent.click(screen.getByTestId("btn-dont-know"));
@@ -161,7 +161,7 @@ describe("the junior's staged questions on the screen", () => {
 
   it("the word book opens by itself after the first fix on the session's first wording", async () => {
     const name = await ready();
-    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={new FakeSpeaker()} />);
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName={name} api={null} speaker={new FakeSpeaker()} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-odd"));
     const card = await screen.findByRole("button", { name: /「1」/ });

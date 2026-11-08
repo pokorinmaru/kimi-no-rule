@@ -9,6 +9,9 @@ import { and, assign, not, or, setup, stateIn } from "xstate";
 import {
   CARD_RULES,
   CHILD_FIRST_PROBLEM_ID,
+  CHILD_SECOND_PROBLEM_ID,
+  stepsOf,
+  type Step,
   CORRECT_READING_ID,
   FRACTION_BANK,
   cardFits,
@@ -206,6 +209,43 @@ export interface ProblemState {
   orderGuesses: string[];
   /** The sentence of the help's first step and its lit relation words (core helpSentence), while the help is open. */
   help: { statementIndex: number; tokens: number[] } | null;
+  /** The problem one sentence at a time (Q62), on the child's route; null on the adults' route (the old steps). */
+  steps: StepState | null;
+}
+
+/** One step the child went through (Q62): no words of the child, only what was chosen and how it went. */
+export interface StepLogEntry {
+  kind: Step["kind"];
+  /** How many answers the step took (wrong ones included). */
+  tries: number;
+  /** ok: right at once; helped: right after a hint or the smaller step; stopped: not right, the step was passed on. */
+  outcome: "ok" | "helped" | "stopped";
+  /** At the relation sentence: the holders chosen, in order ("unknown" for わからない). */
+  choices?: string[];
+  /** At the relation sentence: the first holder chosen was the one compared with (kept here, not looked up later). */
+  firstRight?: boolean;
+}
+
+export interface StepState {
+  steps: Step[];
+  index: number;
+  /** Wrong answers on this step so far. */
+  tries: number;
+  /** The light on the sentence's number (a fact) or its 「の」 and ratio (the relation). */
+  hint: boolean;
+  /** The smaller step: the dealing drawn so the child can count one part (unit), or the parts asked lit (total). */
+  help: boolean;
+  /** The holder the child chose at the relation sentence when it was not the one compared with: its world is shown. */
+  misread: string | null;
+  /** The holders chosen at the relation sentence, in order. */
+  choices: string[];
+  /** The numbers the child has said right (one part, the answer): the picture may draw them. */
+  said: Rational[];
+  entries: StepLogEntry[];
+  /** The answer step was not right twice: the problem is kept for later. */
+  held: boolean;
+  /** The relation's choices in the other order on this problem, so the right one does not keep one place (review). */
+  flip: boolean;
 }
 
 export type Outcome = "solved" | "held" | "stopped" | "hard" | "rest";
@@ -233,6 +273,8 @@ export interface ProblemLog {
   bookOpens?: number;
   /** On a transfer problem only: what it was offered after, and whether core kept the reading as not leaning on the wording. */
   transfer?: TransferLog;
+  /** The steps of the problem one sentence at a time (Q62): where the child stopped. */
+  steps?: StepLogEntry[];
 }
 
 /**
@@ -309,6 +351,8 @@ export interface FlowInput {
   /** The stored transfer problems and their old readings (only those in `bank` are ever offered). */
   transfers?: readonly TransferLink[];
   firstProblemId?: string;
+  /** The problem one sentence at a time (Q62): the child's route sets it; the adults' route keeps the old steps. */
+  stepFlow?: boolean;
   maxProblems?: number;
   introSeen?: boolean;
   consented?: boolean;
@@ -320,6 +364,7 @@ export interface FlowContext {
   bank: readonly ProblemRecord[];
   transfers: readonly TransferLink[];
   firstProblemId: string;
+  stepFlow: boolean;
   maxProblems: number;
   introSeen: boolean;
   consented: boolean;
@@ -369,6 +414,12 @@ export type FlowEvent =
   | { type: "CONFIRM_YES" }
   | { type: "CONFIRM_NO" }
   | { type: "ANSWER_UNIT"; value: Rational }
+  /** The step flow (Q62): a number for the step's question. */
+  | { type: "STEP_NUMBER"; value: Rational }
+  /** The step flow (Q62): who is compared with at the relation sentence (a holder), or null for わからない. */
+  | { type: "STEP_CHOOSE"; holderId: string | null }
+  /** The step flow (Q62): back to the question after the world of another reading. */
+  | { type: "STEP_AGAIN" }
   | { type: "ANSWER_TOTAL"; value: Rational }
   | { type: "STOP" }
   /** 「この問題をさいしょから」 (Q60): back to the first step of the open problem, with nothing the child did on it kept. */
@@ -452,6 +503,8 @@ function restartProblem(ctx: FlowContext): Partial<FlowContext> {
     orderGuesses: [],
     help: null,
     restarted: true,
+    // The step flow starts again from the first sentence (Q62).
+    steps: p.steps === null ? null : { ...p.steps, index: 0, tries: 0, hint: false, help: false, misread: null, choices: [], said: [], entries: [], held: false },
   };
   return { problem, ...noLine(ctx) };
 }
@@ -622,6 +675,102 @@ function transferPick(ctx: FlowContext): ReturnType<typeof selectNext> {
   return null;
 }
 
+/** The festival stories of the child's route (Q60, Q62): their wording is not counted for the word book. */
+const STORY_IDS: ReadonlySet<string> = new Set([CHILD_FIRST_PROBLEM_ID, CHILD_SECOND_PROBLEM_ID]);
+
+/** The steps of a problem on the step flow (Q62), or null (the adults' route, or a problem core cannot step). */
+function stepStateOf(ctx: FlowContext, record: ProblemRecord): StepState | null {
+  if (!ctx.stepFlow) return null;
+  const steps = stepsOf(record);
+  if (steps === null) return null;
+  return { steps, index: 0, tries: 0, hint: false, help: false, misread: null, choices: [], said: [], entries: [], held: false, flip: ctx.done.length % 2 === 1 };
+}
+
+const sameNumber = (a: Rational, b: Rational): boolean => a.num * b.den === b.num * a.den;
+
+/** The steps for the log: when the problem ended on an open step (stopped, hard, rest), that step is kept as stopped. */
+function stepLogOf(s: StepState, outcome: Outcome): StepLogEntry[] {
+  const entries = s.entries.map((e) => ({ ...e, ...(e.choices === undefined ? {} : { choices: [...e.choices] }) }));
+  const open = s.steps[s.index];
+  if (outcome === "solved" || s.held || open === undefined) return entries;
+  return [...entries, { kind: open.kind, tries: s.tries, outcome: "stopped", ...(open.kind === "relation" ? { choices: [...s.choices] } : {}) }];
+}
+
+/** The step done: its entry kept, and on to the next step. */
+function passStep(s: StepState, outcome: StepLogEntry["outcome"], said: Rational[] = s.said): StepState {
+  const step = s.steps[s.index];
+  if (step === undefined) return s;
+  const first = s.choices.find((c) => c !== "unknown");
+  const entry: StepLogEntry = {
+    kind: step.kind,
+    tries: s.tries + 1,
+    outcome,
+    ...(step.kind === "relation" ? { choices: [...s.choices], firstRight: first === step.referenceHolderId } : {}),
+  };
+  return { ...s, index: s.index + 1, tries: 0, hint: false, help: false, misread: null, choices: [], said, entries: [...s.entries, entry] };
+}
+
+/**
+ * A number for the step's question. Right: on to the next step. Wrong once: the sentence's number lights (a fact),
+ * or the smaller step opens (one part: the dealing drawn to count; the answer: its parts lit). Wrong twice: a fact or
+ * one part is passed on (kept as stopped there); the answer keeps the problem for later.
+ */
+function stepNumber(ctx: FlowContext, value: Rational): Partial<FlowContext> {
+  const p = ctx.problem;
+  const s = p?.steps;
+  if (p == null || s == null) return {};
+  const step = s.steps[s.index];
+  if (step === undefined || step.kind === "relation") return {};
+  const helped = s.hint || s.help;
+  const extra = step.kind === "unit" ? { unitTries: p.unitTries + 1, unitValue: value } : step.kind === "total" ? { totalTries: p.totalTries + 1, totalValue: value } : {};
+  if (sameNumber(value, step.value)) {
+    const said = step.kind === "fact" ? s.said : [...s.said, step.value];
+    return { problem: { ...p, ...extra, steps: passStep(s, helped ? "helped" : "ok", said) } };
+  }
+  if (s.tries === 0) {
+    const next: StepState = step.kind === "fact" ? { ...s, tries: 1, hint: true } : { ...s, tries: 1, help: true };
+    return { problem: { ...p, ...extra, steps: next } };
+  }
+  if (step.kind === "total") {
+    const entry: StepLogEntry = { kind: "total", tries: s.tries + 1, outcome: "stopped" };
+    return { problem: { ...p, ...extra, steps: { ...s, tries: s.tries + 1, entries: [...s.entries, entry], held: true } } };
+  }
+  // A fact is in the sentence, and one part was just drawn to count: the child goes on, and the step is kept as stopped.
+  const said = step.kind === "unit" ? [...s.said, step.value] : s.said;
+  return { problem: { ...p, ...extra, steps: passStep(s, "stopped", said) } };
+}
+
+/**
+ * Who is compared with, at the relation sentence. The first holder chosen is the research observation, as the first
+ * placement of the "1" card was (the same op, through the same confirm). The holder compared with: the problem's
+ * reading is taught and the next step opens. Another holder: its world is drawn (the misread), then the question
+ * again. わからない: the sentence's 「の」 and ratio light.
+ */
+function stepChoose(ctx: FlowContext, holderId: string | null): Partial<FlowContext> {
+  const p = ctx.problem;
+  const s = p?.steps;
+  if (p == null || s == null) return {};
+  const step = s.steps[s.index];
+  if (step === undefined || step.kind !== "relation") return {};
+  if (holderId === null) return { problem: { ...p, steps: { ...s, hint: true, choices: [...s.choices, "unknown"] } } };
+  const quantity = p.record.world.quantities.find((q) => q.holder === holderId && (q.id === step.referenceQuantityId || p.record.world.relations.some((r) => r.id === step.relationId && r.subject === q.id)));
+  if (quantity === undefined) return {};
+  const choices = [...s.choices, holderId];
+  // The first choice is observed as the first placement would have been (research, 第6.7節).
+  let next: FlowContext = { ...ctx, problem: { ...p, placement: quantity.id, steps: { ...s, choices } } };
+  next = { ...next, ...confirmFirst(next) };
+  if (holderId !== step.referenceHolderId) {
+    const q = next.problem;
+    if (q === null) return {};
+    return { problem: { ...q, placement: null, steps: { ...s, choices, tries: s.tries + 1, misread: quantity.id } }, research: next.research, researchRequest: next.researchRequest };
+  }
+  next = { ...next, ...teach(next) };
+  const q = next.problem;
+  if (q === null) return {};
+  const helped = s.hint || s.tries > 0;
+  return { problem: { ...q, steps: passStep({ ...s, choices }, helped ? "helped" : "ok") }, research: next.research, researchRequest: next.researchRequest };
+}
+
 /** Builds the state of a new problem from core's choice of problem and the junior's reading. */
 function loadProblem(ctx: FlowContext): Partial<FlowContext> {
   if (ctx.done.length >= ctx.maxProblems) return { problem: null, ...noLine(ctx) };
@@ -631,11 +780,18 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     const junior = first === undefined ? null : juniorFor(first, ctx.research, ctx.session, ctx.lang, ctx.taught);
     if (first !== undefined && junior !== null) pick = { record: first, junior, reason: { kind: "first" } };
   }
+  // On the step flow the second problem is the festival story where the child's count is a part (Q62).
+  if (pick === null && ctx.stepFlow && ctx.done.length === 1) {
+    const second = ctx.bank.find((r) => r.world.problem_id === CHILD_SECOND_PROBLEM_ID);
+    const junior = second === undefined ? null : juniorFor(second, ctx.research, ctx.session, ctx.lang, ctx.taught);
+    if (second !== undefined && junior !== null) pick = { record: second, junior, reason: { kind: "first" } };
+  }
   pick ??= transferPick(ctx);
   // A transfer problem is offered only right after a fix, never as an ordinary pick.
   const transferIds = new Set(ctx.transfers.map((l) => l.problemId));
   pick ??= selectNext(
-    ctx.bank.filter((r) => !transferIds.has(r.world.problem_id)),
+    // On the step flow only problems core can take one sentence at a time (safety review S3).
+    ctx.bank.filter((r) => !transferIds.has(r.world.problem_id) && (!ctx.stepFlow || stepsOf(r) !== null)),
     ctx.done,
     ctx.research,
     ctx.session,
@@ -652,7 +808,7 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
   const earlier = new Set([
     ...ctx.done.flatMap((id) => {
       const r = ctx.bank.find((b) => b.world.problem_id === id);
-      return r === undefined || id === CHILD_FIRST_PROBLEM_ID ? [] : pagesOf(r);
+      return r === undefined || STORY_IDS.has(id) ? [] : pagesOf(r);
     }),
     ...ctx.wordbookOpened,
   ]);
@@ -698,6 +854,7 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     bookOpens: 0,
     orderGuesses: [],
     help: null,
+    steps: stepStateOf(ctx, record),
   };
   const next = { ...ctx, problem };
   return {
@@ -885,6 +1042,7 @@ function logOf(p: ProblemState, outcome: Outcome, transfer?: TransferLog): Probl
     orderGuesses: [...p.orderGuesses],
     bookOpens: p.bookOpens,
     ...(transfer === undefined ? {} : { transfer }),
+    ...(p.steps === null ? {} : { steps: stepLogOf(p.steps, outcome) }),
   };
 }
 
@@ -904,6 +1062,8 @@ function solvedRecords(ctx: FlowContext): ProblemRecord[] {
 
 /** Two solved problems, and the card not yet shown after the last problem. */
 function needsCard(ctx: FlowContext): boolean {
+  // The step flow (Q62) has no rule card: the child goes from one problem to the next.
+  if (ctx.stepFlow) return false;
   const last = ctx.log.at(-1)?.problemId;
   return last !== undefined && last !== ctx.cardShownAfter && solvedRecords(ctx).length >= 2;
 }
@@ -1094,7 +1254,7 @@ export function bookPageId(ctx: FlowContext): WordbookPageId | null {
 function bookNeeded(ctx: FlowContext): boolean {
   const p = ctx.problem;
   if (p === null || p.bookAt === p.fixes || bookPageId(ctx) === null) return false;
-  if (p.record.world.problem_id === CHILD_FIRST_PROBLEM_ID && p.shown.failing.length === 0) return false;
+  if (STORY_IDS.has(p.record.world.problem_id) && p.shown.failing.length === 0) return false;
   return (p.fixes === 1 && p.newWording) || (p.fixes === 2 && p.shown.failing.length > 0);
 }
 
@@ -1155,6 +1315,9 @@ export const flowMachine = setup({
     needsIntro: ({ context }) => !context.introSeen,
     needsConsent: ({ context }) => !context.consented,
     hasProblem: ({ context }) => context.problem !== null && !context.problem.logged,
+    onSteps: ({ context }) => context.problem?.steps != null,
+    stepsDone: ({ context }) => context.problem?.steps != null && context.problem.steps.index >= context.problem.steps.steps.length,
+    stepsHeld: ({ context }) => context.problem?.steps?.held === true,
     guessOneOk: ({ context, event }) =>
       event.type === "GUESS_ONE" && context.problem !== null && (event.holderId === null || guessHolders(context.problem).includes(event.holderId)),
     guessable: ({ context, event }) =>
@@ -1206,6 +1369,7 @@ export const flowMachine = setup({
     bank: input?.bank ?? FRACTION_BANK,
     transfers: input?.transfers ?? [],
     firstProblemId: input?.firstProblemId ?? FIRST_PROBLEM_ID,
+    stepFlow: input?.stepFlow ?? false,
     maxProblems: input?.maxProblems ?? DEFAULT_MAX_PROBLEMS,
     introSeen: input?.introSeen ?? false,
     consented: input?.consented ?? false,
@@ -1301,8 +1465,28 @@ export const flowMachine = setup({
           always: [{ guard: "hasProblem", target: "problem" }, { target: "finished" }],
         },
         problem: {
-          initial: "guess",
+          initial: "entry",
           states: {
+            entry: {
+              always: [{ guard: "onSteps", target: "steps" }, { target: "guess" }],
+            },
+            // The problem one sentence at a time (Q62): one sentence, its picture, one question; a wrong answer
+            // branches at that step (a hint, the world of the other reading, or a smaller step).
+            steps: {
+              always: [
+                { guard: "stepsHeld", target: "held" },
+                { guard: "stepsDone", target: "solved" },
+              ],
+              on: {
+                STEP_NUMBER: { actions: assign(({ context, event }) => (event.type === "STEP_NUMBER" ? stepNumber(context, event.value) : {})) },
+                STEP_CHOOSE: { actions: assign(({ context, event }) => (event.type === "STEP_CHOOSE" ? stepChoose(context, event.holderId) : {})) },
+                STEP_AGAIN: {
+                  actions: assign(({ context }) =>
+                    context.problem?.steps == null ? {} : { problem: { ...context.problem, steps: { ...context.problem.steps, misread: null } } },
+                  ),
+                },
+              },
+            },
             // The child's own first prediction, before the junior shows its world (指示書 第7.1節 手順2): the problem's
             // sentences, plain outlines of the two holders, an optional "1" card, and one tap on who has more.
             // 「わからない」 opens the waiting screen (active's DONT_KNOW) and comes back here.

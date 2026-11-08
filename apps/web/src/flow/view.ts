@@ -1,5 +1,7 @@
 // What each screen shows, from a snapshot of the session machine. The screens draw only this, so the
 // tests can read every word a child may see (childTexts) on every path.
+import { stepsView, type StepsView } from "../steps/view.ts";
+import { stepsText } from "../steps/text.ts";
 import type { SnapshotFrom } from "xstate";
 import { CARD_RULES, apply, cardSlot, checkScene, fromSchema, gate, objectScene, type ObjectScene, sceneAvoidValues, readingCard, render, toString, verifiedDrawWorld, viewScene, wordbookPage, type GateContext, type Hypothesis, type Lang, type ProblemRecord, type Rational, type Scene, type WordbookPageView, type WorldScene } from "@kimi/core";
 import type { CardScenes } from "./machine.ts";
@@ -206,6 +208,7 @@ export type FlowView =
   | WordbookView
   | (Common & { screen: "consent"; lines: string[] })
   | ProblemView
+  | (Common & StepsView)
   | CardScreenView
   | (Common & { screen: "research"; lines: string[] })
   | (Common & { screen: "stuck"; lines: string[]; resume: string; hold: string | null })
@@ -311,6 +314,12 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
     const id = bookPageId({ ...c, lang });
     return { ...common, screen: "wordbook", problemId: p.record.world.problem_id, page: id === null ? null : wordbookPage(id, p.record, lang), line: juniorLine };
   }
+  // The problem one sentence at a time (Q62), with its own end screens.
+  if (p !== null && p.steps !== null) {
+    const outcome = s.matches({ active: { problem: "steps" } }) ? "steps" : s.matches({ active: { problem: "solved" } }) ? "solved" : s.matches({ active: { problem: "held" } }) ? "held" : null;
+    const v = outcome === null ? null : stepsView(p, lang, outcome);
+    if (v !== null) return { ...common, ...v };
+  }
   const step = STEPS.find((x) => s.matches({ active: { problem: x } }));
   if (p === null || step === undefined) return { ...common, screen: "research", lines: [t.research.wait] };
   // Sentences light only once the junior has shown its world and the child has answered or skipped the
@@ -406,6 +415,15 @@ export function childTexts(v: FlowView): string[] {
       out.push(p.label, p.sentences, p.world, p.next, p.looking, p.yes, p.no, p.nextProblem, p.unitPad, p.totalPad, t.pad.clear, t.pad.ok);
       out.push(p.voice.talk, p.voice.stop, p.voice.listening, p.voice.unsupported, p.voice.denied, p.voice.off);
       out.push(t.draw.sentences, t.draw.glow, t.draw.world, t.draw.cardAria, t.draw.cardHere, t.draw.jagged(""));
+      break;
+    }
+    case "steps": {
+      // The problem one sentence at a time (Q62): every word the step screen shows (safety review S2).
+      const st = stepsText(v.lang);
+      out.push(st.label, st.progress(v.at, v.count), st.pad, st.nextProblem, t.pad.clear, t.pad.ok, t.reading.aloud, t.reading.stop, t.reading.furigana);
+      out.push(...v.statements.map((s) => s.text), ...v.holders.map((h) => h.label));
+      for (const x of [v.lead, v.question, v.again]) if (x !== null) out.push(x);
+      if (v.choices !== null) out.push(...v.choices.map((c) => c.label));
       break;
     }
     case "help":

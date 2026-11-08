@@ -1,6 +1,7 @@
 // The junior's staged questions and the word book in a real browser, with the local server down (指示書 第7.1節
 // 手順4・5, 第11節 M7): 「わからない」 lights the relation words, asks which is longer, offers the word book; the word
 // book draws an everyday example with the "1" card; two failed fixes open it by itself. No answer on any of them.
+// These screens are on the adults' try route (#/try) since the child's route runs one sentence at a time (Q62).
 import { createRequire } from "node:module";
 import { expect, test, type Page } from "@playwright/test";
 
@@ -26,9 +27,12 @@ async function keepsTheRules(page: Page): Promise<void> {
 }
 
 async function start(page: Page): Promise<void> {
-  await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto("/");
-  await page.getByTestId("btn-home-start").click();
+  // 900 px wide: on #/try at 1000 px and wider the app column sits beside the research note, but the problem
+  // screen still splits by the window's width (ui/tokens.ts PAGE.splitAt), so the word book had only about 576 px
+  // and stacked tall. Below that width the note wraps under the app and the screen is laid out as on a tablet.
+  await page.setViewportSize({ width: 900, height: 768 });
+  // The old screens live on the adults' try route now (Q62): no top page there; its first problem is the festival one.
+  await page.goto("/#/try");
   await page.getByTestId("btn-next").click();
   await page.getByTestId("btn-consent-yes").click();
   await page.getByTestId("btn-guess-unknown").click();

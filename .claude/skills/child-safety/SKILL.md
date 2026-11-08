@@ -10,7 +10,7 @@ description: 子どもに見える文言・画面・発話・記録に触れる�
 ## 約束と、守っている場所
 
 - **答えと演算を先に出さない**：`packages/core/src/gates/index.ts` の `gate()`。`say` は隠す値（答えと、問題に書かれていない途中の値）を `numbersIn` で探して `answer_leak`、演算の名前と記号を `operation_name` で断る。`show_world` で描いてよいのは、正しい世界に与えられた値と子ども自身が口にした値に限られ、聞かれている値は「？」のまま（`question_not_hidden`）。`show_statements`・`show_correct_world` は子どもの解釈を記録し予測に答えるまで `too_early`。正しい世界が1つの答えに解けなければ全部 `unverified`。
-- **学年を下げない**：同じ `gate()` の `switch_problem` が `grade_down` で断る。
+- **学年は下げてよい**（Q62、ユーザーの決定）：つまずいた所まで戻って確かめられるように、`gate()` の `switch_problem` は学年で断らない。
 - **読み方を子どもに帰属させない**：`apps/web/src/flow/text.ts` の `FORBIDDEN_CHILD_PHRASES` と `hasForbiddenPhrase`（全角・ゼロ幅・空白をそろえてから照らす。Q37）。子どもの画面の見出しに作品名を出さない（Q30）。保護者の画面でも「正しい」と見立ての言葉を使わない（Q37）。
 - **後輩は教えない**：`packages/interpret/src/kohai.ts`。意図は `read`・`which`・`restate` の3つだけ。生成器には正しい世界・正誤・研究の仮説・子どもの発話を渡さない。worker の `/kohai` は正しい世界を画面から受け取らず銀行から引き、後輩の世界が正しい世界と同じなら 400（`apps/worker/src/app.ts`）。
 - **助けを求める声は算数より優先**：`packages/interpret/src/safety.ts` の `checkSafety`。端末の辞書 `DISTRESS_WORDS` が下限で、Claude が none でも辞書に当たれば distress（Q24）。Claude の refusal も distress。Claude が答えず辞書にも無ければ none でなく `unchecked`（Q26）。

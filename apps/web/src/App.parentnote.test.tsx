@@ -76,7 +76,7 @@ async function seeded(lang: Lang): Promise<string> {
 }
 
 async function openParent(name: string): Promise<void> {
-  render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} parentHoldMs={0} />);
+  render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName={name} api={null} parentHoldMs={0} />);
   fireEvent.pointerDown(await screen.findByTestId("btn-parent"));
 }
 
@@ -156,7 +156,7 @@ describe("nothing of the note on a child's screen", () => {
   it("the intro, consent and problem screens show no research note or trend, and closing the grown-up's screen takes it away", async () => {
     const name = await seeded("ja");
     const t = ui("ja").parent;
-    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} parentHoldMs={0} />);
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName={name} api={null} parentHoldMs={0} />);
     const noNote = (): void => {
       expect(screen.queryByTestId("research-note")).toBeNull();
       expect(screen.queryByTestId("research-trend")).toBeNull();

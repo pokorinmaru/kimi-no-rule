@@ -327,27 +327,11 @@ describe("unverified", () => {
   });
 });
 
-describe("grade down", () => {
-  it("rejects a problem of a lower grade", () => {
-    expect(reasons(gate({ kind: "switch_problem", grade: 4 }, ctx()))).toContain("grade_down");
-    expect(reasons(gate({ kind: "switch_problem", grade: 1 }, ctx()))).toContain("grade_down");
-  });
-
-  it("allows the same grade and higher grades", () => {
-    expect(gate({ kind: "switch_problem", grade: 5 }, ctx())).toEqual({ ok: true });
-    expect(gate({ kind: "switch_problem", grade: 6 }, ctx())).toEqual({ ok: true });
-  });
-
-  it("rejects exactly the grades below the current one (property)", () => {
+describe("switching problems (Q62: the rule not to lower the grade is gone)", () => {
+  it("allows a problem of any grade, lower ones too, so a child can step back to what they need", () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 6 }), fc.integer({ min: 1, max: 6 }), (now, next) => {
-        const res = gate({ kind: "switch_problem", grade: next }, ctx({ grade: now }));
-        if (next < now) {
-          expect(res.ok).toBe(false);
-          if (!res.ok) expect(res.reasons).toContain("grade_down");
-        } else {
-          expect(res).toEqual({ ok: true });
-        }
+        expect(gate({ kind: "switch_problem", grade: next }, ctx({ grade: now }))).toEqual({ ok: true });
       }),
     );
   });

@@ -37,6 +37,8 @@ export interface AttemptRow {
   bookOpens?: number;
   /** On a transfer problem only (Q48): ids, the wording and core's yes/no. */
   transfer?: ProblemLog["transfer"];
+  /** The problem one sentence at a time (Q62): each step's kind, tries and outcome, and the holder ids chosen. */
+  steps?: ProblemLog["steps"];
 }
 
 export interface GateRow {
@@ -247,6 +249,17 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
         ...(log.transfer === undefined
           ? {}
           : { transfer: { fixedProblemId: log.transfer.fixedProblemId, oldReadingId: log.transfer.oldReadingId, wording: log.transfer.wording, beyondWording: log.transfer.beyondWording } }),
+        ...(log.steps === undefined
+          ? {}
+          : {
+              steps: log.steps.map((e) => ({
+                kind: e.kind,
+                tries: e.tries,
+                outcome: e.outcome,
+                ...(e.choices === undefined ? {} : { choices: [...e.choices] }),
+                ...(e.firstRight === undefined ? {} : { firstRight: e.firstRight }),
+              })),
+            }),
       });
     },
     async listAttempts() {
