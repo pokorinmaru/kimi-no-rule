@@ -4,7 +4,7 @@ import globals from "globals";
 
 export default tseslint.config(
   // tools/asset-builder/out holds generated candidates and scratch helpers (gitignored), not code of the repo.
-  { ignores: ["**/node_modules/**", "**/dist/**", "**/playwright-report/**", "**/test-results/**", "tools/asset-builder/out/**"] },
+  { ignores: ["**/node_modules/**", "**/dist/**", "**/dist-judge/**", "**/dist-cf/**", "**/.wrangler/**", "**/playwright-report/**", "**/test-results/**", "tools/asset-builder/out/**"] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {

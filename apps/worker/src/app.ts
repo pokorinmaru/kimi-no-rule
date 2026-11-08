@@ -16,6 +16,30 @@ export interface WorkerDeps {
   bank?: readonly ProblemRecord[];
   /** The clock for the per-process cap (tests only). */
   now?: () => number;
+  /**
+   * The worker hosted for the judges: the hosted page's origins, the worker's own host names, and the passcode the
+   * judges are given. Absent, the worker answers this device's pages only (localhost), as on the developer's PC.
+   */
+  access?: HostedAccess;
+}
+
+export interface HostedAccess {
+  origins: readonly string[];
+  hosts: readonly string[];
+  /** The passcode, or null when none is set: a hosted worker without one refuses everything. */
+  passcode: () => string | null;
+}
+
+/** The header the hosted page sends the passcode in. */
+export const PASS_HEADER = "x-kimi-pass";
+
+/** Compares in time that does not depend on where the strings differ. */
+function sameSecret(a: string, b: string): boolean {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0;
 }
 
 /** At most this many calls per route in one window, per process: a runaway page cannot spend the key. */
@@ -138,6 +162,8 @@ function interpretBody(x: unknown): { problemId: string; transcript: string; lan
 
 const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 const LOCAL_HOST = /^(localhost|127\.0\.0\.1)(:\d+)?$/;
+/** The routes that take a JSON body (an unknown route answers 404). */
+const ROUTES = /^\/(kohai|research|safety|scenes|interpret|wish|pass)$/;
 
 async function jsonOf(req: Request): Promise<unknown> {
   try {
@@ -162,19 +188,33 @@ export function createApp(deps: WorkerDeps): Hono {
   // The scenes keep away from every bank problem's answer and one part (a superset of the current and next problem's).
   const sceneAvoid = sceneAvoidValues(bank);
 
-  app.use("*", cors({ origin: (o) => (LOCAL_ORIGIN.test(o) ? o : null), allowMethods: ["POST"], allowHeaders: ["content-type"] }));
-  // Only this device's pages may spend the key: a page from elsewhere (Origin), a name that resolves here
-  // from elsewhere (Host, DNS rebinding) and a simple form post (no JSON) are all refused before parsing.
-  app.use("/:route{kohai|research|safety|scenes|interpret}", async (c, next) => {
+  const access = deps.access;
+  // Hosted for the judges, only the hosted page's origins and the worker's own host names; otherwise this device only.
+  const originOk = (o: string): boolean => (access === undefined ? LOCAL_ORIGIN.test(o) : access.origins.includes(o));
+  const hostOk = (h: string): boolean => (access === undefined ? LOCAL_HOST.test(h) : access.hosts.includes(h));
+  app.use("*", cors({ origin: (o) => (originOk(o) ? o : null), allowMethods: ["POST"], allowHeaders: ["content-type", PASS_HEADER] }));
+  // Only this device's pages (or, hosted, the judges' page with the passcode) may spend the key: a page from elsewhere
+  // (Origin), a name that resolves here from elsewhere (Host, DNS rebinding) and a simple form post (no JSON) are all
+  // refused before parsing.
+  app.use("*", async (c, next) => {
     if (c.req.method === "OPTIONS") return next();
     const origin = c.req.header("origin");
     const host = c.req.header("host") ?? new URL(c.req.url).host;
     const type = (c.req.header("content-type") ?? "").split(";")[0]?.trim().toLowerCase();
-    if (origin !== undefined && !LOCAL_ORIGIN.test(origin)) return c.json({ error: "forbidden" }, 403);
-    if (!LOCAL_HOST.test(host)) return c.json({ error: "forbidden" }, 403);
-    if (c.req.method === "POST" && type !== "application/json") return c.json({ error: "unsupported" }, 415);
+    if (origin !== undefined && !originOk(origin)) return c.json({ error: "forbidden" }, 403);
+    if (!hostOk(host)) return c.json({ error: "forbidden" }, 403);
+    if (access !== undefined) {
+      const pass = access.passcode();
+      // A hosted worker without a passcode is never open.
+      if (pass === null || pass === "") return c.json({ error: "not_ready" }, 503);
+      if (!sameSecret(c.req.header(PASS_HEADER) ?? "", pass)) return c.json({ error: "passcode" }, 401);
+    }
+    // An unknown route answers 404 below; a known one takes JSON only.
+    if (ROUTES.test(new URL(c.req.url).pathname) && c.req.method === "POST" && type !== "application/json") return c.json({ error: "unsupported" }, 415);
     return next();
   });
+  // The judges' page checks its passcode here first; nothing reaches Claude (the check above already ran).
+  app.post("/pass", (c) => c.body(null, 204));
   app.onError((_err, c) => c.json({ error: "failed" }, 500));
   app.notFound((c) => c.json({ error: "not_found" }, 404));
 

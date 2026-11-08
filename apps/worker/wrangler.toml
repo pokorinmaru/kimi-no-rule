@@ -1,0 +1,13 @@
+# The worker hosted on Cloudflare Workers for the judges (the public judge build, SETUP.md).
+# Secrets (set with `wrangler secret put`, never written here): ANTHROPIC_API_KEY, JUDGE_PASSCODE.
+# Vars below: the hosted page's origins and the worker's own host names. Without a passcode the worker refuses everything.
+name = "kimi-no-rule-worker"
+main = "src/cf.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[vars]
+# Fill in after the first deploy (the page's URL from Cloudflare Pages, and this worker's workers.dev host name).
+ALLOWED_ORIGINS = ""
+WORKER_HOSTS = ""
