@@ -3,7 +3,7 @@
 // the problem one sentence at a time (Q62); the old screens (guess, prediction, the "1" card) are on #/try.
 import { createRequire } from "node:module";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { FRACTION_BANK, judgeAnswer } from "@kimi/core";
+import { PREPARED_BANK, judgeAnswer } from "@kimi/core";
 import { COLOR } from "../src/ui/tokens.ts";
 
 /** A locator's text as written, its furigana (the <rt> readings) aside. */
@@ -217,7 +217,7 @@ test("the AI-free check: three problems, a neutral line after each, and the resu
     const problem = page.getByTestId("check-problem");
     await expect(problem).toBeVisible();
     const id = await problem.getAttribute("data-problem-id");
-    const record = FRACTION_BANK.find((r) => r.world.problem_id === id);
+    const record = PREPARED_BANK.find((r) => r.world.problem_id === id);
     if (record === undefined) throw new Error(`no bank problem ${String(id)}`);
     // The answer comes from the prepared problem, checked by core here; the screen never shows it.
     const answer = record.expected_answer as { num: number; den: number };
