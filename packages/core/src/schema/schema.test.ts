@@ -122,9 +122,22 @@ const leaf: fc.Arbitrary<Json> = fc.oneof(
 const anyJson: fc.Arbitrary<Json> = fc.oneof(
   leaf,
   fc.array(leaf, { maxLength: 3 }),
-  fc.dictionary(fc.stringMatching(/^[a-z_]{1,8}$/), leaf, { maxKeys: 3 }),
+  // Parsed JSON never has an object without a prototype; fast-check makes some by default, and zod throws on them
+  // instead of refusing them, which failed this test now and then (2026-11-08).
+  fc.dictionary(fc.stringMatching(/^[a-z_]{1,8}$/), leaf, { maxKeys: 3, noNullPrototype: true }),
   fc.constant({ num: 1, den: 1 }),
 );
+
+describe("the random edits", () => {
+  it("are plain JSON: no object without a prototype", () => {
+    fc.assert(
+      fc.property(anyJson, (v) => {
+        if (typeof v === "object" && v !== null && !Array.isArray(v)) expect(Object.getPrototypeOf(v)).toBe(Object.prototype);
+      }),
+      { numRuns: 2000 },
+    );
+  });
+});
 
 interface Edit {
   pick: number;

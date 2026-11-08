@@ -13,6 +13,9 @@ import { renderEvalsMd, type EvalsInput } from "./report.ts";
 
 const quiet: Sink = { write: () => undefined };
 
+// Slow under the full run's load (7-15 s with every package in parallel): a minute, not the default 5 s.
+const SLOW_MS = 60_000;
+
 /** A researcher that confirms the given rule after the first problem. */
 const confirming = (h: Hypothesis): Researcher => ({
   name: `confirms ${h.id}`,
@@ -28,7 +31,7 @@ describe("runJudgedEpisode", () => {
         expect({ ...judged, judge: undefined }).toEqual({ ...(await runEpisode(r, child, FRACTION_BANK, seed)), judge: undefined });
       }
     }
-  });
+  }, SLOW_MS);
 
   it("recovered on the judging problems is whether the confirmed reading builds the child's worlds there", async () => {
     for (const h of COMMON_FRACTION_READINGS) {
