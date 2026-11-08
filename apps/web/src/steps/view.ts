@@ -106,23 +106,34 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
   }
   const step = s.steps[s.index];
   if (step === undefined) return null;
+  // Money drawn as coins (Q63): the holders are things, the questions stay in the problem's unit, and the coins' worth
+  // is said wherever they are drawn.
+  const firstScene = s.steps[0] === undefined ? null : stepScene(p.record, s.steps[0], []);
+  const money = firstScene?.item.coin !== undefined;
+  const coinNote = (sc: ObjectScene | null): string | null =>
+    sc?.item.coin === undefined ? null : t.money.note(sc.item.noun, sc.item.counter, sc.item.coin, counter);
+  const join = (...xs: (string | null)[]): string | null => {
+    const kept = xs.filter((x): x is string => x !== null && x !== "");
+    return kept.length === 0 ? null : kept.join(lang === "ja" ? "" : " ");
+  };
   // The child's words restated (a holder and the noun only), on the screen right after the words chose.
-  const heard = s.heardFrom === null ? null : t.heard(label(s.heardFrom), noun);
+  const heard = s.heardFrom === null ? null : money ? t.money.heard(label(s.heardFrom)) : t.heard(label(s.heardFrom), noun);
   const common = { ...base, heard, at: s.index + 1, kind: step.kind, again: null, choices: null, pad: null, hideShare: false };
   const relation = s.steps.find((x) => x.kind === "relation");
   const ratio = relation?.kind === "relation" ? frac(relation.amount) : "";
   switch (step.kind) {
     case "fact": {
       const st = p.record.statements[step.statementIndex];
+      const scene = stepScene(p.record, step, s.said);
       return {
         ...common,
         statements: statementsUpTo(reached),
         current: step.statementIndex,
         lit: s.hint && st !== undefined ? { statementIndex: st.index, tokens: numberTokens(st.tokens) } : null,
-        lead: s.hint ? t.factHint : null,
-        question: t.fact(label(step.holderId), noun, counter),
+        lead: join(coinNote(scene), s.hint ? t.factHint : null),
+        question: money ? t.money.fact(label(step.holderId), counter) : t.fact(label(step.holderId), noun, counter),
         pad: t.pad,
-        scene: stepScene(p.record, step, s.said),
+        scene,
       };
     }
     case "relation": {
@@ -136,27 +147,34 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
         const scene = reading === null ? null : objectScene(reading.childWorld, p.record.world, { values: s.said });
         // The other reading's count of the asked holder, as drawn (core hides it when it is a hidden value).
         const asked = scene?.holders.find((h) => h.quantityId === w.question.target_id);
-        const count = asked?.count != null && !asked.hidden ? t.misreadCount(label(asked.holderId), noun, asked.count.wholes, counter, asked.count.piece !== null) : "";
+        const coins = scene?.item.coin !== undefined;
+        const count =
+          asked?.count != null && !asked.hidden
+            ? coins && scene !== null
+              ? t.money.misreadCount(label(asked.holderId), scene.item.noun, asked.count.wholes, scene.item.counter, asked.count.piece !== null)
+              : t.misreadCount(label(asked.holderId), noun, asked.count.wholes, counter, asked.count.piece !== null)
+            : "";
         return {
           ...common,
           statements: statementsUpTo(reached),
           current: step.statementIndex,
           lit: null,
-          lead: count + t.misread(label(chosen), noun),
+          lead: join(coinNote(scene), count, money ? t.money.misread(label(chosen)) : t.misread(label(chosen), noun)),
           question: null,
           again: t.again,
           scene,
         };
       }
+      const relScene = stepScene(p.record, step, s.said);
       return {
         ...common,
         statements: statementsUpTo(reached),
         current: step.statementIndex,
         lit: s.hint && st !== undefined ? { statementIndex: st.index, tokens: ratioTokens(st.tokens, ratio) } : null,
-        lead: s.hint ? t.relationHint(ratio) : null,
-        question: t.relation(label(step.subjectHolderId), noun),
+        lead: join(coinNote(relScene), s.hint ? t.relationHint(ratio) : null),
+        question: money ? t.money.relation(label(step.subjectHolderId)) : t.relation(label(step.subjectHolderId), noun),
         choices: [...ordered.map((h) => ({ holderId: h, label: label(h) })), { holderId: null, label: t.unknown }],
-        scene: stepScene(p.record, step, s.said),
+        scene: relScene,
         voice: {
           lead: t.voiceLead,
           canTalk: !voiceOff && !p.listening && p.voiceTurns < MAX_VOICE_TURNS,
@@ -172,30 +190,33 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
       const amount = relation?.kind === "relation" ? relation.amount : null;
       const whole = relation?.kind === "relation" && relation.referenceHolderId === step.knownHolderId;
       const question = s.help ? t.unitHelp(counter) : whole ? t.unitWhole(label(step.knownHolderId), n, counter, step.parts) : t.unitPart(label(step.knownHolderId), n, counter, step.parts);
+      // The smaller step draws the dealing so the child can count one part (Q62: a smaller step is allowed);
+      // its description says the dishes, never what one dish gets (safety review S1).
+      const unitScene = stepScene(p.record, step, s.help ? [...s.said, step.value] : s.said);
       return {
         ...common,
         statements: statementsUpTo(all),
         current: relation?.kind === "relation" ? relation.statementIndex : null,
         lit: null,
-        lead: amount === null ? null : t.explain(amount.num, amount.den),
+        lead: join(amount === null ? null : t.explain(amount.num, amount.den), coinNote(unitScene)),
         question,
         pad: t.pad,
-        // The smaller step draws the dealing so the child can count one part (Q62: a smaller step is allowed);
-        // its description says the dishes, never what one dish gets (safety review S1).
-        scene: stepScene(p.record, step, s.help ? [...s.said, step.value] : s.said),
+        scene: unitScene,
         hideShare: s.help,
       };
     }
-    case "total":
+    case "total": {
+      const totalScene = stepScene(p.record, step, s.said);
       return {
         ...common,
         statements: statementsUpTo(all),
         current: step.statementIndex,
         lit: null,
-        lead: s.help ? t.totalHelp(step.parts) : null,
+        lead: join(coinNote(totalScene), s.help ? t.totalHelp(step.parts) : null),
         question: t.total(label(step.targetHolderId), step.parts, counter),
         pad: t.pad,
-        scene: stepScene(p.record, step, s.said),
+        scene: totalScene,
       };
+    }
   }
 }
