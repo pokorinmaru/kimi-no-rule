@@ -3,6 +3,7 @@
 // session falls back to templates, the fallback pool, or "unchecked".
 import type { AnyOp, Hypothesis, Lang, SceneChoice } from "@kimi/core";
 import type { KohaiRequest, ResearchRequest, SafetyFlagEvent, ScenesRequest } from "./machine.ts";
+import { PASS_HEADER, getPasscode } from "./passcode.ts";
 
 export interface KohaiReply {
   text: string;
@@ -62,9 +63,11 @@ export const DEFAULT_API_BASE: string = (import.meta.env["VITE_API_BASE"] as str
 
 export function createHttpApi(base: string = DEFAULT_API_BASE, fetchImpl: typeof fetch = (...a) => fetch(...a)): FlowApi {
   const post = async <T>(path: string, body: unknown, signal: AbortSignal): Promise<T> => {
+    const pass = getPasscode();
     const res = await fetchImpl(`${base}${path}`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      // The judges' passcode in the public judge build; none locally.
+      headers: { "content-type": "application/json", ...(pass === null ? {} : { [PASS_HEADER]: pass }) },
       body: JSON.stringify(body),
       signal,
     });

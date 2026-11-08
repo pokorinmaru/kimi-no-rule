@@ -26,6 +26,23 @@ pnpm install
 - `pnpm check:protocol`：評価の取り決めが凍結のとおりか確かめる
 - `pnpm build:problems <inputs.json> [out]`：問題の準備（Opus で2回組み立てる。キーが要る）
 
+## 審査用の公開版（Cloudflare）
+
+審査員がパスコードで使える公開版を、画面は Cloudflare Pages、サーバーは Cloudflare Workers に置く。サーバーは手元と同じで、何も保存せずログも出さない。パスコードが無い呼び出しは断り（401）、パスコードが設定されていなければ何も受けない（503）。子どもの記録は、使う人のブラウザの中だけに残る。
+
+人がする準備（鍵とアカウントは人の手で）：
+1. Anthropic のコンソールで、月の使用額の上限を決める（公開中のキーの使いすぎを止める）。
+2. `cd apps/worker` で `npx wrangler login`（ブラウザで Cloudflare にログイン）。
+3. `npx wrangler secret put ANTHROPIC_API_KEY` と `npx wrangler secret put JUDGE_PASSCODE`（どちらも画面に貼る。ファイルには書かない）。
+
+公開の手順：
+1. サーバー：`pnpm --filter @kimi/worker deploy`（`content/problems` を `src/stored.gen.json` にまとめてから公開する）。表示された `https://kimi-no-rule-worker.<アカウント>.workers.dev` を控える。
+2. 画面：`VITE_API_BASE=<サーバーのURL> VITE_REQUIRE_PASSCODE=1 pnpm --filter @kimi/web build:judge` の後、`apps/web` で `../worker/node_modules/.bin/wrangler deploy`（`apps/web/wrangler.toml` が `dist-judge` を静的なファイルとして公開する）。表示されたURLを控える。`apps/worker` で Pages の命令を実行すると、サーバーの設定が使われて画面にならないので注意。
+3. `apps/worker/wrangler.toml` の `ALLOWED_ORIGINS` に画面のURL、`WORKER_HOSTS` にサーバーのホスト名を書いて、もう一度 `pnpm --filter @kimi/worker deploy`。
+4. 画面のURLを開き、パスコードで入れることを確かめる。今の公開先：画面 https://kimi-no-rule.kimi-no-rule.workers.dev 、サーバー https://kimi-no-rule-worker.kimi-no-rule.workers.dev
+
+手元での確かめ（ログイン不要）：`npx wrangler dev --port 8790 --var JUDGE_PASSCODE:<仮の値> --var ALLOWED_ORIGINS:http://localhost:5190 --var WORKER_HOSTS:localhost:8790`、画面は `VITE_API_BASE=http://localhost:8790 VITE_REQUIRE_PASSCODE=1` で `build:judge` して `npx vite preview --outDir dist-judge --port 5190`。
+
 ## つまずいたとき
 
 - `git push` が資格情報の画面待ちで止まる：`git -c credential.helper= -c "credential.helper=!gh auth git-credential" push`

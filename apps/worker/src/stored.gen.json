@@ -1,0 +1,3373 @@
+{
+  "discriminating": [
+    {
+      "schema_version": "1",
+      "world": {
+        "schema_version": "3",
+        "problem_id": "p_disc_c_correct_s_unit_additive_1",
+        "problem_type": "ratio",
+        "problem_text": "大きい水そうには、金魚が24匹います。小さい水そうの金魚は、大きい水そうの金魚の1/4です。小さい水そうの金魚は何匹ですか。",
+        "grade": 6,
+        "problem_lang": "ja",
+        "holders": [
+          {
+            "id": "h_big",
+            "label": "大きい水そう"
+          },
+          {
+            "id": "h_small",
+            "label": "小さい水そう"
+          }
+        ],
+        "item_kinds": [
+          {
+            "id": "k_goldfish",
+            "noun": "金魚",
+            "counter": "匹",
+            "asset_key": null,
+            "countable": true
+          }
+        ],
+        "quantities": [
+          {
+            "id": "q_big",
+            "holder": "h_big",
+            "item_kind": "k_goldfish",
+            "at_event": null,
+            "value": {
+              "num": 24,
+              "den": 1
+            }
+          },
+          {
+            "id": "q_small",
+            "holder": "h_small",
+            "item_kind": "k_goldfish",
+            "at_event": null,
+            "value": null
+          }
+        ],
+        "relations": [
+          {
+            "id": "r_frac",
+            "operator": "fraction_of",
+            "subject": "q_small",
+            "reference": "q_big",
+            "reference_list": null,
+            "amount": {
+              "num": 1,
+              "den": 4
+            },
+            "other_description": null
+          }
+        ],
+        "events": [],
+        "question": {
+          "target_type": "quantity",
+          "target_id": "q_small"
+        },
+        "word_links": [
+          {
+            "phrase": "大きい水そう",
+            "lang": "ja",
+            "element_id": "h_big"
+          },
+          {
+            "phrase": "小さい水そう",
+            "lang": "ja",
+            "element_id": "h_small"
+          },
+          {
+            "phrase": "金魚",
+            "lang": "ja",
+            "element_id": "k_goldfish"
+          },
+          {
+            "phrase": "金魚が24匹",
+            "lang": "ja",
+            "element_id": "q_big"
+          },
+          {
+            "phrase": "大きい水そうの金魚の1/4です",
+            "lang": "ja",
+            "element_id": "r_frac"
+          },
+          {
+            "phrase": "小さい水そうの金魚は何匹ですか",
+            "lang": "ja",
+            "element_id": "q_small"
+          }
+        ]
+      },
+      "consistency": "consistent",
+      "pair_id": null,
+      "source": "discriminating_bank",
+      "checks": {
+        "double_build_match": true,
+        "restate_match": true,
+        "misread_pass_rate": 0.7,
+        "human_checked": false
+      },
+      "expected_answer": {
+        "num": 6,
+        "den": 1
+      },
+      "statements": [
+        {
+          "index": 0,
+          "text": "大きい水そうには、金魚が24匹います。",
+          "element_ids": [
+            "h_big",
+            "k_goldfish",
+            "q_big"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "大きい水そう",
+            "には",
+            "、",
+            "金魚",
+            "が",
+            "24",
+            "匹",
+            "います",
+            "。"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "小さい水そうの金魚は、大きい水そうの金魚の1/4です。",
+          "element_ids": [
+            "h_small",
+            "h_big",
+            "k_goldfish",
+            "r_frac"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "小さい水そう",
+            "の",
+            "金魚",
+            "は",
+            "、",
+            "大きい水そう",
+            "の",
+            "金魚",
+            "の",
+            "1/4",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "小さい水そうの金魚は何匹ですか。",
+          "element_ids": [
+            "h_small",
+            "k_goldfish",
+            "q_small"
+          ],
+          "is_question": true,
+          "speaker_holder_id": null,
+          "tokens": [
+            "小さい水そう",
+            "の",
+            "金魚",
+            "は",
+            "何",
+            "匹",
+            "ですか",
+            "。"
+          ]
+        }
+      ],
+      "syntax_marks": [
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_big",
+          "word": "大きい水そう",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 0,
+          "token_start": 6,
+          "token_end": 6,
+          "element_id": "k_goldfish",
+          "word": "匹",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_small",
+          "word": "小さい水そう",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "h_big",
+          "word": "大きい水そう",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 1,
+          "token_start": 8,
+          "token_end": 8,
+          "element_id": "r_frac",
+          "word": "の",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "ratio_notation",
+          "statement_index": 1,
+          "token_start": 9,
+          "token_end": 9,
+          "element_id": "r_frac",
+          "word": "1/4",
+          "ratio_kind": [
+            "fraction",
+            "lt1"
+          ],
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 1,
+          "token_start": 3,
+          "token_end": 10,
+          "element_id": "r_frac",
+          "word": "は、大きい水そうの金魚の1/4です",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_small",
+          "word": "小さい水そう",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 2,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "k_goldfish",
+          "word": "匹",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        }
+      ],
+      "companion_ids": []
+    },
+    {
+      "schema_version": "1",
+      "world": {
+        "schema_version": "3",
+        "problem_id": "p_disc_c_correct_s_unit_additive_2",
+        "problem_type": "ratio",
+        "problem_text": "青い箱のおはじきは5こです。これは、赤い箱のおはじきの1/3です。赤い箱のおはじきは何こですか。",
+        "grade": 6,
+        "problem_lang": "ja",
+        "holders": [
+          {
+            "id": "h_blue",
+            "label": "青い箱"
+          },
+          {
+            "id": "h_red",
+            "label": "赤い箱"
+          }
+        ],
+        "item_kinds": [
+          {
+            "id": "k_ohajiki",
+            "noun": "おはじき",
+            "counter": "こ",
+            "asset_key": null,
+            "countable": true
+          }
+        ],
+        "quantities": [
+          {
+            "id": "q_blue",
+            "holder": "h_blue",
+            "item_kind": "k_ohajiki",
+            "at_event": null,
+            "value": {
+              "num": 5,
+              "den": 1
+            }
+          },
+          {
+            "id": "q_red",
+            "holder": "h_red",
+            "item_kind": "k_ohajiki",
+            "at_event": null,
+            "value": null
+          }
+        ],
+        "relations": [
+          {
+            "id": "r_frac",
+            "operator": "fraction_of",
+            "subject": "q_blue",
+            "reference": "q_red",
+            "reference_list": null,
+            "amount": {
+              "num": 1,
+              "den": 3
+            },
+            "other_description": null
+          }
+        ],
+        "events": [],
+        "question": {
+          "target_type": "quantity",
+          "target_id": "q_red"
+        },
+        "word_links": [
+          {
+            "phrase": "青い箱のおはじきは5こ",
+            "lang": "ja",
+            "element_id": "q_blue"
+          },
+          {
+            "phrase": "赤い箱のおはじきの1/3",
+            "lang": "ja",
+            "element_id": "r_frac"
+          },
+          {
+            "phrase": "赤い箱のおはじきは何こ",
+            "lang": "ja",
+            "element_id": "q_red"
+          }
+        ]
+      },
+      "consistency": "inconsistent",
+      "pair_id": null,
+      "source": "discriminating_bank",
+      "checks": {
+        "double_build_match": true,
+        "restate_match": true,
+        "misread_pass_rate": 0.45,
+        "human_checked": false
+      },
+      "expected_answer": {
+        "num": 15,
+        "den": 1
+      },
+      "statements": [
+        {
+          "index": 0,
+          "text": "青い箱のおはじきは5こです。",
+          "element_ids": [
+            "q_blue"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "青い",
+            "箱",
+            "の",
+            "おはじき",
+            "は",
+            "5",
+            "こ",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "これは、赤い箱のおはじきの1/3です。",
+          "element_ids": [
+            "r_frac"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "これ",
+            "は",
+            "、",
+            "赤い",
+            "箱",
+            "の",
+            "おはじき",
+            "の",
+            "1/3",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "赤い箱のおはじきは何こですか。",
+          "element_ids": [
+            "q_red"
+          ],
+          "is_question": true,
+          "speaker_holder_id": null,
+          "tokens": [
+            "赤い",
+            "箱",
+            "の",
+            "おはじき",
+            "は",
+            "何",
+            "こ",
+            "です",
+            "か",
+            "。"
+          ]
+        }
+      ],
+      "syntax_marks": [
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 0,
+          "token_end": 1,
+          "element_id": "h_blue",
+          "word": "青い箱",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 0,
+          "token_start": 6,
+          "token_end": 6,
+          "element_id": "k_ohajiki",
+          "word": "こ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "demonstrative",
+          "statement_index": 1,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "q_blue",
+          "word": "これ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 3,
+          "token_end": 4,
+          "element_id": "h_red",
+          "word": "赤い箱",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 1,
+          "token_start": 7,
+          "token_end": 7,
+          "element_id": "r_frac",
+          "word": "の",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "ratio_notation",
+          "statement_index": 1,
+          "token_start": 8,
+          "token_end": 8,
+          "element_id": "r_frac",
+          "word": "1/3",
+          "ratio_kind": [
+            "fraction",
+            "lt1"
+          ],
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 1,
+          "element_id": "h_red",
+          "word": "赤い箱",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 2,
+          "token_start": 6,
+          "token_end": 6,
+          "element_id": "k_ohajiki",
+          "word": "こ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 2,
+          "token_start": 5,
+          "token_end": 8,
+          "element_id": "q_red",
+          "word": "何こですか",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        }
+      ],
+      "companion_ids": []
+    },
+    {
+      "schema_version": "1",
+      "world": {
+        "schema_version": "3",
+        "problem_id": "p_disc_c_first_whole_s_motoni_plain_1",
+        "problem_type": "ratio",
+        "problem_text": "妹のおり紙の数は、姉のおり紙の数をもとにすると2/3です。姉のおり紙は12まいです。妹のおり紙は何まいですか。",
+        "grade": 6,
+        "problem_lang": "ja",
+        "holders": [
+          {
+            "id": "h_imouto",
+            "label": "妹"
+          },
+          {
+            "id": "h_ane",
+            "label": "姉"
+          }
+        ],
+        "item_kinds": [
+          {
+            "id": "k_origami",
+            "noun": "おり紙",
+            "counter": "まい",
+            "asset_key": null,
+            "countable": true
+          }
+        ],
+        "quantities": [
+          {
+            "id": "q_imouto",
+            "holder": "h_imouto",
+            "item_kind": "k_origami",
+            "at_event": null,
+            "value": null
+          },
+          {
+            "id": "q_ane",
+            "holder": "h_ane",
+            "item_kind": "k_origami",
+            "at_event": null,
+            "value": {
+              "num": 12,
+              "den": 1
+            }
+          }
+        ],
+        "relations": [
+          {
+            "id": "r_frac",
+            "operator": "fraction_of",
+            "subject": "q_imouto",
+            "reference": "q_ane",
+            "reference_list": null,
+            "amount": {
+              "num": 2,
+              "den": 3
+            },
+            "other_description": null
+          }
+        ],
+        "events": [],
+        "question": {
+          "target_type": "quantity",
+          "target_id": "q_imouto"
+        },
+        "word_links": [
+          {
+            "phrase": "妹のおり紙の数",
+            "lang": "ja",
+            "element_id": "q_imouto"
+          },
+          {
+            "phrase": "姉のおり紙の数をもとにすると2/3",
+            "lang": "ja",
+            "element_id": "r_frac"
+          },
+          {
+            "phrase": "姉のおり紙は12まい",
+            "lang": "ja",
+            "element_id": "q_ane"
+          }
+        ]
+      },
+      "consistency": "consistent",
+      "pair_id": null,
+      "source": "discriminating_bank",
+      "checks": {
+        "double_build_match": true,
+        "restate_match": true,
+        "misread_pass_rate": 0.85,
+        "human_checked": false
+      },
+      "expected_answer": {
+        "num": 8,
+        "den": 1
+      },
+      "statements": [
+        {
+          "index": 0,
+          "text": "妹のおり紙の数は、姉のおり紙の数をもとにすると2/3です。",
+          "element_ids": [
+            "q_imouto",
+            "r_frac"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "妹",
+            "の",
+            "おり紙",
+            "の",
+            "数",
+            "は",
+            "、",
+            "姉",
+            "の",
+            "おり紙",
+            "の",
+            "数",
+            "を",
+            "もとにすると",
+            "2/3",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "姉のおり紙は12まいです。",
+          "element_ids": [
+            "q_ane"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "姉",
+            "の",
+            "おり紙",
+            "は",
+            "12",
+            "まい",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "妹のおり紙は何まいですか。",
+          "element_ids": [
+            "q_imouto"
+          ],
+          "is_question": true,
+          "speaker_holder_id": null,
+          "tokens": [
+            "妹",
+            "の",
+            "おり紙",
+            "は",
+            "何",
+            "まい",
+            "ですか",
+            "。"
+          ]
+        }
+      ],
+      "syntax_marks": [
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_imouto",
+          "word": "妹",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 7,
+          "token_end": 7,
+          "element_id": "h_ane",
+          "word": "姉",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 0,
+          "token_start": 12,
+          "token_end": 13,
+          "element_id": "r_frac",
+          "word": "をもとにすると",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 0,
+          "token_start": 13,
+          "token_end": 13,
+          "element_id": "r_frac",
+          "word": "もとにすると",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "ratio_notation",
+          "statement_index": 0,
+          "token_start": 14,
+          "token_end": 14,
+          "element_id": "r_frac",
+          "word": "2/3",
+          "ratio_kind": [
+            "fraction",
+            "lt1"
+          ],
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_ane",
+          "word": "姉",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 1,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "k_origami",
+          "word": "まい",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_imouto",
+          "word": "妹",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 2,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "k_origami",
+          "word": "まい",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 2,
+          "token_start": 4,
+          "token_end": 6,
+          "element_id": "q_imouto",
+          "word": "何まいですか",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        }
+      ],
+      "companion_ids": []
+    },
+    {
+      "schema_version": "1",
+      "world": {
+        "schema_version": "3",
+        "problem_id": "p_disc_c_first_whole_s_motoni_plain_2",
+        "problem_type": "ratio",
+        "problem_text": "小さいびんのジュースは、大きいびんのジュースをもとにすると3/5です。小さいびんのジュースは6dLです。大きいびんのジュースは何dLですか。",
+        "grade": 6,
+        "problem_lang": "ja",
+        "holders": [
+          {
+            "id": "h_small",
+            "label": "小さいびん"
+          },
+          {
+            "id": "h_large",
+            "label": "大きいびん"
+          }
+        ],
+        "item_kinds": [
+          {
+            "id": "k_juice",
+            "noun": "ジュース",
+            "counter": "dL",
+            "asset_key": null,
+            "countable": false
+          }
+        ],
+        "quantities": [
+          {
+            "id": "q_small",
+            "holder": "h_small",
+            "item_kind": "k_juice",
+            "at_event": null,
+            "value": {
+              "num": 6,
+              "den": 1
+            }
+          },
+          {
+            "id": "q_large",
+            "holder": "h_large",
+            "item_kind": "k_juice",
+            "at_event": null,
+            "value": null
+          }
+        ],
+        "relations": [
+          {
+            "id": "r_frac",
+            "operator": "fraction_of",
+            "subject": "q_small",
+            "reference": "q_large",
+            "reference_list": null,
+            "amount": {
+              "num": 3,
+              "den": 5
+            },
+            "other_description": null
+          }
+        ],
+        "events": [],
+        "question": {
+          "target_type": "quantity",
+          "target_id": "q_large"
+        },
+        "word_links": [
+          {
+            "phrase": "小さいびんのジュース",
+            "lang": "ja",
+            "element_id": "q_small"
+          },
+          {
+            "phrase": "大きいびんのジュース",
+            "lang": "ja",
+            "element_id": "q_large"
+          },
+          {
+            "phrase": "大きいびんのジュースをもとにすると3/5",
+            "lang": "ja",
+            "element_id": "r_frac"
+          }
+        ]
+      },
+      "consistency": "inconsistent",
+      "pair_id": null,
+      "source": "discriminating_bank",
+      "checks": {
+        "double_build_match": true,
+        "restate_match": true,
+        "misread_pass_rate": 0.55,
+        "human_checked": false
+      },
+      "expected_answer": {
+        "num": 10,
+        "den": 1
+      },
+      "statements": [
+        {
+          "index": 0,
+          "text": "小さいびんのジュースは、大きいびんのジュースをもとにすると3/5です。",
+          "element_ids": [
+            "r_frac"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "小さいびん",
+            "の",
+            "ジュース",
+            "は",
+            "、",
+            "大きいびん",
+            "の",
+            "ジュース",
+            "を",
+            "もとにすると",
+            "3/5",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "小さいびんのジュースは6dLです。",
+          "element_ids": [
+            "q_small"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "小さいびん",
+            "の",
+            "ジュース",
+            "は",
+            "6",
+            "dL",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "大きいびんのジュースは何dLですか。",
+          "element_ids": [
+            "q_large"
+          ],
+          "is_question": true,
+          "speaker_holder_id": null,
+          "tokens": [
+            "大きいびん",
+            "の",
+            "ジュース",
+            "は",
+            "何",
+            "dL",
+            "ですか",
+            "。"
+          ]
+        }
+      ],
+      "syntax_marks": [
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_small",
+          "word": "小さいびん",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "h_large",
+          "word": "大きいびん",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 0,
+          "token_start": 9,
+          "token_end": 9,
+          "element_id": "r_frac",
+          "word": "もとにすると",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "ratio_notation",
+          "statement_index": 0,
+          "token_start": 10,
+          "token_end": 10,
+          "element_id": "r_frac",
+          "word": "3/5",
+          "ratio_kind": [
+            "fraction",
+            "lt1"
+          ],
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 0,
+          "token_start": 8,
+          "token_end": 11,
+          "element_id": "r_frac",
+          "word": "をもとにすると3/5です",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_small",
+          "word": "小さいびん",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 1,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "k_juice",
+          "word": "dL",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_large",
+          "word": "大きいびん",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 2,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "k_juice",
+          "word": "dL",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 2,
+          "token_start": 4,
+          "token_end": 6,
+          "element_id": "q_large",
+          "word": "何dLですか",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        }
+      ],
+      "companion_ids": []
+    }
+  ],
+  "transfer": [
+    {
+      "schema_version": "1",
+      "world": {
+        "schema_version": "3",
+        "problem_id": "p_transfer_c_additive_different_1",
+        "problem_type": "ratio",
+        "problem_text": "母の毛糸は20mです。母の毛糸の長さをもとにすると、娘の毛糸の長さの割合は3/4です。娘の毛糸は何mですか。",
+        "grade": 6,
+        "problem_lang": "ja",
+        "holders": [
+          {
+            "id": "h_mother",
+            "label": "母"
+          },
+          {
+            "id": "h_daughter",
+            "label": "娘"
+          }
+        ],
+        "item_kinds": [
+          {
+            "id": "k_yarn",
+            "noun": "毛糸",
+            "counter": "m",
+            "asset_key": null,
+            "countable": false
+          }
+        ],
+        "quantities": [
+          {
+            "id": "q_mother",
+            "holder": "h_mother",
+            "item_kind": "k_yarn",
+            "at_event": null,
+            "value": {
+              "num": 20,
+              "den": 1
+            }
+          },
+          {
+            "id": "q_daughter",
+            "holder": "h_daughter",
+            "item_kind": "k_yarn",
+            "at_event": null,
+            "value": null
+          }
+        ],
+        "relations": [
+          {
+            "id": "r_ratio",
+            "operator": "fraction_of",
+            "subject": "q_daughter",
+            "reference": "q_mother",
+            "reference_list": null,
+            "amount": {
+              "num": 3,
+              "den": 4
+            },
+            "other_description": null
+          }
+        ],
+        "events": [],
+        "question": {
+          "target_type": "quantity",
+          "target_id": "q_daughter"
+        },
+        "word_links": [
+          {
+            "phrase": "母の毛糸は20m",
+            "lang": "ja",
+            "element_id": "q_mother"
+          },
+          {
+            "phrase": "娘の毛糸の長さの割合は3/4",
+            "lang": "ja",
+            "element_id": "r_ratio"
+          },
+          {
+            "phrase": "娘の毛糸は何m",
+            "lang": "ja",
+            "element_id": "q_daughter"
+          }
+        ]
+      },
+      "consistency": "consistent",
+      "pair_id": null,
+      "source": "research",
+      "checks": {
+        "double_build_match": true,
+        "restate_match": true,
+        "misread_pass_rate": 0.7,
+        "human_checked": false
+      },
+      "expected_answer": {
+        "num": 15,
+        "den": 1
+      },
+      "statements": [
+        {
+          "index": 0,
+          "text": "母の毛糸は20mです。",
+          "element_ids": [
+            "q_mother"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "母",
+            "の",
+            "毛糸",
+            "は",
+            "20",
+            "m",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "母の毛糸の長さをもとにすると、娘の毛糸の長さの割合は3/4です。",
+          "element_ids": [
+            "r_ratio"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "母",
+            "の",
+            "毛糸",
+            "の",
+            "長さ",
+            "を",
+            "もとにすると",
+            "、",
+            "娘",
+            "の",
+            "毛糸",
+            "の",
+            "長さ",
+            "の",
+            "割合",
+            "は",
+            "3/4",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "娘の毛糸は何mですか。",
+          "element_ids": [
+            "q_daughter"
+          ],
+          "is_question": true,
+          "speaker_holder_id": null,
+          "tokens": [
+            "娘",
+            "の",
+            "毛糸",
+            "は",
+            "何",
+            "m",
+            "ですか",
+            "。"
+          ]
+        }
+      ],
+      "syntax_marks": [
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_mother",
+          "word": "母",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 0,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "k_yarn",
+          "word": "m",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_mother",
+          "word": "母",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 1,
+          "token_start": 6,
+          "token_end": 6,
+          "element_id": "r_ratio",
+          "word": "もとにすると",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 8,
+          "token_end": 8,
+          "element_id": "h_daughter",
+          "word": "娘",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 1,
+          "token_start": 14,
+          "token_end": 14,
+          "element_id": "r_ratio",
+          "word": "割合",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "ratio_notation",
+          "statement_index": 1,
+          "token_start": 16,
+          "token_end": 16,
+          "element_id": "r_ratio",
+          "word": "3/4",
+          "ratio_kind": [
+            "fraction",
+            "lt1"
+          ],
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 1,
+          "token_start": 5,
+          "token_end": 17,
+          "element_id": "r_ratio",
+          "word": "をもとにすると、娘の毛糸の長さの割合は3/4です",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_daughter",
+          "word": "娘",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 2,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "k_yarn",
+          "word": "m",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        }
+      ],
+      "companion_ids": []
+    },
+    {
+      "schema_version": "1",
+      "world": {
+        "schema_version": "3",
+        "problem_id": "p_transfer_c_additive_same_1",
+        "problem_type": "ratio",
+        "problem_text": "小さいかごのみかんは6こです。小さいかごのみかんは、大きいかごのみかんの2/5です。大きいかごのみかんは何こですか。",
+        "grade": 6,
+        "problem_lang": "ja",
+        "holders": [
+          {
+            "id": "h_small",
+            "label": "小さいかご"
+          },
+          {
+            "id": "h_large",
+            "label": "大きいかご"
+          }
+        ],
+        "item_kinds": [
+          {
+            "id": "k_mikan",
+            "noun": "みかん",
+            "counter": "こ",
+            "asset_key": null,
+            "countable": true
+          }
+        ],
+        "quantities": [
+          {
+            "id": "q_small",
+            "holder": "h_small",
+            "item_kind": "k_mikan",
+            "at_event": null,
+            "value": {
+              "num": 6,
+              "den": 1
+            }
+          },
+          {
+            "id": "q_large",
+            "holder": "h_large",
+            "item_kind": "k_mikan",
+            "at_event": null,
+            "value": null
+          }
+        ],
+        "relations": [
+          {
+            "id": "r_frac",
+            "operator": "fraction_of",
+            "subject": "q_small",
+            "reference": "q_large",
+            "reference_list": null,
+            "amount": {
+              "num": 2,
+              "den": 5
+            },
+            "other_description": null
+          }
+        ],
+        "events": [],
+        "question": {
+          "target_type": "quantity",
+          "target_id": "q_large"
+        },
+        "word_links": [
+          {
+            "phrase": "小さいかごのみかんは6こ",
+            "lang": "ja",
+            "element_id": "q_small"
+          },
+          {
+            "phrase": "大きいかごのみかんの2/5",
+            "lang": "ja",
+            "element_id": "r_frac"
+          },
+          {
+            "phrase": "大きいかごのみかんは何こ",
+            "lang": "ja",
+            "element_id": "q_large"
+          }
+        ]
+      },
+      "consistency": "inconsistent",
+      "pair_id": null,
+      "source": "research",
+      "checks": {
+        "double_build_match": true,
+        "restate_match": true,
+        "misread_pass_rate": 0.35,
+        "human_checked": false
+      },
+      "expected_answer": {
+        "num": 15,
+        "den": 1
+      },
+      "statements": [
+        {
+          "index": 0,
+          "text": "小さいかごのみかんは6こです。",
+          "element_ids": [
+            "q_small"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "小さい",
+            "かご",
+            "の",
+            "みかん",
+            "は",
+            "6",
+            "こ",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "小さいかごのみかんは、大きいかごのみかんの2/5です。",
+          "element_ids": [
+            "r_frac"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "小さい",
+            "かご",
+            "の",
+            "みかん",
+            "は",
+            "、",
+            "大きい",
+            "かご",
+            "の",
+            "みかん",
+            "の",
+            "2/5",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "大きいかごのみかんは何こですか。",
+          "element_ids": [
+            "q_large"
+          ],
+          "is_question": true,
+          "speaker_holder_id": null,
+          "tokens": [
+            "大きい",
+            "かご",
+            "の",
+            "みかん",
+            "は",
+            "何",
+            "こ",
+            "です",
+            "か",
+            "。"
+          ]
+        }
+      ],
+      "syntax_marks": [
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 0,
+          "token_end": 1,
+          "element_id": "h_small",
+          "word": "小さいかご",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 0,
+          "token_start": 6,
+          "token_end": 6,
+          "element_id": "k_mikan",
+          "word": "こ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 0,
+          "token_end": 1,
+          "element_id": "h_small",
+          "word": "小さいかご",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 6,
+          "token_end": 7,
+          "element_id": "h_large",
+          "word": "大きいかご",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 1,
+          "token_start": 10,
+          "token_end": 10,
+          "element_id": "r_frac",
+          "word": "の",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "ratio_notation",
+          "statement_index": 1,
+          "token_start": 11,
+          "token_end": 11,
+          "element_id": "r_frac",
+          "word": "2/5",
+          "ratio_kind": [
+            "fraction",
+            "lt1"
+          ],
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 1,
+          "token_start": 4,
+          "token_end": 12,
+          "element_id": "r_frac",
+          "word": "は、大きいかごのみかんの2/5です",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 1,
+          "element_id": "h_large",
+          "word": "大きいかご",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 2,
+          "token_start": 6,
+          "token_end": 6,
+          "element_id": "k_mikan",
+          "word": "こ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 2,
+          "token_start": 5,
+          "token_end": 8,
+          "element_id": "q_large",
+          "word": "何こですか",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        }
+      ],
+      "companion_ids": []
+    },
+    {
+      "schema_version": "1",
+      "world": {
+        "schema_version": "3",
+        "problem_id": "p_transfer_c_first_whole_different_1",
+        "problem_type": "ratio",
+        "problem_text": "祖父がとったトマトは15こです。祖父がとったトマトの数は、父がとったトマトの数を1とみると3/5にあたります。父がとったトマトは何こですか。",
+        "grade": 6,
+        "problem_lang": "ja",
+        "holders": [
+          {
+            "id": "h_grandpa",
+            "label": "祖父"
+          },
+          {
+            "id": "h_father",
+            "label": "父"
+          }
+        ],
+        "item_kinds": [
+          {
+            "id": "k_tomato",
+            "noun": "トマト",
+            "counter": "こ",
+            "asset_key": null,
+            "countable": true
+          }
+        ],
+        "quantities": [
+          {
+            "id": "q_grandpa",
+            "holder": "h_grandpa",
+            "item_kind": "k_tomato",
+            "at_event": null,
+            "value": {
+              "num": 15,
+              "den": 1
+            }
+          },
+          {
+            "id": "q_father",
+            "holder": "h_father",
+            "item_kind": "k_tomato",
+            "at_event": null,
+            "value": null
+          }
+        ],
+        "relations": [
+          {
+            "id": "r_frac",
+            "operator": "fraction_of",
+            "subject": "q_grandpa",
+            "reference": "q_father",
+            "reference_list": null,
+            "amount": {
+              "num": 3,
+              "den": 5
+            },
+            "other_description": null
+          }
+        ],
+        "events": [],
+        "question": {
+          "target_type": "quantity",
+          "target_id": "q_father"
+        },
+        "word_links": [
+          {
+            "phrase": "祖父がとったトマトは15こ",
+            "lang": "ja",
+            "element_id": "q_grandpa"
+          },
+          {
+            "phrase": "父がとったトマトの数を1とみると3/5にあたります",
+            "lang": "ja",
+            "element_id": "r_frac"
+          },
+          {
+            "phrase": "父がとったトマトは何こですか",
+            "lang": "ja",
+            "element_id": "q_father"
+          }
+        ]
+      },
+      "consistency": "inconsistent",
+      "pair_id": null,
+      "source": "research",
+      "checks": {
+        "double_build_match": true,
+        "restate_match": true,
+        "misread_pass_rate": 0.45,
+        "human_checked": false
+      },
+      "expected_answer": {
+        "num": 25,
+        "den": 1
+      },
+      "statements": [
+        {
+          "index": 0,
+          "text": "祖父がとったトマトは15こです。",
+          "element_ids": [
+            "q_grandpa"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "祖父",
+            "が",
+            "とった",
+            "トマト",
+            "は",
+            "15",
+            "こ",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "祖父がとったトマトの数は、父がとったトマトの数を1とみると3/5にあたります。",
+          "element_ids": [
+            "r_frac"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "祖父",
+            "が",
+            "とった",
+            "トマト",
+            "の",
+            "数",
+            "は",
+            "、",
+            "父",
+            "が",
+            "とった",
+            "トマト",
+            "の",
+            "数",
+            "を",
+            "1",
+            "と",
+            "みる",
+            "と",
+            "3/5",
+            "に",
+            "あたります",
+            "。"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "父がとったトマトは何こですか。",
+          "element_ids": [
+            "q_father"
+          ],
+          "is_question": true,
+          "speaker_holder_id": null,
+          "tokens": [
+            "父",
+            "が",
+            "とった",
+            "トマト",
+            "は",
+            "何",
+            "こ",
+            "です",
+            "か",
+            "。"
+          ]
+        }
+      ],
+      "syntax_marks": [
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_grandpa",
+          "word": "祖父",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 0,
+          "token_start": 6,
+          "token_end": 6,
+          "element_id": "k_tomato",
+          "word": "こ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_grandpa",
+          "word": "祖父",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 8,
+          "token_end": 8,
+          "element_id": "h_father",
+          "word": "父",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 1,
+          "token_start": 14,
+          "token_end": 21,
+          "element_id": "r_frac",
+          "word": "を1とみると3/5にあたります",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 1,
+          "token_start": 15,
+          "token_end": 18,
+          "element_id": "r_frac",
+          "word": "1とみると",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "ratio_notation",
+          "statement_index": 1,
+          "token_start": 19,
+          "token_end": 19,
+          "element_id": "r_frac",
+          "word": "3/5",
+          "ratio_kind": [
+            "fraction",
+            "lt1"
+          ],
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 1,
+          "token_start": 21,
+          "token_end": 21,
+          "element_id": "r_frac",
+          "word": "あたります",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_father",
+          "word": "父",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 2,
+          "token_start": 6,
+          "token_end": 6,
+          "element_id": "k_tomato",
+          "word": "こ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 2,
+          "token_start": 5,
+          "token_end": 8,
+          "element_id": "q_father",
+          "word": "何こですか",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        }
+      ],
+      "companion_ids": []
+    },
+    {
+      "schema_version": "1",
+      "world": {
+        "schema_version": "3",
+        "problem_id": "p_transfer_c_first_whole_same_1",
+        "problem_type": "ratio",
+        "problem_text": "みんなでつるを折りました。姉が折ったつるは10羽です。これは、母が折ったつるの数の2/5です。母が折ったつるは何羽ですか。",
+        "grade": 6,
+        "problem_lang": "ja",
+        "holders": [
+          {
+            "id": "h_sister",
+            "label": "姉"
+          },
+          {
+            "id": "h_mother",
+            "label": "母"
+          }
+        ],
+        "item_kinds": [
+          {
+            "id": "k_crane",
+            "noun": "つる",
+            "counter": "羽",
+            "asset_key": null,
+            "countable": true
+          }
+        ],
+        "quantities": [
+          {
+            "id": "q_sister",
+            "holder": "h_sister",
+            "item_kind": "k_crane",
+            "at_event": null,
+            "value": {
+              "num": 10,
+              "den": 1
+            }
+          },
+          {
+            "id": "q_mother",
+            "holder": "h_mother",
+            "item_kind": "k_crane",
+            "at_event": null,
+            "value": null
+          }
+        ],
+        "relations": [
+          {
+            "id": "r_frac",
+            "operator": "fraction_of",
+            "subject": "q_sister",
+            "reference": "q_mother",
+            "reference_list": null,
+            "amount": {
+              "num": 2,
+              "den": 5
+            },
+            "other_description": null
+          }
+        ],
+        "events": [],
+        "question": {
+          "target_type": "quantity",
+          "target_id": "q_mother"
+        },
+        "word_links": [
+          {
+            "phrase": "姉が折ったつるは10羽です",
+            "lang": "ja",
+            "element_id": "q_sister"
+          },
+          {
+            "phrase": "これは、母が折ったつるの数の2/5です",
+            "lang": "ja",
+            "element_id": "r_frac"
+          },
+          {
+            "phrase": "母が折ったつるは何羽ですか",
+            "lang": "ja",
+            "element_id": "q_mother"
+          }
+        ]
+      },
+      "consistency": "inconsistent",
+      "pair_id": null,
+      "source": "research",
+      "checks": {
+        "double_build_match": true,
+        "restate_match": true,
+        "misread_pass_rate": 0.75,
+        "human_checked": false
+      },
+      "expected_answer": {
+        "num": 25,
+        "den": 1
+      },
+      "statements": [
+        {
+          "index": 0,
+          "text": "みんなでつるを折りました。",
+          "element_ids": [],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "みんな",
+            "で",
+            "つる",
+            "を",
+            "折り",
+            "ました",
+            "。"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "姉が折ったつるは10羽です。",
+          "element_ids": [
+            "q_sister"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "姉",
+            "が",
+            "折っ",
+            "た",
+            "つる",
+            "は",
+            "10",
+            "羽",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "これは、母が折ったつるの数の2/5です。",
+          "element_ids": [
+            "r_frac"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "これ",
+            "は",
+            "、",
+            "母",
+            "が",
+            "折っ",
+            "た",
+            "つる",
+            "の",
+            "数",
+            "の",
+            "2/5",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 3,
+          "text": "母が折ったつるは何羽ですか。",
+          "element_ids": [
+            "q_mother"
+          ],
+          "is_question": true,
+          "speaker_holder_id": null,
+          "tokens": [
+            "母",
+            "が",
+            "折っ",
+            "た",
+            "つる",
+            "は",
+            "何",
+            "羽",
+            "です",
+            "か",
+            "。"
+          ]
+        }
+      ],
+      "syntax_marks": [
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_sister",
+          "word": "姉",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 1,
+          "token_start": 7,
+          "token_end": 7,
+          "element_id": "k_crane",
+          "word": "羽",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "demonstrative",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "q_sister",
+          "word": "これ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 2,
+          "token_start": 3,
+          "token_end": 3,
+          "element_id": "h_mother",
+          "word": "母",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 2,
+          "token_start": 10,
+          "token_end": 10,
+          "element_id": "r_frac",
+          "word": "の",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "ratio_notation",
+          "statement_index": 2,
+          "token_start": 11,
+          "token_end": 11,
+          "element_id": "r_frac",
+          "word": "2/5",
+          "ratio_kind": [
+            "fraction",
+            "lt1"
+          ],
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 12,
+          "element_id": "r_frac",
+          "word": "これは、母が折ったつるの数の2/5です",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 3,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_mother",
+          "word": "母",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 3,
+          "token_start": 7,
+          "token_end": 7,
+          "element_id": "k_crane",
+          "word": "羽",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 3,
+          "token_start": 6,
+          "token_end": 9,
+          "element_id": "q_mother",
+          "word": "何羽ですか",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        }
+      ],
+      "companion_ids": []
+    },
+    {
+      "schema_version": "1",
+      "world": {
+        "schema_version": "3",
+        "problem_id": "p_transfer_c_known_whole_different_1",
+        "problem_type": "ratio",
+        "problem_text": "小さい箱のクッキーの数は、大きい箱のクッキーの数に対して3/5です。小さい箱のクッキーは12こです。大きい箱のクッキーは何こですか。",
+        "grade": 6,
+        "problem_lang": "ja",
+        "holders": [
+          {
+            "id": "h_small",
+            "label": "小さい箱"
+          },
+          {
+            "id": "h_large",
+            "label": "大きい箱"
+          }
+        ],
+        "item_kinds": [
+          {
+            "id": "k_cookie",
+            "noun": "クッキー",
+            "counter": "こ",
+            "asset_key": null,
+            "countable": true
+          }
+        ],
+        "quantities": [
+          {
+            "id": "q_small",
+            "holder": "h_small",
+            "item_kind": "k_cookie",
+            "at_event": null,
+            "value": {
+              "num": 12,
+              "den": 1
+            }
+          },
+          {
+            "id": "q_large",
+            "holder": "h_large",
+            "item_kind": "k_cookie",
+            "at_event": null,
+            "value": null
+          }
+        ],
+        "relations": [
+          {
+            "id": "r_frac",
+            "operator": "fraction_of",
+            "subject": "q_small",
+            "reference": "q_large",
+            "reference_list": null,
+            "amount": {
+              "num": 3,
+              "den": 5
+            },
+            "other_description": null
+          }
+        ],
+        "events": [],
+        "question": {
+          "target_type": "quantity",
+          "target_id": "q_large"
+        },
+        "word_links": [
+          {
+            "phrase": "小さい箱のクッキーの数",
+            "lang": "ja",
+            "element_id": "q_small"
+          },
+          {
+            "phrase": "大きい箱のクッキーの数",
+            "lang": "ja",
+            "element_id": "q_large"
+          },
+          {
+            "phrase": "3/5",
+            "lang": "ja",
+            "element_id": "r_frac"
+          }
+        ]
+      },
+      "consistency": "inconsistent",
+      "pair_id": null,
+      "source": "research",
+      "checks": {
+        "double_build_match": true,
+        "restate_match": true,
+        "misread_pass_rate": 0.7,
+        "human_checked": false
+      },
+      "expected_answer": {
+        "num": 20,
+        "den": 1
+      },
+      "statements": [
+        {
+          "index": 0,
+          "text": "小さい箱のクッキーの数は、大きい箱のクッキーの数に対して3/5です。",
+          "element_ids": [
+            "q_small",
+            "q_large",
+            "r_frac"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "小さい箱",
+            "の",
+            "クッキー",
+            "の",
+            "数",
+            "は",
+            "、",
+            "大きい箱",
+            "の",
+            "クッキー",
+            "の",
+            "数",
+            "に対して",
+            "3/5",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "小さい箱のクッキーは12こです。",
+          "element_ids": [
+            "q_small"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "小さい箱",
+            "の",
+            "クッキー",
+            "は",
+            "12",
+            "こ",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "大きい箱のクッキーは何こですか。",
+          "element_ids": [
+            "q_large"
+          ],
+          "is_question": true,
+          "speaker_holder_id": null,
+          "tokens": [
+            "大きい箱",
+            "の",
+            "クッキー",
+            "は",
+            "何",
+            "こ",
+            "です",
+            "か",
+            "。"
+          ]
+        }
+      ],
+      "syntax_marks": [
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_small",
+          "word": "小さい箱",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 7,
+          "token_end": 7,
+          "element_id": "h_large",
+          "word": "大きい箱",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 0,
+          "token_start": 12,
+          "token_end": 12,
+          "element_id": "r_frac",
+          "word": "に対して",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "ratio_notation",
+          "statement_index": 0,
+          "token_start": 13,
+          "token_end": 13,
+          "element_id": "r_frac",
+          "word": "3/5",
+          "ratio_kind": [
+            "fraction",
+            "lt1"
+          ],
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_small",
+          "word": "小さい箱",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 1,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "k_cookie",
+          "word": "こ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_large",
+          "word": "大きい箱",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 2,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "k_cookie",
+          "word": "こ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 2,
+          "token_start": 4,
+          "token_end": 7,
+          "element_id": "q_large",
+          "word": "何こですか",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        }
+      ],
+      "companion_ids": []
+    },
+    {
+      "schema_version": "1",
+      "world": {
+        "schema_version": "3",
+        "problem_id": "p_transfer_c_known_whole_same_1",
+        "problem_type": "ratio",
+        "problem_text": "祖母がつんだいちごは12こです。これは、母がつんだいちごの数の3/4です。母がつんだいちごは何こですか。",
+        "grade": 6,
+        "problem_lang": "ja",
+        "holders": [
+          {
+            "id": "h_grandma",
+            "label": "祖母"
+          },
+          {
+            "id": "h_mother",
+            "label": "母"
+          }
+        ],
+        "item_kinds": [
+          {
+            "id": "k_ichigo",
+            "noun": "いちご",
+            "counter": "こ",
+            "asset_key": null,
+            "countable": true
+          }
+        ],
+        "quantities": [
+          {
+            "id": "q_grandma",
+            "holder": "h_grandma",
+            "item_kind": "k_ichigo",
+            "at_event": null,
+            "value": {
+              "num": 12,
+              "den": 1
+            }
+          },
+          {
+            "id": "q_mother",
+            "holder": "h_mother",
+            "item_kind": "k_ichigo",
+            "at_event": null,
+            "value": null
+          }
+        ],
+        "relations": [
+          {
+            "id": "r_frac",
+            "operator": "fraction_of",
+            "subject": "q_grandma",
+            "reference": "q_mother",
+            "reference_list": null,
+            "amount": {
+              "num": 3,
+              "den": 4
+            },
+            "other_description": null
+          }
+        ],
+        "events": [],
+        "question": {
+          "target_type": "quantity",
+          "target_id": "q_mother"
+        },
+        "word_links": [
+          {
+            "phrase": "祖母がつんだいちごは12こ",
+            "lang": "ja",
+            "element_id": "q_grandma"
+          },
+          {
+            "phrase": "母がつんだいちごの数の3/4",
+            "lang": "ja",
+            "element_id": "r_frac"
+          },
+          {
+            "phrase": "母がつんだいちごは何こですか",
+            "lang": "ja",
+            "element_id": "q_mother"
+          }
+        ]
+      },
+      "consistency": "inconsistent",
+      "pair_id": null,
+      "source": "research",
+      "checks": {
+        "double_build_match": true,
+        "restate_match": true,
+        "misread_pass_rate": 0.65,
+        "human_checked": false
+      },
+      "expected_answer": {
+        "num": 16,
+        "den": 1
+      },
+      "statements": [
+        {
+          "index": 0,
+          "text": "祖母がつんだいちごは12こです。",
+          "element_ids": [
+            "q_grandma"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "祖母",
+            "が",
+            "つんだ",
+            "いちご",
+            "は",
+            "12",
+            "こ",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "これは、母がつんだいちごの数の3/4です。",
+          "element_ids": [
+            "r_frac"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "これ",
+            "は",
+            "、",
+            "母",
+            "が",
+            "つんだ",
+            "いちご",
+            "の",
+            "数",
+            "の",
+            "3/4",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "母がつんだいちごは何こですか。",
+          "element_ids": [
+            "q_mother"
+          ],
+          "is_question": true,
+          "speaker_holder_id": null,
+          "tokens": [
+            "母",
+            "が",
+            "つんだ",
+            "いちご",
+            "は",
+            "何",
+            "こ",
+            "です",
+            "か",
+            "。"
+          ]
+        }
+      ],
+      "syntax_marks": [
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_grandma",
+          "word": "祖母",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 0,
+          "token_start": 6,
+          "token_end": 6,
+          "element_id": "k_ichigo",
+          "word": "こ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "demonstrative",
+          "statement_index": 1,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "q_grandma",
+          "word": "これ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 3,
+          "token_end": 3,
+          "element_id": "h_mother",
+          "word": "母",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 1,
+          "token_start": 9,
+          "token_end": 9,
+          "element_id": "r_frac",
+          "word": "の",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "ratio_notation",
+          "statement_index": 1,
+          "token_start": 10,
+          "token_end": 10,
+          "element_id": "r_frac",
+          "word": "3/4",
+          "ratio_kind": [
+            "fraction",
+            "lt1"
+          ],
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_mother",
+          "word": "母",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 2,
+          "token_start": 6,
+          "token_end": 6,
+          "element_id": "k_ichigo",
+          "word": "こ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 2,
+          "token_start": 5,
+          "token_end": 8,
+          "element_id": "q_mother",
+          "word": "何こですか",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        }
+      ],
+      "companion_ids": []
+    },
+    {
+      "schema_version": "1",
+      "world": {
+        "schema_version": "3",
+        "problem_id": "p_transfer_c_swap_different_1",
+        "problem_type": "ratio",
+        "problem_text": "青いバケツの水の量を1とみると、赤いバケツの水の量は2/5にあたります。赤いバケツの水は6Lです。青いバケツの水は何Lですか。",
+        "grade": 6,
+        "problem_lang": "ja",
+        "holders": [
+          {
+            "id": "h_blue",
+            "label": "青いバケツ"
+          },
+          {
+            "id": "h_red",
+            "label": "赤いバケツ"
+          }
+        ],
+        "item_kinds": [
+          {
+            "id": "k_water",
+            "noun": "水",
+            "counter": "L",
+            "asset_key": null,
+            "countable": false
+          }
+        ],
+        "quantities": [
+          {
+            "id": "q_blue",
+            "holder": "h_blue",
+            "item_kind": "k_water",
+            "at_event": null,
+            "value": null
+          },
+          {
+            "id": "q_red",
+            "holder": "h_red",
+            "item_kind": "k_water",
+            "at_event": null,
+            "value": {
+              "num": 6,
+              "den": 1
+            }
+          }
+        ],
+        "relations": [
+          {
+            "id": "r_frac",
+            "operator": "fraction_of",
+            "subject": "q_red",
+            "reference": "q_blue",
+            "reference_list": null,
+            "amount": {
+              "num": 2,
+              "den": 5
+            },
+            "other_description": null
+          }
+        ],
+        "events": [],
+        "question": {
+          "target_type": "quantity",
+          "target_id": "q_blue"
+        },
+        "word_links": [
+          {
+            "phrase": "青いバケツの水の量を1とみると",
+            "lang": "ja",
+            "element_id": "q_blue"
+          },
+          {
+            "phrase": "赤いバケツの水の量は2/5にあたります",
+            "lang": "ja",
+            "element_id": "r_frac"
+          },
+          {
+            "phrase": "赤いバケツの水は6Lです",
+            "lang": "ja",
+            "element_id": "q_red"
+          },
+          {
+            "phrase": "青いバケツの水は何Lですか",
+            "lang": "ja",
+            "element_id": "q_blue"
+          }
+        ]
+      },
+      "consistency": "inconsistent",
+      "pair_id": null,
+      "source": "research",
+      "checks": {
+        "double_build_match": true,
+        "restate_match": true,
+        "misread_pass_rate": 0.7,
+        "human_checked": false
+      },
+      "expected_answer": {
+        "num": 15,
+        "den": 1
+      },
+      "statements": [
+        {
+          "index": 0,
+          "text": "青いバケツの水の量を1とみると、赤いバケツの水の量は2/5にあたります。",
+          "element_ids": [
+            "q_blue",
+            "r_frac"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "青いバケツ",
+            "の",
+            "水",
+            "の",
+            "量",
+            "を",
+            "1",
+            "とみると",
+            "、",
+            "赤いバケツ",
+            "の",
+            "水",
+            "の",
+            "量",
+            "は",
+            "2/5",
+            "にあたります",
+            "。"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "赤いバケツの水は6Lです。",
+          "element_ids": [
+            "q_red"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "赤いバケツ",
+            "の",
+            "水",
+            "は",
+            "6",
+            "L",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "青いバケツの水は何Lですか。",
+          "element_ids": [
+            "q_blue"
+          ],
+          "is_question": true,
+          "speaker_holder_id": null,
+          "tokens": [
+            "青いバケツ",
+            "の",
+            "水",
+            "は",
+            "何",
+            "L",
+            "ですか",
+            "。"
+          ]
+        }
+      ],
+      "syntax_marks": [
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_blue",
+          "word": "青いバケツ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "sentence_pattern",
+          "statement_index": 0,
+          "token_start": 5,
+          "token_end": 7,
+          "element_id": "r_frac",
+          "word": "を1とみると",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 9,
+          "token_end": 9,
+          "element_id": "h_red",
+          "word": "赤いバケツ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "ratio_notation",
+          "statement_index": 0,
+          "token_start": 15,
+          "token_end": 15,
+          "element_id": "r_frac",
+          "word": "2/5",
+          "ratio_kind": [
+            "fraction",
+            "lt1"
+          ],
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 0,
+          "token_start": 16,
+          "token_end": 16,
+          "element_id": "r_frac",
+          "word": "にあたります",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_red",
+          "word": "赤いバケツ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 1,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "q_red",
+          "word": "L",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 0,
+          "element_id": "h_blue",
+          "word": "青いバケツ",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 2,
+          "token_start": 5,
+          "token_end": 5,
+          "element_id": "q_blue",
+          "word": "L",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        }
+      ],
+      "companion_ids": []
+    },
+    {
+      "schema_version": "1",
+      "world": {
+        "schema_version": "3",
+        "problem_id": "p_transfer_c_swap_same_1",
+        "problem_type": "ratio",
+        "problem_text": "大きい水そうの水は12Lです。小さい水そうの水は、大きい水そうの水の2/3です。小さい水そうの水は何Lですか。",
+        "grade": 6,
+        "problem_lang": "ja",
+        "holders": [
+          {
+            "id": "h_big",
+            "label": "大きい水そう"
+          },
+          {
+            "id": "h_small",
+            "label": "小さい水そう"
+          }
+        ],
+        "item_kinds": [
+          {
+            "id": "k_water",
+            "noun": "水",
+            "counter": "L",
+            "asset_key": null,
+            "countable": false
+          }
+        ],
+        "quantities": [
+          {
+            "id": "q_big",
+            "holder": "h_big",
+            "item_kind": "k_water",
+            "at_event": null,
+            "value": {
+              "num": 12,
+              "den": 1
+            }
+          },
+          {
+            "id": "q_small",
+            "holder": "h_small",
+            "item_kind": "k_water",
+            "at_event": null,
+            "value": null
+          }
+        ],
+        "relations": [
+          {
+            "id": "r_frac",
+            "operator": "fraction_of",
+            "subject": "q_small",
+            "reference": "q_big",
+            "reference_list": null,
+            "amount": {
+              "num": 2,
+              "den": 3
+            },
+            "other_description": null
+          }
+        ],
+        "events": [],
+        "question": {
+          "target_type": "quantity",
+          "target_id": "q_small"
+        },
+        "word_links": [
+          {
+            "phrase": "大きい水そうの水は12L",
+            "lang": "ja",
+            "element_id": "q_big"
+          },
+          {
+            "phrase": "小さい水そうの水は、大きい水そうの水の2/3",
+            "lang": "ja",
+            "element_id": "r_frac"
+          },
+          {
+            "phrase": "小さい水そうの水は何L",
+            "lang": "ja",
+            "element_id": "q_small"
+          }
+        ]
+      },
+      "consistency": "consistent",
+      "pair_id": null,
+      "source": "research",
+      "checks": {
+        "double_build_match": true,
+        "restate_match": true,
+        "misread_pass_rate": 0.75,
+        "human_checked": false
+      },
+      "expected_answer": {
+        "num": 8,
+        "den": 1
+      },
+      "statements": [
+        {
+          "index": 0,
+          "text": "大きい水そうの水は12Lです。",
+          "element_ids": [
+            "q_big"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "大きい",
+            "水そう",
+            "の",
+            "水",
+            "は",
+            "12",
+            "L",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 1,
+          "text": "小さい水そうの水は、大きい水そうの水の2/3です。",
+          "element_ids": [
+            "r_frac"
+          ],
+          "is_question": false,
+          "speaker_holder_id": null,
+          "tokens": [
+            "小さい",
+            "水そう",
+            "の",
+            "水",
+            "は",
+            "、",
+            "大きい",
+            "水そう",
+            "の",
+            "水",
+            "の",
+            "2/3",
+            "です",
+            "。"
+          ]
+        },
+        {
+          "index": 2,
+          "text": "小さい水そうの水は何Lですか。",
+          "element_ids": [
+            "q_small"
+          ],
+          "is_question": true,
+          "speaker_holder_id": null,
+          "tokens": [
+            "小さい",
+            "水そう",
+            "の",
+            "水",
+            "は",
+            "何",
+            "L",
+            "です",
+            "か",
+            "。"
+          ]
+        }
+      ],
+      "syntax_marks": [
+        {
+          "kind": "holder_mention",
+          "statement_index": 0,
+          "token_start": 0,
+          "token_end": 1,
+          "element_id": "h_big",
+          "word": "大きい水そう",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 0,
+          "token_start": 6,
+          "token_end": 6,
+          "element_id": "k_water",
+          "word": "L",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 0,
+          "token_end": 1,
+          "element_id": "h_small",
+          "word": "小さい水そう",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 1,
+          "token_start": 6,
+          "token_end": 7,
+          "element_id": "h_big",
+          "word": "大きい水そう",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "relation_word",
+          "statement_index": 1,
+          "token_start": 10,
+          "token_end": 10,
+          "element_id": "r_frac",
+          "word": "の",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "ratio_notation",
+          "statement_index": 1,
+          "token_start": 11,
+          "token_end": 11,
+          "element_id": "r_frac",
+          "word": "2/3",
+          "ratio_kind": [
+            "fraction",
+            "lt1"
+          ],
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "holder_mention",
+          "statement_index": 2,
+          "token_start": 0,
+          "token_end": 1,
+          "element_id": "h_small",
+          "word": "小さい水そう",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        },
+        {
+          "kind": "unit_word",
+          "statement_index": 2,
+          "token_start": 6,
+          "token_end": 6,
+          "element_id": "k_water",
+          "word": "L",
+          "ratio_kind": null,
+          "l1_pattern_id": null,
+          "native_checked": null
+        }
+      ],
+      "companion_ids": []
+    }
+  ]
+}

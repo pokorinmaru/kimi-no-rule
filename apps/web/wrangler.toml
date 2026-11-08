@@ -1,0 +1,10 @@
+# The judges' page (the public judge build, SETUP.md): the web build served as static files by Cloudflare Workers.
+# Build it first: VITE_API_BASE=<the worker's URL> VITE_REQUIRE_PASSCODE=1 pnpm --filter @kimi/web build:judge
+name = "kimi-no-rule"
+compatibility_date = "2026-10-01"
+workers_dev = true
+preview_urls = false
+
+[assets]
+directory = "./dist-judge"
+not_found_handling = "single-page-application"

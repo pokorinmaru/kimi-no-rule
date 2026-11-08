@@ -9,7 +9,8 @@
     "preview": "vite preview --port 4173 --strictPort",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "build:judge": "vite build --outDir dist-judge"
   },
   "dependencies": {
     "@kimi/core": "workspace:*",
