@@ -34,7 +34,8 @@ function keepsTheRules(lang: Lang): void {
   const b = ui(lang).buttons;
   expect(screen.getByTestId("btn-stop").textContent).toBe(b.stop);
   expect(screen.getByTestId("btn-dont-know").textContent).toBe(b.dontKnow);
-  expect(screen.getByTestId("btn-hard").textContent).toBe(b.hard);
+  // No 「つらい」 button (Q64).
+  expect(screen.queryByTestId("btn-hard")).toBeNull();
   expect(screen.getAllByText("AI").length).toBeGreaterThan(0);
   const text = document.querySelector("main")?.textContent ?? "";
   // The signboard's answer (8) and one part (2) are never on these screens; nor an operation or a judging word.

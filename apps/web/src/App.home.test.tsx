@@ -38,16 +38,9 @@ describe("the top page", () => {
     expect(screen.getByTestId("btn-home-start").textContent).toContain(t.home.start);
     expect(screen.queryByTestId("btn-home-resume")).toBeNull();
     expect(screen.getByTestId("btn-parent")).toBeTruthy();
-    // The three buttons are on the top page too (原則7・8; code and safety review, 2026-11-08).
-    for (const id of ["btn-stop", "btn-dont-know", "btn-hard"]) expect(screen.getByTestId(id)).toBeTruthy();
-  });
-
-  it("「つらい」 on the top page goes to the hard screen", async () => {
-    render(<App stepFlow={false} storeName="kimi-home-hard" api={null} />);
-    await screen.findByTestId("screen-home");
-    fireEvent.click(screen.getByTestId("btn-hard"));
-    expect(await screen.findByTestId("screen-hard")).toBeTruthy();
-    expect(screen.queryByTestId("screen-home")).toBeNull();
+    // The always-there buttons are on the top page too (原則7・8); there is no 「つらい」 button (Q64).
+    for (const id of ["btn-stop", "btn-dont-know"]) expect(screen.getByTestId(id)).toBeTruthy();
+    expect(screen.queryByTestId("btn-hard")).toBeNull();
   });
 
   it("deleting every record from the grown-up's screen takes the name off the screen too", async () => {

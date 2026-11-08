@@ -1,8 +1,8 @@
 // A wish to AI-kun (Q61). The child tells AI-kun what was hard or what they want. The words stay on this device
 // for the parent; the server passes them to Claude once to judge distress and rephrase them, and keeps nothing. A cry
 // for help never becomes a wish: the screen shows where to talk, and only a mark and the date are kept. When the
-// server cannot judge, nothing says the words were safe: the thanks comes with a gentle way to the hard screen (Q26).
-// The three buttons of the top page stay under this screen (Q60), 「つらい」 among them. On the parent screen only the rephrased request, checked by core
+// server cannot judge, nothing says the words were safe: the thanks comes with a gentle line to tell a grown-up (Q26, Q64).
+// The buttons of the top page stay under this screen (Q60; no 「つらい」 button since Q64). On the parent screen only the rephrased request, checked by core
 // again here, can be sent to the developer, copied by the parent's own hand.
 import { useEffect, useState, type CSSProperties } from "react";
 import { wishGate, type Lang } from "@kimi/core";

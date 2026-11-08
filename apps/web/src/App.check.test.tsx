@@ -17,7 +17,7 @@ describe("the AI-free check from the intro screen", () => {
       const r = PREPARED_BANK.find((x) => x.world.problem_id === el.getAttribute("data-problem-id"));
       if (r === undefined) throw new Error("bank problem expected");
       expect(document.querySelector('[data-role="ai-badge"]')).not.toBeNull();
-      expect(screen.getByTestId("btn-hard")).toBeTruthy();
+      expect(screen.getByTestId("btn-stop")).toBeTruthy();
       expect(screen.queryByTestId("btn-parent")).toBeNull();
       // Two right, the last one wrong.
       const v = (r.expected_answer as { num: number }).num + (i === 2 ? 1 : 0);

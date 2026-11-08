@@ -17,3 +17,9 @@ export const CHILD_SECOND_PROBLEM_ID = festivalRecord.world.problem_id;
 
 /** The problem the child's route takes third (a percent off, Q63). */
 export const CHILD_THIRD_PROBLEM_ID = saleRecord.world.problem_id;
+
+/**
+ * The child's route (Q64): the problems the top page offers, in the order of the steps of learning. The child picks
+ * where to start (children are at different steps); after it the route goes on to the next one not yet done.
+ */
+export const CHILD_ROUTE: readonly string[] = [CHILD_FIRST_PROBLEM_ID, CHILD_SECOND_PROBLEM_ID, CHILD_THIRD_PROBLEM_ID];

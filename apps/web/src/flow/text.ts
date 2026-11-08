@@ -107,7 +107,7 @@ export interface UiText {
   langSwitch: { label: string; ja: string; en: string };
   /** Reading support (指示書 第8.4b節): the group's name, read aloud and its stop, and the furigana switch. */
   reading: { label: string; aloud: string; stop: string; furigana: string };
-  buttons: { stop: string; dontKnow: string; hard: string };
+  buttons: { stop: string; dontKnow: string };
   alwaysLabel: string;
   /**
    * The intro (原則10, 第9節 AIであることの明示): short cards for the child, then the same facts in fuller words for
@@ -158,6 +158,11 @@ export interface UiText {
     start: string;
     resume: string;
     restart: string;
+    /** The problems to start from (Q64): children are at different steps. The heading, and another start while a
+     * session is under way. Each problem's name and who it is for, by problem id; nothing tells its answer or operation. */
+    pickTitle: string;
+    pickOther: string;
+    picks: Readonly<Record<string, { title: string; note: string }>>;
   };
   /** The buttons at the top of the child's screens (Q60): the top page, and the open problem from its start. */
   nav: { home: string; restartProblem: string };
@@ -340,7 +345,7 @@ const JA: UiText = {
   preparing: "じゅんびしています…",
   langSwitch: { label: "ことば", ja: "日本語", en: "English" },
   reading: { label: "読むのを手伝う", aloud: "読み上げ", stop: "止める", furigana: "ふりがな" },
-  buttons: { stop: "やめる", dontKnow: "わからない", hard: "つらい" },
+  buttons: { stop: "やめる", dontKnow: "わからない" },
   alwaysLabel: "いつでも使えるボタン",
   intro: introText({
     label: "はじめに",
@@ -368,7 +373,7 @@ const JA: UiText = {
       },
       {
         title: "いつでも止められる",
-        lines: ["「やめる」「わからない」「つらい」は、いつでもおせます。"],
+        lines: ["「やめる」「わからない」は、いつでもおせます。"],
       },
     ],
     adultTitle: "おうちの人へ（くわしく）",
@@ -428,6 +433,13 @@ const JA: UiText = {
     start: "はじめる",
     resume: "つづきから",
     restart: "さいしょから",
+    pickTitle: "どの 問題から はじめる？",
+    pickOther: "ほかの 問題から はじめる",
+    picks: {
+      p_festival_whole: { title: "金魚すくい その1", note: "はじめての 人は ここから" },
+      p_festival: { title: "金魚すくい その2", note: "その1が できたら" },
+      p_sale: { title: "シャツの セール", note: "％（パーセント）を ならったら" },
+    },
   },
   nav: { home: "トップへ", restartProblem: "この問題をさいしょから" },
   pad: { clear: "けす", ok: "これでいい" },
@@ -467,7 +479,7 @@ const JA: UiText = {
     done: "ありがとう。おうちの人に とどけたよ。",
     again: "もうひとつ いう",
     back: "トップへ",
-    unchecked: "つらいことが あったら、下の「つらい」を おしてね。",
+    unchecked: "つらいことが あったら、家の人や 先生に 話してね。",
   },
   parent: {
     label: "おうちの人へ",
@@ -570,7 +582,7 @@ const EN: UiText = {
   preparing: "Getting ready…",
   langSwitch: { label: "Language", ja: "日本語", en: "English" },
   reading: { label: "Reading help", aloud: "Read aloud", stop: "Stop reading", furigana: "Furigana" },
-  buttons: { stop: "Stop", dontKnow: "I don't know", hard: "I feel bad" },
+  buttons: { stop: "Stop", dontKnow: "I don't know" },
   alwaysLabel: "Buttons you can use any time",
   intro: introText({
     label: "Welcome",
@@ -599,7 +611,7 @@ const EN: UiText = {
       {
         title: "You can stop any time",
         lines: [
-          'You can press "Stop", "I don\'t know" or "I feel bad" at any time.',
+          'You can press "Stop" or "I don\'t know" at any time.',
         ],
       },
     ],
@@ -660,6 +672,13 @@ const EN: UiText = {
     start: "Start",
     resume: "Continue",
     restart: "Start over",
+    pickTitle: "Which problem do you start with?",
+    pickOther: "Start with another problem",
+    picks: {
+      p_festival_whole: { title: "Goldfish scooping 1", note: "Start here the first time" },
+      p_festival: { title: "Goldfish scooping 2", note: "After part 1" },
+      p_sale: { title: "The shirt sale", note: "After you have learned percent" },
+    },
   },
   nav: { home: "Top", restartProblem: "This problem from the start" },
   pad: { clear: "Clear", ok: "Done" },
@@ -699,7 +718,7 @@ const EN: UiText = {
     done: "Thank you. It is with the grown-ups at home now.",
     again: "Tell another",
     back: "Back to top",
-    unchecked: 'If something is hard for you, press "I feel bad" below.',
+    unchecked: 'If something is hard for you, tell a grown-up at home or a teacher.',
   },
   parent: {
     label: "For parents and guardians",

@@ -1,17 +1,15 @@
 // @vitest-environment jsdom
 // The AI-free check on screen (指示書 第7.3節, 第1節 原則1・3・7; HANDOFF §3 F7・F8): only the problem's text
 // and a number pad, no junior and no world; after each answer one neutral line that the answer was kept;
-// the three buttons stay. Written before the implementation.
+// the always-there buttons stay (no 「つらい」, Q64). Written before the implementation.
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { FRACTION_BANK, type ProblemRecord } from "@kimi/core";
 import { openStore, type FlowStore } from "../store/store.ts";
-import { FORBIDDEN_CHILD_PHRASES, hardLines } from "../flow/text.ts";
+import { FORBIDDEN_CHILD_PHRASES } from "../flow/text.ts";
 import { CheckMode } from "./CheckMode.tsx";
 import { CHECK_TEXT } from "./text.ts";
-import { HELPLINES } from "../flow/text.ts";
-import { plainText } from "../plain-text.ts";
 
 let n = 0;
 const stores: FlowStore[] = [];
@@ -66,7 +64,7 @@ describe("the check screen", () => {
     expect(document.querySelector("svg")).toBeNull();
     expect(screen.getByTestId("btn-stop")).toBeTruthy();
     expect(screen.getByTestId("btn-dont-know")).toBeTruthy();
-    expect(screen.getByTestId("btn-hard")).toBeTruthy();
+    expect(screen.queryByTestId("btn-hard")).toBeNull();
   });
 
   it("keeps three answers with only the neutral line, judges them with core and saves the check", async () => {
@@ -133,41 +131,6 @@ describe("the check screen", () => {
     expect(met.map((x) => x.world.problem_id)).not.toContain(r.world.problem_id);
   });
 
-  it("つらい stops the math and shows the same hard lines when the session's screen is not reachable", async () => {
-    const store = fresh();
-    render(<CheckMode store={store} lang="ja" onExit={() => {}} />);
-    const r = await currentProblem();
-    typeNumber(answerOf(r));
-    fireEvent.click(screen.getByTestId("btn-hard"));
-    const hard = await screen.findByTestId("screen-hard");
-    for (const l of hardLines("ja")) expect(plainText(hard)).toContain(l);
-    expect(screen.queryByTestId("pad-ok")).toBeNull();
-    expect(screen.queryByTestId("check-problem")).toBeNull();
-    expect(screen.queryByTestId("btn-dont-know")).toBeNull();
-    expect(screen.getByTestId("btn-stop")).toBeTruthy();
-    // Only the checked helplines carry numbers (B2).
-    // Each helpline is one card holding its name, its number and its hours, as checked; nothing else has a number.
-    const cards = [...hard.querySelectorAll('[data-role="helpline"]')];
-    expect(cards.map((c) => plainText(c))).toEqual(HELPLINES.map((h) => `${h.name}${h.number}${h.when}`));
-    const rest = hard.cloneNode(true) as Element;
-    for (const c of rest.querySelectorAll('[data-role="helpline"]')) c.remove();
-    expect(plainText(rest)).not.toMatch(/\d{2,4}-\d{2,4}-\d{3,4}|0120/);
-    await vi.waitFor(async () => expect((await store.listSafety()).map((x) => x.kind)).toEqual(["hard_button"]));
-    // What was answered before stays as a shorter check.
-    await vi.waitFor(async () => expect((await store.listChecks())[0]?.items).toHaveLength(1));
-  });
-
-  it("つらい goes to the session's hard screen when the app can reach it", async () => {
-    const store = fresh();
-    const toSession = vi.fn();
-    render(<CheckMode store={store} lang="ja" onExit={() => {}} onSessionHard={toSession} />);
-    await currentProblem();
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("btn-hard"));
-    });
-    expect(toSession).toHaveBeenCalledTimes(1);
-  });
-
   it("やめる leaves the check at once, and saves no empty check", async () => {
     const store = fresh();
     const exit = vi.fn();
@@ -188,6 +151,6 @@ describe("after an answer (safety review, Q31)", () => {
     typeNumber(answerOf(r));
     await screen.findByTestId("btn-check-next");
     expect(screen.queryByTestId("btn-dont-know")).toBeNull();
-    expect(screen.getByTestId("btn-hard")).toBeTruthy();
+    expect(screen.getByTestId("btn-stop")).toBeTruthy();
   });
 });

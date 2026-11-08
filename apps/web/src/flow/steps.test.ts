@@ -2,7 +2,7 @@
 // part, then the answer; a wrong answer branches at that step, and the log keeps where the child stopped.
 import { describe, expect, it } from "vitest";
 import { createActor } from "xstate";
-import { CHILD_FIRST_PROBLEM_ID, PREPARED_BANK } from "@kimi/core";
+import { CHILD_FIRST_PROBLEM_ID, CHILD_ROUTE, CHILD_SECOND_PROBLEM_ID, CHILD_THIRD_PROBLEM_ID, PREPARED_BANK } from "@kimi/core";
 import { flowMachine } from "./machine.ts";
 
 const r = (num: number, den = 1) => ({ num, den });
@@ -150,5 +150,51 @@ describe("the step flow", () => {
     const a = createActor(flowMachine, { input: { introSeen: true, consented: true, bank: PREPARED_BANK, firstProblemId: CHILD_FIRST_PROBLEM_ID } });
     a.start();
     expect(a.getSnapshot().matches({ active: { problem: "guess" } })).toBe(true);
+  });
+
+  describe("the route from the problem the child picked on the top page (Q64)", () => {
+    const start = (firstProblemId: string) => {
+      const a = createActor(flowMachine, { input: { introSeen: true, consented: true, bank: PREPARED_BANK, firstProblemId, stepFlow: true, maxProblems: 3 } });
+      a.start();
+      return a;
+    };
+    // Answers every step right from core's own steps (the test computes nothing).
+    const solveRight = (a: ReturnType<typeof start>) => {
+      for (const st of a.getSnapshot().context.problem?.steps?.steps ?? []) {
+        if (st.kind === "relation") a.send({ type: "STEP_CHOOSE", holderId: st.referenceHolderId });
+        else a.send({ type: "STEP_NUMBER", value: st.value });
+      }
+      expect(a.getSnapshot().matches({ active: { problem: "solved" } })).toBe(true);
+      a.send({ type: "NEXT" });
+      a.send({ type: "RESEARCH_RESULT", pool: null });
+    };
+    const now = (a: ReturnType<typeof start>) => a.getSnapshot().context.problem?.record.world.problem_id;
+
+    it("from the first problem: the route in order", () => {
+      const a = start(CHILD_ROUTE[0] ?? "");
+      const seen = [now(a)];
+      solveRight(a);
+      seen.push(now(a));
+      solveRight(a);
+      seen.push(now(a));
+      expect(seen).toEqual([...CHILD_ROUTE]);
+    });
+
+    it("from the second problem: it opens on its steps and the percent off comes next", () => {
+      const a = start(CHILD_SECOND_PROBLEM_ID);
+      expect(now(a)).toBe(CHILD_SECOND_PROBLEM_ID);
+      expect(a.getSnapshot().matches({ active: { problem: "steps" } })).toBe(true);
+      solveRight(a);
+      expect(now(a)).toBe(CHILD_THIRD_PROBLEM_ID);
+    });
+
+    it("from the percent off: it opens on its steps, and no route problem is taken twice", () => {
+      const a = start(CHILD_THIRD_PROBLEM_ID);
+      expect(now(a)).toBe(CHILD_THIRD_PROBLEM_ID);
+      expect(a.getSnapshot().matches({ active: { problem: "steps" } })).toBe(true);
+      solveRight(a);
+      expect(now(a)).not.toBe(CHILD_THIRD_PROBLEM_ID);
+      expect(a.getSnapshot().context.problem?.steps).not.toBeNull();
+    });
   });
 });

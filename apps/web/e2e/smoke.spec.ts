@@ -59,7 +59,7 @@ test("app shell renders with the AI mark and the three buttons", async ({ page }
   await expect(page.locator("h1 rt").first()).toHaveText("もんだい");
   await expect(page.getByTestId("btn-stop")).toBeVisible();
   await expect(page.getByTestId("btn-dont-know")).toBeVisible();
-  await expect(page.getByTestId("btn-hard")).toBeVisible();
+  await expect(page.getByTestId("btn-hard")).toHaveCount(0);
 });
 
 // Q62: the child's route runs the problem one sentence at a time (the count, who is compared with, one part, the answer).
@@ -72,8 +72,8 @@ test("the festival problem one sentence at a time: a wrong count, the other read
   await expect(page.locator("[data-statement]")).toHaveCount(1);
   await expect(page.locator("main")).not.toContainText("6匹");
   await expect(page.getByTestId("steps-lead")).toHaveCount(0);
-  // The three buttons stay on screen while the child types a number (原則7).
-  await expect(page.getByTestId("btn-hard")).toBeInViewport();
+  // The buttons stay on screen while the child types a number (原則7).
+  await expect(page.getByTestId("btn-stop")).toBeInViewport();
   // A wrong count once lights the sentence's number; the step stays.
   await typeNumber(page, 5);
   await expect(stepScreen(page)).toHaveAttribute("data-step", "fact");
@@ -105,7 +105,7 @@ test("the festival problem one sentence at a time: a wrong count, the other read
   await expect(page.getByTestId("steps-progress")).toHaveText("1 / 4");
   await expect(page.getByTestId("btn-stop")).toBeVisible();
   await expect(page.getByTestId("btn-dont-know")).toBeVisible();
-  await expect(page.getByTestId("btn-hard")).toBeVisible();
+  await expect(page.getByTestId("btn-hard")).toHaveCount(0);
   await expect(page.locator('[data-role="ai-badge"]').first()).toBeVisible();
   await expect(page.locator("main")).not.toContainText("8匹");
   await expect(page.locator("main")).not.toContainText("君のルール");
@@ -133,26 +133,12 @@ test("a wrong one part opens the smaller step, never the number; two wrong answe
   await expect.poll(() => plainOf(page.getByTestId("btn-next"))).toBe("つぎの問題へ");
 });
 
-test("つらい stops the math from a problem and shows no phone number", async ({ page }) => {
-  await page.goto("/");
-  await page.getByTestId("btn-home-start").click();
-  await page.getByTestId("btn-next").click();
-  await page.getByTestId("btn-consent-yes").click();
-  await page.getByTestId("btn-hard").click();
-  await expect(page.getByTestId("screen-hard")).toBeVisible();
-  await expect(page.locator('[data-role="tape"]')).toHaveCount(0);
-  // The helplines checked against their operators' pages are listed (B2), each with its number.
-  const lines = page.getByTestId("helplines").locator("li");
-  await expect(lines).toHaveCount(4);
-  await expect(page.getByTestId("helplines")).toContainText("0120-0-78310");
-});
-
-test("the three buttons stay on the parent screen too", async ({ page }) => {
+test("the buttons stay on the parent screen too", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("btn-home-start").click();
   await page.getByTestId("btn-parent").click({ delay: 2200 });
   await expect(page.getByTestId("btn-stop")).toBeVisible();
-  await expect(page.getByTestId("btn-hard")).toBeVisible();
+  await expect(page.getByTestId("btn-hard")).toHaveCount(0);
 });
 
 // Q62: on the child's route the problem runs one sentence at a time, so axe runs on its steps.
@@ -222,11 +208,11 @@ test("the AI-free check: three problems, a neutral line after each, and the resu
     // The answer comes from the prepared problem, checked by core here; the screen never shows it.
     const answer = record.expected_answer as { num: number; den: number };
     expect(judgeAnswer(record, answer as never)).toBe(true);
-    // No junior and no world on this screen; the AI mark and the three buttons stay.
+    // No junior and no world on this screen; the AI mark and the buttons stay.
     await expect(page.getByTestId("junior-line")).toHaveCount(0);
     await expect(page.locator('[data-role="tape"]')).toHaveCount(0);
     await expect(page.locator('[data-role="ai-badge"]').first()).toBeVisible();
-    await expect(page.getByTestId("btn-hard")).toBeInViewport();
+    await expect(page.getByTestId("btn-stop")).toBeInViewport();
     for (const d of String(answer.num)) await page.getByTestId(`pad-${d}`).click();
     await page.getByTestId("pad-ok").click();
     await expect(page.getByTestId("check-line")).toHaveText("こたえを、うけとりました。");
@@ -249,7 +235,8 @@ test("in English: switch on the intro, then the first problem with taps; the cho
   await expect(page.getByTestId("btn-next")).toHaveText("Start");
   await page.reload();
   // After a reload the app opens on the top page again, in English (Q60).
-  await expect(page.getByTestId("btn-home-start")).toHaveText("Start");
+  // The top page lists the problems to start from (Q64); the first is the start.
+  await expect(page.getByTestId("btn-home-start")).toContainText("Goldfish scooping 1");
   await page.getByTestId("btn-home-start").click();
   await expect(page.getByTestId("btn-next")).toHaveText("Start");
   await page.getByTestId("btn-next").click();
@@ -257,7 +244,7 @@ test("in English: switch on the intro, then the first problem with taps; the cho
   // The step's question is English; the holders' names and the thing stay as written in the problem.
   await expect(stepScreen(page)).toHaveAttribute("data-step", "fact");
   await expect(page.getByTestId("steps-question")).toHaveText(/^How many .* does そら have\?$/);
-  await expect(page.getByTestId("btn-hard")).toHaveText("I feel bad");
+  await expect(page.getByTestId("btn-dont-know")).toHaveText("I don't know");
   await typeNumber(page, 8);
   await expect(page.getByTestId("btn-step-unknown")).toHaveText("I don't know");
   await page.getByTestId("btn-step-h_ai").click();
@@ -289,4 +276,15 @@ test("in dark mode the page keeps its light background and readable text", async
   expect(scheme).toBe("light");
   await expectNoAxeViolations(page, "intro in dark mode");
   await ctx.close();
+});
+
+// Q64: the top page lists where to start; a child who has learned percent can start with the shirt sale.
+test("the top page lists the problems to start from; the shirt sale opens on its first sentence", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("home-picks").locator("button[data-problem-id]")).toHaveCount(3);
+  await page.getByTestId("btn-pick-p_sale").click();
+  await page.getByTestId("btn-next").click();
+  await page.getByTestId("btn-consent-yes").click();
+  await expect(stepScreen(page)).toHaveAttribute("data-problem-id", "p_sale");
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "fact");
 });

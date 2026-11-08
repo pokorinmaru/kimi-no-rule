@@ -10,6 +10,7 @@ import { and, assign, not, or, setup, stateIn } from "xstate";
 import {
   CARD_RULES,
   CHILD_FIRST_PROBLEM_ID,
+  CHILD_ROUTE,
   CHILD_SECOND_PROBLEM_ID,
   stepsOf,
   type Step,
@@ -850,11 +851,14 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     const junior = first === undefined ? null : juniorFor(first, ctx.research, ctx.session, ctx.lang, ctx.taught);
     if (first !== undefined && junior !== null) pick = { record: first, junior, reason: { kind: "first" } };
   }
-  // On the step flow the second problem is the festival story where the child's count is a part (Q62).
-  if (pick === null && ctx.stepFlow && ctx.done.length === 1) {
-    const second = ctx.bank.find((r) => r.world.problem_id === CHILD_SECOND_PROBLEM_ID);
-    const junior = second === undefined ? null : juniorFor(second, ctx.research, ctx.session, ctx.lang, ctx.taught);
-    if (second !== undefined && junior !== null) pick = { record: second, junior, reason: { kind: "first" } };
+  // On the step flow the route goes on from where the child started (Q62, Q64): the next route problem after the last
+  // one done that is not done yet (the whole-known story, then the part-known one, then the percent off).
+  if (pick === null && ctx.stepFlow && ctx.done.length > 0) {
+    const at = Math.max(...ctx.done.map((id) => CHILD_ROUTE.indexOf(id)));
+    const nextId = at < 0 ? undefined : CHILD_ROUTE.slice(at + 1).find((id) => !ctx.done.includes(id));
+    const next = nextId === undefined ? undefined : ctx.bank.find((r) => r.world.problem_id === nextId);
+    const junior = next === undefined ? null : juniorFor(next, ctx.research, ctx.session, ctx.lang, ctx.taught);
+    if (next !== undefined && junior !== null) pick = { record: next, junior, reason: { kind: "first" } };
   }
   pick ??= transferPick(ctx);
   // A transfer problem is offered only right after a fix, never as an ordinary pick.

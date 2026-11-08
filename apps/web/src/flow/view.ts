@@ -403,7 +403,7 @@ function scenesView(s: CardScenes | null, rule: Hypothesis, bank: readonly Probl
 /** Every word the screen shows to the child (the consent lines are for the grown-up but are listed too). */
 export function childTexts(v: FlowView): string[] {
   const t = v.text;
-  const out: string[] = [v.buttons.stop, v.buttons.dontKnow, v.buttons.hard, v.aiMark, t.title, t.alwaysLabel];
+  const out: string[] = [v.buttons.stop, v.buttons.dontKnow, v.aiMark, t.title, t.alwaysLabel];
   switch (v.screen) {
     case "problem": {
       const p = t.problem;

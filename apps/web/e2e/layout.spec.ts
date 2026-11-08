@@ -45,9 +45,9 @@ async function expectBarClear(page: Page, screen: string): Promise<void> {
     });
   });
   expect(hits, screen).toEqual([]);
-  // The band itself stays on the screen, its three buttons in view.
+  // The band itself stays on the screen, its buttons in view (no 「つらい」 button, Q64).
   await expect(page.getByTestId("btn-stop")).toBeInViewport();
-  await expect(page.getByTestId("btn-hard")).toBeInViewport();
+  await expect(page.getByTestId("btn-dont-know")).toBeInViewport();
 }
 
 for (const size of SIZES) {
@@ -89,8 +89,5 @@ for (const size of SIZES) {
     await typeNumber(page, 6);
     await expect(steps).toHaveAttribute("data-step", "solved");
     await expectBarClear(page, "solved");
-    await page.getByTestId("btn-hard").click();
-    await expect(page.getByTestId("screen-hard")).toBeVisible();
-    await expectBarClear(page, "つらい");
   });
 }

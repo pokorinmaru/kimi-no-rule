@@ -83,7 +83,7 @@ describe("the junior's rule card on the screen", () => {
     expect(items).toHaveLength(2);
     // The AI mark and the three buttons stay (原則7, 第9節).
     expect(document.querySelector('[data-role="ai-badge"]')).not.toBeNull();
-    for (const b of ["btn-stop", "btn-dont-know", "btn-hard"]) expect(screen.getByTestId(b)).toBeTruthy();
+    for (const b of ["btn-stop", "btn-dont-know"]) expect(screen.getByTestId(b)).toBeTruthy();
 
     for (const id of ["c_correct", "c_swap"]) {
       fireEvent.click(within(cardScreen).getByTestId(`card-option-${id}`));

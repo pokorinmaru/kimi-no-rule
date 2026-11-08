@@ -54,8 +54,13 @@ function childLines(): { where: string; text: string }[] {
     ["reading", t.reading.furigana],
     ["buttons", t.buttons.stop],
     ["buttons", t.buttons.dontKnow],
-    ["buttons", t.buttons.hard],
     ["intro", t.intro.start],
+    ["home", t.home.pickTitle],
+    ["home", t.home.pickOther],
+    ...Object.values(t.home.picks).flatMap((x): [string, string][] => [
+      ["home pick", x.title],
+      ["home pick", x.note],
+    ]),
     ["consent", t.consent.child],
     ...t.intro.cards.flatMap((card): [string, string][] => [
       ["intro card", card.title],

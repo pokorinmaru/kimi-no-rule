@@ -99,7 +99,7 @@ test("two solved problems open the junior's card; choosing who is 1 builds the g
   await expect(page.getByTestId("gallery-item")).toHaveCount(2);
   // The AI mark and the three buttons stay on the card screen.
   await expect(page.locator('[data-role="ai-badge"]').first()).toBeVisible();
-  await expect(page.getByTestId("btn-hard")).toBeVisible();
+  await expect(page.getByTestId("btn-stop")).toBeVisible();
   expect(await axeViolations(page)).toEqual([]);
 
   await page.getByTestId("card-option-c_swap").click();

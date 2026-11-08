@@ -3,10 +3,10 @@
 // and parent screens, remembered on the device; every word of the screens in English except the problem as
 // written, its holders and items, and the helplines' names. Written before the implementation.
 import "fake-indexeddb/auto";
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { FRACTION_BANK, readingsFor, type ProblemRecord } from "@kimi/core";
-import { App } from "./App.tsx";
+import { App, type SessionHandle } from "./App.tsx";
 import { CheckMode } from "./check/CheckMode.tsx";
 import { openStore, type FlowStore } from "./store/store.ts";
 import { hasForbiddenPhrase, helplinesFor } from "./flow/text.ts";
@@ -102,8 +102,11 @@ describe("the language switch", () => {
     const store = openStore("kimi-app-lang-3");
     stores.push(store);
     await store.setLang("en");
-    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName="kimi-app-lang-3" api={null} parentHoldMs={0} />);
-    fireEvent.click(await screen.findByTestId("btn-hard"));
+    // No 「つらい」 button (Q64): the hard screen opens when the child's words show distress; here the session is told so.
+    let handle: SessionHandle | null = null;
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName="kimi-app-lang-3" api={null} parentHoldMs={0} onSession={(h) => (handle = h)} />);
+    await vi.waitFor(() => expect(handle).not.toBeNull());
+    act(() => (handle as SessionHandle | null)?.session.send({ type: "HARD" }));
     const list = await screen.findByTestId("helplines");
     expect(list.querySelectorAll("li")).toHaveLength(4);
     for (const h of helplinesFor("ja")) expect(list.textContent).toContain(h.number);
@@ -144,9 +147,6 @@ describe("the language switch", () => {
     for (const d of String((r.expected_answer as { num: number }).num)) fireEvent.click(screen.getByTestId(`pad-${d}`));
     fireEvent.click(screen.getByTestId("pad-ok"));
     expect(await screen.findByText("Your answer is saved.")).toBeTruthy();
-    expectEnglishOnly([r]);
-    fireEvent.click(screen.getByTestId("btn-hard"));
-    expect(await screen.findByTestId("helplines")).toBeTruthy();
     expectEnglishOnly([r]);
   });
 });

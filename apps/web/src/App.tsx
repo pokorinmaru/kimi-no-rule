@@ -1,7 +1,7 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { CHILD_FIRST_PROBLEM_ID, CHILD_SECOND_PROBLEM_ID, UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type Readings, type StatementCheck } from "@kimi/core";
+import { CHILD_FIRST_PROBLEM_ID, CHILD_ROUTE, CHILD_SECOND_PROBLEM_ID, UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type Readings, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { Kohai, KohaiBeside, KohaiSays } from "./draw/Kohai.tsx";
 import type { KohaiPose } from "./flow/pose.ts";
@@ -59,7 +59,7 @@ interface VoiceHooks {
 export const APP_TITLE = ui("ja").title;
 
 // The page column: 760 px of content (the stage picture is laid out for 728 px inside the world's card), and room at
-// the bottom for the band of the three buttons, so it never covers the last content.
+// the bottom for the band of the always-there buttons, so it never covers the last content.
 const page: CSSProperties = {
   margin: "0 auto",
   padding: `${String(SPACE.lg)}px ${String(SPACE.lg)}px ${String(BAR_SPACE + SPACE.xl)}px`,
@@ -103,7 +103,7 @@ const note: CSSProperties = { fontSize: TYPE.small, color: COLOR.inkSoft, margin
 const actions: CSSProperties = { display: "flex", gap: SPACE.md, flexWrap: "wrap", alignItems: "center", marginTop: SPACE.lg };
 /** The line being read aloud: a fixed outline and a light ground (no motion). */
 const readingStyle: CSSProperties = { outline: `4px solid ${COLOR.ink}`, outlineOffset: 2, background: COLOR.highlight };
-/** The three buttons every screen keeps (原則7): stop, don't know, it's hard. */
+/** The buttons every screen keeps (原則7): stop and don't know (no 「つらい」 button, Q64). */
 function Always({ view, send }: { view: FlowView; send: Session["send"] }) {
   return (
     <AlwaysNav
@@ -113,7 +113,6 @@ function Always({ view, send }: { view: FlowView; send: Session["send"] }) {
       onStop={() => send({ type: "STOP" })}
       // The math has stopped on these screens: "don't know" would do nothing there (Q30).
       {...(view.screen !== "hard" && view.screen !== "rest" ? { onDontKnow: () => send({ type: "DONT_KNOW" }) } : {})}
-      onHard={() => send({ type: "HARD" })}
     />
   );
 }
@@ -918,7 +917,9 @@ function Screen({
 
 /**
  * The top page (Q60): what the app is in two lines, the child's name (shown on the screen only, kept on this device),
- * and where to start: 「はじめる」, or 「つづきから」 and 「さいしょから」 while a session is under way.
+ * and where to start: 「はじめる」, or 「つづきから」 and 「さいしょから」 while a session is under way. On the child's
+ * route (Q64) 「はじめる」 is a list of the route's problems, since children are at different steps: the first card
+ * keeps the start's test id; while a session is under way the list offers another problem to start from.
  */
 function HomeScreen(props: {
   t: UiText;
@@ -931,6 +932,9 @@ function HomeScreen(props: {
   onRestart: () => void;
   /** 「AIくんに おねがいを いう」 (Q61). */
   onWish: () => void;
+  /** The route's problems to start from (Q64), or null on the adults' old flow. */
+  picks: readonly { id: string; title: string; note: string }[] | null;
+  onPick: (id: string) => void;
 }) {
   const { t } = props;
   const bad = props.name.trim() !== "" && cleanName(props.name) === null;
@@ -968,22 +972,50 @@ function HomeScreen(props: {
           </p>
         )}
       </div>
-      <p style={actions}>
-        {props.underWay ? (
-          <>
-            <Button kind="primary" onClick={props.onResume} testId="btn-home-resume">
-              {t.home.resume}
+      {(props.underWay || props.picks === null) && (
+        <p style={actions}>
+          {props.underWay ? (
+            <>
+              <Button kind="primary" onClick={props.onResume} testId="btn-home-resume">
+                {t.home.resume}
+              </Button>
+              <Button onClick={props.onRestart} testId="btn-home-restart">
+                {t.home.restart}
+              </Button>
+            </>
+          ) : (
+            <Button kind="primary" onClick={props.onStart} testId="btn-home-start">
+              {t.home.start}
             </Button>
-            <Button onClick={props.onRestart} testId="btn-home-restart">
-              {t.home.restart}
-            </Button>
-          </>
-        ) : (
-          <Button kind="primary" onClick={props.onStart} testId="btn-home-start">
-            {t.home.start}
-          </Button>
-        )}
-      </p>
+          )}
+        </p>
+      )}
+      {props.picks !== null && (
+        <section data-testid="home-picks" aria-labelledby="home-picks-title" style={{ marginTop: SPACE.lg }}>
+          <h2 id="home-picks-title" style={{ fontSize: TYPE.large, margin: `0 0 ${String(SPACE.md)}px` }}>
+            <RubyText text={props.underWay ? t.home.pickOther : t.home.pickTitle} on={props.ruby} />
+          </h2>
+          <div style={{ display: "grid", gap: SPACE.md, gridTemplateColumns: "minmax(0, 1fr)", maxWidth: 560 }}>
+            {props.picks.map((p, i) => (
+              <Button
+                key={p.id}
+                kind={!props.underWay && i === 0 ? "primary" : "choice"}
+                onClick={() => props.onPick(p.id)}
+                testId={!props.underWay && i === 0 ? "btn-home-start" : `btn-pick-${p.id}`}
+                problemId={p.id}
+                style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: SPACE.xs, minHeight: 88, width: "100%" }}
+              >
+                <span style={{ fontSize: TYPE.large, fontWeight: 800 }}>
+                  <RubyText text={p.title} on={props.ruby} />
+                </span>
+                <span style={{ fontSize: TYPE.body, fontWeight: 400 }}>
+                  <RubyText text={p.note} on={props.ruby} />
+                </span>
+              </Button>
+            ))}
+          </div>
+        </section>
+      )}
       {/* The child's own voice to the app's makers (Q61): quiet, apart from the start. */}
       <p style={{ ...actions, marginTop: SPACE.xl }}>
         <Button kind="quiet" onClick={props.onWish} testId="btn-wish">
@@ -1059,6 +1091,9 @@ export function App({
   const [check, setCheck] = useState(false);
   const [furigana, setFurigana] = useState(true);
   const [home, setHome] = useState(startAtHome);
+  // The problem the session opens with: the route's first unless the child picks another on the top page (Q64).
+  const [startId, setStartId] = useState(firstProblemId);
+  useEffect(() => setStartId(firstProblemId), [firstProblemId]);
   // A wish to AI-kun (Q61), opened from the top page. It talks to the server as the session does: the local server
   // when no api is given (the real app), the given one in the tests and the try route, none when null.
   const [wish, setWish] = useState(false);
@@ -1077,7 +1112,7 @@ export function App({
       const settings = await st.getSettings();
       const furiganaOn = await st.getFurigana();
       // A transfer problem is offered only when it is in the bank (on the child's route: once a person has checked it).
-      const first = bank.some((r) => r.world.problem_id === firstProblemId) ? { firstProblemId } : {};
+      const first = bank.some((r) => r.world.problem_id === startId) ? { firstProblemId: startId } : {};
       const started = await startSession({ store: st, input: { bank, transfers: TRANSFER_LINKS, stepFlow, ...first }, ...(api === undefined ? {} : { api }) });
       if (!live) {
         started.stop();
@@ -1099,7 +1134,7 @@ export function App({
       if (s !== null) onSessionRef.current?.(null);
       s?.stop();
     };
-  }, [storeName, api, restart, bank, firstProblemId, stepFlow]);
+  }, [storeName, api, restart, bank, startId, stepFlow]);
 
   const send = useMemo<Session["send"]>(() => (e) => session?.send(e), [session]);
   // The words heard go to the session only (in memory); nothing here keeps them.
@@ -1125,10 +1160,29 @@ export function App({
     setWish(false);
   };
   const startOver = (): void => {
+    // The old session's screen goes at once, so nothing pressed meanwhile reaches it (the new one opens on its intro).
+    setSnap(null);
+    setSession(null);
     setRestart((n) => n + 1);
     enter();
   };
   const t = ui(lang);
+  // The route's problems the top page offers (Q64): on the child's route only, those in the bank.
+  const picks = stepFlow
+    ? CHILD_ROUTE.flatMap((id) => {
+        const label = t.home.picks[id];
+        return label !== undefined && bank.some((r) => r.world.problem_id === id) ? [{ id, ...label }] : [];
+      })
+    : null;
+  const pick = (id: string): void => {
+    // The session already open on this problem and not yet begun: just go in; otherwise a new session from it.
+    if (id === startId && !underWay && view?.screen !== "ended") {
+      enter();
+      return;
+    }
+    setStartId(id);
+    startOver();
+  };
   const reading = useMemo<ReadingHooks>(
     () => ({
       speaker,
@@ -1199,15 +1253,6 @@ export function App({
           furigana={reading.furigana}
           onFurigana={reading.onFurigana}
           onExit={() => setCheck(false)}
-          // The session's hard screen is reachable while it is still running (not on the ended screen).
-          {...(view.screen !== "ended"
-            ? {
-                onSessionHard: () => {
-                  setCheck(false);
-                  send({ type: "HARD" });
-                },
-              }
-            : {})}
         />
       )}
       {view !== null && store !== null && home && wish && !parent && !check && (
@@ -1233,6 +1278,8 @@ export function App({
           onResume={enter}
           onRestart={startOver}
           onWish={() => setWish(true)}
+          picks={picks !== null && picks.length > 0 ? picks : null}
+          onPick={pick}
         />
       )}
       {shown !== null && !home && !parent && !check && (
@@ -1264,7 +1311,7 @@ export function App({
           </p>
         </section>
       )}
-      {/* The three buttons are on the top page too (原則7・8): from there they go into the session first (Q60). */}
+      {/* The buttons are on the top page too (原則7・8): from there they go into the session first (Q60). */}
       {view !== null && !check && view.screen !== "ended" && (
         <Always
           view={view}

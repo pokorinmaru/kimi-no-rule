@@ -14,7 +14,7 @@ description: 子どもに見える文言・画面・発話・記録に触れる�
 - **読み方を子どもに帰属させない**：`apps/web/src/flow/text.ts` の `FORBIDDEN_CHILD_PHRASES` と `hasForbiddenPhrase`（全角・ゼロ幅・空白をそろえてから照らす。Q37）。子どもの画面の見出しに作品名を出さない（Q30）。保護者の画面でも「正しい」と見立ての言葉を使わない（Q37）。
 - **後輩は教えない**：`packages/interpret/src/kohai.ts`。意図は `read`・`which`・`restate` の3つだけ。生成器には正しい世界・正誤・研究の仮説・子どもの発話を渡さない。worker の `/kohai` は正しい世界を画面から受け取らず銀行から引き、後輩の世界が正しい世界と同じなら 400（`apps/worker/src/app.ts`）。
 - **助けを求める声は算数より優先**：`packages/interpret/src/safety.ts` の `checkSafety`。端末の辞書 `DISTRESS_WORDS` が下限で、Claude が none でも辞書に当たれば distress（Q24）。Claude の refusal も distress。Claude が答えず辞書にも無ければ none でなく `unchecked`（Q26）。
-- **いつでも止められる**：`apps/web/src/ui/controls.tsx` の `AlwaysNav`（やめる／わからない／つらい、下に固定）。`apps/web/src/flow/machine.ts` の `STOP`・`HARD` と `SAFETY_RESULT`：distress で `hard`、unchecked は札を目立たせ、2回続くと `rest`。「つらい」の画面の窓口は Q32。決まった言い方だけの発話は Claude に送らず端末で止める（Q47）。
+- **いつでも止められる**：`apps/web/src/ui/controls.tsx` の `AlwaysNav`（やめる／わからない、下に固定。「つらい」ボタンは無い、Q64）。`apps/web/src/flow/machine.ts` の `STOP` と `SAFETY_RESULT`：子どもの言葉が distress なら `hard`（相談の画面。ボタンからは開かない）、unchecked は札を目立たせ、2回続くと `rest`。「つらい」の画面の窓口は Q32。決まった言い方だけの発話は Claude に送らず端末で止める（Q47）。
 - **記録は端末だけ**：`apps/web/src/store/store.ts`（Dexie）。解釈は core の `redactInterpretation`（`packages/core/src/redact`）を通し、`hasChildText` が残りを見つけたら保存せず投げる。子どもが付けた名前も消す（Q23）。関門の行と安全の行は種類と日時だけ。`deleteAll` で全部消せる。
 - **サーバーは保存もログもしない**：`apps/worker/src/app.ts` に logger は無く、本文に上限、エラーは詳細なし。`/interpret` も redact した ops だけ返す。キーが無ければ 503 で、画面は定型文と端末の判定に戻る。
 - **実在の子どもの情報を書かない**：テストと評価データは作った例だけ。`.claude/hooks/pre-write-guard.mjs` が個人情報らしき文字列を止める（公的な窓口の番号だけ許す。Q32）。

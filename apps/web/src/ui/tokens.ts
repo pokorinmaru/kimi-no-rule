@@ -12,7 +12,7 @@ export const COLOR = {
   surface: PALETTE.white,
   /** A soft panel inside a card (the rule card, the grown-up's details). */
   surfaceSoft: "#f5efe3",
-  /** The band of the three buttons at the bottom. */
+  /** The band of the always-there buttons at the bottom. */
   bar: "#f7f0e2",
   /** Text. */
   ink: "#2a2540",
@@ -34,7 +34,7 @@ export const COLOR = {
   pressed: "#e3eefc",
   /** The line being read aloud, and the lit words. */
   highlight: "#ffe9a8",
-  /** The three buttons when the flow asks the child to look at them. */
+  /** The always-there buttons when the flow asks the child to look at them. */
   attention: PALETTE.yellow,
   /** The keyboard focus ring. */
   focus: "#1d4ed8",
@@ -108,7 +108,7 @@ button, a, [tabindex] { -webkit-tap-highlight-color: transparent; }
 .k-btn:active { transform: translateY(3px); box-shadow: ${SHADOW.buttonPressed}; }
 @media (prefers-reduced-motion: reduce) { .k-btn { transition: none; } }
 .k-btn:has(rt) { line-height: 2.2; padding-top: 10px; }
-rt { font-size: 0.5em; color: ${COLOR.inkSoft}; margin-inline: -1em; }
+rt { font-size: 0.62em; font-weight: 800; color: inherit; margin-inline: -1em; letter-spacing: 0.02em; }
 ruby { ruby-align: center; }
 .k-frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; font-size: 0.8em; line-height: 1.05; margin: 0 0.12em; position: relative; }
 .k-frac::before { content: attr(data-num) / ""; padding: 0 0.2em 1px; border-bottom: 2px solid currentColor; }

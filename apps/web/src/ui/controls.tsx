@@ -42,7 +42,7 @@ export const BUTTON_STYLE: Record<ButtonKind, CSSProperties> = {
   },
   secondary: base,
   // An answer to the question on the screen (who has more, does it fit, yes or no): every option looks the same,
-  // larger than the three buttons at the bottom and tinted, so the answers never read as help (screen check, 2026-11-08).
+  // larger than the buttons at the bottom and tinted, so the answers never read as help (screen check, 2026-11-08).
   choice: {
     ...base,
     minHeight: 64,
@@ -71,6 +71,8 @@ export function Button(props: {
   style?: CSSProperties;
   /** Not pressable yet (for example while a box is empty): dimmed, and announced as unavailable. */
   disabled?: boolean;
+  /** The problem this button opens (the top page's list, Q64). */
+  problemId?: string;
 }) {
   const style = {
     ...BUTTON_STYLE[props.kind ?? "secondary"],
@@ -88,6 +90,7 @@ export function Button(props: {
       onClick={props.onClick}
       disabled={props.disabled === true}
       data-testid={props.testId}
+      data-problem-id={props.problemId}
     >
       {props.children}
     </button>
@@ -128,8 +131,9 @@ export function Toggle(props: {
   );
 }
 
-/** The three buttons every screen keeps (原則7): stop, don't know, it's hard. Without onDontKnow the
- * middle one is left out (the math has stopped there, Q30). A band fixed to the bottom of the screen; the page
+/** The buttons every screen keeps (原則7): stop and don't know. Without onDontKnow the second one is left out (the
+ * math has stopped there, Q30). There is no 「つらい」 button (Q64: a parent found the help screen it opened out of
+ * place); the child's own words that show distress still open that screen (machine: distress). A band fixed to the bottom of the screen; the page
  * leaves room under its last content (tokens BAR_SPACE), so the band never covers it. */
 export function AlwaysNav(props: {
   lang?: Lang;
@@ -137,7 +141,6 @@ export function AlwaysNav(props: {
   highlight?: boolean;
   onStop: () => void;
   onDontKnow?: () => void;
-  onHard: () => void;
 }) {
   const t = ui(props.lang ?? "ja");
   const buttons = props.buttons ?? t.buttons;
@@ -193,14 +196,6 @@ export function AlwaysNav(props: {
             {buttons.dontKnow}
           </Button>
         )}
-        <Button
-          onClick={props.onHard}
-          highlight={hl}
-          testId="btn-hard"
-          style={small}
-        >
-          {buttons.hard}
-        </Button>
       </div>
     </nav>
   );

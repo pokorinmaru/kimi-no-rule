@@ -19,6 +19,7 @@ export interface RubySegment {
  */
 export const UI_READINGS: Readings = {
   問題: "もんだい",
+  金魚: "きんぎょ",
   世界: "せかい",
   後輩: "こうはい",
   先輩: "せんぱい",

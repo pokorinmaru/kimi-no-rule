@@ -113,23 +113,23 @@ describe("a wish to AI-kun", () => {
     expect(screen.queryByTestId("btn-wish-copy")).toBeNull();
   });
 
-  it("keeps the three buttons under the wish screen; 「つらい」 leaves it for the hard screen", async () => {
+  it("keeps the always-there buttons under the wish screen; 「やめる」 leaves it (no 「つらい」 button, Q64)", async () => {
     render(<App storeName="kimi-wish-hardbtn" api={null} />);
     await screen.findByTestId("screen-home");
     fireEvent.click(screen.getByTestId("btn-wish"));
     await screen.findByTestId("screen-wish");
-    fireEvent.click(screen.getByTestId("btn-hard"));
-    expect(await screen.findByTestId("screen-hard")).toBeTruthy();
-    expect(screen.queryByTestId("screen-wish")).toBeNull();
+    expect(screen.queryByTestId("btn-hard")).toBeNull();
+    fireEvent.click(screen.getByTestId("btn-stop"));
+    await vi.waitFor(() => expect(screen.queryByTestId("screen-wish")).toBeNull());
   });
 
-  it("when the server cannot judge (no server, an error, unchecked), thanks the child and gently offers 「つらい」", async () => {
+  it("when the server cannot judge (no server, an error, unchecked), thanks the child and gently says to tell a grown-up", async () => {
     for (const [name, reply] of [["kimi-wish-unchecked", { kind: "unchecked" } as WishReply], ["kimi-wish-error", new Error("503")]] as const) {
       const { api } = apiWith(reply);
       await sendWish(name, api, "もっとはやくして");
       await screen.findByTestId("wish-done");
       expect(plain(screen.getByTestId("wish-unchecked"))).toContain(t.wish.unchecked);
-      expect(screen.getByTestId("btn-hard")).toBeTruthy();
+      expect(screen.queryByTestId("btn-hard")).toBeNull();
       cleanup();
     }
   });

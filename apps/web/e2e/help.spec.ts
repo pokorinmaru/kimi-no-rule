@@ -21,7 +21,7 @@ async function expectNoAxeViolations(page: Page, screen: string): Promise<void> 
 async function keepsTheRules(page: Page): Promise<void> {
   await expect(page.getByTestId("btn-stop")).toBeVisible();
   await expect(page.getByTestId("btn-dont-know")).toBeVisible();
-  await expect(page.getByTestId("btn-hard")).toBeVisible();
+  await expect(page.getByTestId("btn-hard")).toHaveCount(0);
   await expect(page.locator("main")).not.toContainText("8匹");
   await expect(page.getByTestId("junior-line")).not.toContainText("AIくん");
 }

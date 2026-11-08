@@ -1,16 +1,15 @@
 // The AI-free check on screen (指示書 第7.3節; HANDOFF §3 F7・F8). Only the problem's sentences and a number
 // pad: no junior, no world, no hint. core judges each answer (judgeCheck); the child hears only that the
-// answer was kept. The three buttons stay (原則7): "わからない" leaves the problem, "つらい" stops the math.
+// answer was kept. The buttons stay (原則7): "やめる" leaves the check, "わからない" leaves the problem (no 「つらい」, Q64).
 import { useEffect, useRef, useState } from "react";
 import { FRACTION_BANK, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational } from "@kimi/core";
-import { hardLines, ui } from "../flow/text.ts";
+import { ui } from "../flow/text.ts";
 import type { CheckItem, FlowStore } from "../store/store.ts";
 import { AlwaysNav, Button, NumberPad } from "../ui/controls.tsx";
 import { judgeCheck, pickCheckProblems } from "./check.ts";
 import { checkText } from "./text.ts";
 import { ReadingTools } from "../ui/ReadAloud.tsx";
 import { RubyText } from "../ui/Ruby.tsx";
-import { Helplines } from "../ui/Helplines.tsx";
 import { COLOR, SPACE, TYPE, prose } from "../ui/tokens.ts";
 import { createSpeaker, type Speaker } from "../voice/speaker.ts";
 
@@ -21,9 +20,6 @@ export interface CheckModeProps {
   lang: Lang;
   /** Back to where the child came from. */
   onExit: () => void;
-  /** When the session's own hard screen can be reached, "つらい" goes there; otherwise the check shows the
-   * same lines with the math stopped. */
-  onSessionHard?: () => void;
   bank?: readonly ProblemRecord[];
   /** 「読み上げ」 (指示書 第8.4b節): the browser's speech synthesis; a fake in the tests. */
   speaker?: Speaker;
@@ -32,9 +28,9 @@ export interface CheckModeProps {
   onFurigana?: (on: boolean) => void;
 }
 
-type Phase = "loading" | "answer" | "kept" | "done" | "hard";
+type Phase = "loading" | "answer" | "kept" | "done";
 
-export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_BANK, speaker = browserSpeaker, furigana = true, onFurigana }: CheckModeProps) {
+export function CheckMode({ store, lang, onExit, bank = FRACTION_BANK, speaker = browserSpeaker, furigana = true, onFurigana }: CheckModeProps) {
   const [readingIndex, setReadingIndex] = useState<number | null>(null);
   const [localFurigana, setLocalFurigana] = useState(furigana);
   const rubyOn = onFurigana === undefined ? localFurigana : furigana;
@@ -97,35 +93,13 @@ export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_
     void save();
     onExit();
   };
-  const onHard = () => {
-    void save();
-    if (onSessionHard !== undefined) {
-      onSessionHard();
-      return;
-    }
-    if (phase !== "hard") void store.logSafety("hard_button");
-    setPhase("hard");
-  };
 
   const mathOn = phase === "answer" || phase === "kept";
   const t = ui(lang);
   const CHECK_TEXT = checkText(lang);
-  const HELPLINE = t.helpline;
   return (
     <>
-      {phase === "hard" ? (
-        <section aria-label={t.hard.label} data-testid="screen-hard">
-          {hardLines(lang).map((l) => (
-            <p key={l} style={prose}>
-              <RubyText text={l} on={rubyOn && lang === "ja"} />
-            </p>
-          ))}
-          <Helplines helpline={HELPLINE} lang={lang} furigana={rubyOn} />
-          <p style={{ marginTop: SPACE.xl }}>
-            <Button onClick={onExit}>{CHECK_TEXT.close}</Button>
-          </p>
-        </section>
-      ) : (
+      {(
         <section aria-label={CHECK_TEXT.title}>
           <h2 style={{ fontSize: TYPE.large, margin: `0 0 ${String(SPACE.sm)}px` }}>{CHECK_TEXT.title}</h2>
           {phase === "loading" && <p>{t.preparing}</p>}
@@ -184,7 +158,7 @@ export function CheckMode({ store, lang, onExit, onSessionHard, bank = FRACTION_
         </section>
       )}
       {/* "Don't know" skips a problem, so it shows only while an answer can be given. */}
-      <AlwaysNav lang={lang} onStop={onStop} {...(mathOn && phase === "answer" ? { onDontKnow } : {})} onHard={onHard} />
+      <AlwaysNav lang={lang} onStop={onStop} {...(mathOn && phase === "answer" ? { onDontKnow } : {})} />
     </>
   );
 }
