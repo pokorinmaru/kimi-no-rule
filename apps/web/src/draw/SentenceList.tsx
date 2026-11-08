@@ -220,11 +220,11 @@ function Sentence({
                         : { "data-role": "holder-name" })}
                       style={{
                         minHeight: "44px",
-                        minWidth: "44px",
-                        // Every word keeps a target of 44 px or more, but the words sit as close as in running text: each
-                        // target reaches 12 px into its neighbours instead of pushing the words apart (screen check, 2026-11-08).
-                        padding: `0 ${String(WORD_REACH)}px`,
-                        margin: `0 ${String(-WORD_REACH)}px`,
+                        // A word's target is the word itself and a few px on each side, and never reaches into its neighbour's:
+                        // with targets that overlapped, the middle of 「弟」 pressed 「の」 (whole-app review, 2026-11-08). Words in a
+                        // sentence are inline targets, so the target follows the word's width; the height stays 44 px.
+                        padding: `0 ${String(WORD_PAD)}px`,
+                        margin: 0,
                         border: "none",
                         borderRadius: 6,
                         background: "transparent",
@@ -267,8 +267,8 @@ export function wordGroups(tokens: readonly string[]): number[][] {
   return out;
 }
 
-/** How far each word's tap target reaches past the word on each side (px), without moving the words apart. */
-export const WORD_REACH = 12;
+/** The room on each side of a word inside its tap target (px); neighbouring targets touch but never overlap. */
+export const WORD_PAD = 3;
 
 export function SentenceList({
   statements,

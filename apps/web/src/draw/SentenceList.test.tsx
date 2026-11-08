@@ -64,13 +64,15 @@ describe("SentenceList", () => {
     expect(onTapWord).toHaveBeenCalledWith(1, 9);
   });
 
-  it("makes words buttons of at least 44px only when a tap is listened for", () => {
+  it("makes words buttons 44px tall, apart from each other, only when a tap is listened for", () => {
     const { rerender } = render(<SentenceList statements={statements} />);
     expect(screen.queryAllByRole("button")).toHaveLength(0);
     rerender(<SentenceList statements={statements} onTapWord={() => undefined} />);
     for (const b of screen.getAllByRole("button")) {
       expect(parseFloat(b.style.minHeight)).toBeGreaterThanOrEqual(44);
-      expect(parseFloat(b.style.minWidth)).toBeGreaterThanOrEqual(44);
+      // A word's target never reaches into its neighbour's (the middle of 「弟」 pressed 「の」, 2026-11-08).
+      expect(b.style.margin === "" || parseFloat(b.style.marginLeft || "0") >= 0).toBe(true);
+      expect(b.style.margin).not.toMatch(/-/);
     }
   });
 
