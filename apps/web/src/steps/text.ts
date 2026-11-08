@@ -37,6 +37,18 @@ export interface StepsText {
   heard: (holder: string, noun: string) => string;
   /** The voice panel's notes on this screen, where the buttons (not the card) are the other way. */
   voiceNotes: { unsupported: string; denied: string; off: string };
+  /**
+   * Money (Q63): the holders are things (定価, 代金), not people, and the picture draws coins while the questions stay
+   * in the problem's unit. What one coin is worth is said wherever coins are drawn; a count of coins is said in coins.
+   */
+  money: {
+    note: (coinNoun: string, coinCounter: string, worth: number, counter: string) => string;
+    fact: (holder: string, counter: string) => string;
+    relation: (subject: string) => string;
+    misread: (chosen: string) => string;
+    misreadCount: (holder: string, coinNoun: string, wholes: number, coinCounter: string, cut: boolean) => string;
+    heard: (holder: string) => string;
+  };
 }
 
 const JA: StepsText = {
@@ -69,6 +81,14 @@ const JA: StepsText = {
     denied: "マイクが使えないので、ボタンで えらんでね。",
     off: "いまは、声は使えません。ボタンで えらんでね。",
   },
+  money: {
+    note: (coinNoun, coinCounter, worth, counter) => `絵の ${coinNoun} 1${coinCounter}は ${String(worth)}${counter}。`,
+    fact: (holder, counter) => `${holder}は、なん${counter}？`,
+    relation: (subject) => `${subject}は、どちらと くらべている？`,
+    misread: (chosen) => `AIくんが ${chosen}と くらべて 読むと、こうなっちゃう。問題と あうかな？`,
+    misreadCount: (holder, coinNoun, wholes, coinCounter, cut) => `${holder}は ${coinNoun} ${String(wholes)}${coinCounter}${cut ? `と、1${coinCounter}に たりない ${coinNoun}` : ""}。`,
+    heard: (holder) => `AIくんは、「${holder}と くらべる」と うけとったよ。`,
+  },
 };
 
 const EN: StepsText = {
@@ -99,6 +119,14 @@ const EN: StepsText = {
     unsupported: "Talking does not work in this browser. Choose with the buttons.",
     denied: "The microphone is not available. Choose with the buttons.",
     off: "Talking does not work right now. Choose with the buttons.",
+  },
+  money: {
+    note: (coinNoun, _coinCounter, worth, counter) => `In the picture, one ${coinNoun} is ${String(worth)}${counter}.`,
+    fact: (holder, counter) => `How much is ${holder} (${counter})?`,
+    relation: (subject) => `${subject}: which is it compared with?`,
+    misread: (chosen) => `If AI-kun reads it comparing with ${chosen}, this happens. Does it fit the problem?`,
+    misreadCount: (holder, coinNoun, wholes, _coinCounter, cut) => `${holder}: ${String(wholes)} ${coinNoun}${cut ? ` and a part of one` : ""}.`,
+    heard: (holder) => `AI-kun took it as: compared with ${holder}.`,
   },
 };
 

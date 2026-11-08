@@ -11,6 +11,7 @@ import {
   CARD_RULES,
   CHILD_FIRST_PROBLEM_ID,
   CHILD_SECOND_PROBLEM_ID,
+  CHILD_THIRD_PROBLEM_ID,
   stepsOf,
   type Step,
   CORRECT_READING_ID,
@@ -851,10 +852,12 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
     if (first !== undefined && junior !== null) pick = { record: first, junior, reason: { kind: "first" } };
   }
   // On the step flow the second problem is the festival story where the child's count is a part (Q62).
-  if (pick === null && ctx.stepFlow && ctx.done.length === 1) {
-    const second = ctx.bank.find((r) => r.world.problem_id === CHILD_SECOND_PROBLEM_ID);
-    const junior = second === undefined ? null : juniorFor(second, ctx.research, ctx.session, ctx.lang, ctx.taught);
-    if (second !== undefined && junior !== null) pick = { record: second, junior, reason: { kind: "first" } };
+  // The third is the sale problem (Q63: 20%引き, money drawn as 100円 coins). From the fourth on, research picks.
+  if (pick === null && ctx.stepFlow && (ctx.done.length === 1 || ctx.done.length === 2)) {
+    const id = ctx.done.length === 1 ? CHILD_SECOND_PROBLEM_ID : CHILD_THIRD_PROBLEM_ID;
+    const fixed = ctx.done.includes(id) ? undefined : ctx.bank.find((r) => r.world.problem_id === id);
+    const junior = fixed === undefined ? null : juniorFor(fixed, ctx.research, ctx.session, ctx.lang, ctx.taught);
+    if (fixed !== undefined && junior !== null) pick = { record: fixed, junior, reason: { kind: "first" } };
   }
   pick ??= transferPick(ctx);
   // A transfer problem is offered only right after a fix, never as an ordinary pick.
