@@ -10,6 +10,8 @@ Built with Claude: Japan 2026 の提出作品です（提出版。範囲は下�
 
 ![違う人を選んだ時の世界：AIくんの金魚を全体とみて読むと、AIくんの金魚が10匹と1匹にたりない金魚になってしまう](docs/images/misread-world.png)
 
+![1つぶんの段で3と答えた時：子どもの数どおりに1皿3匹ずつ配ると、とちゅうで金魚がなくなる。AIくんが「あれれ？」と問いかけ、子どもは金魚を指で動かして配り直せる。1つぶんに当たる皿の数は、そろうまで「？」](docs/images/deal-plates.png)
+
 ## 評価（実測した数字だけ）
 
 数字はすべて [EVALS.md](EVALS.md) から引いています。評価の取り決めは、本物の Claude を呼ぶ前に [EVALS-PROTOCOL.md](EVALS-PROTOCOL.md) と追補1〜3で凍結し、CI がハッシュで確かめています（`pnpm check:protocol`）。
