@@ -51,6 +51,7 @@
 
 - `pnpm test` …全体の単体テスト（フックのテストを含む）
 - `pnpm typecheck` / `pnpm lint` / `pnpm e2e`（Playwright）
+- `bash scripts/watch-ci.sh [commit]` …push の後に CI を最後まで見る（gh の `--commit` は完全な SHA でないと見つからないので、これを使う）
 
 ## フック（`.claude/settings.json`）
 
