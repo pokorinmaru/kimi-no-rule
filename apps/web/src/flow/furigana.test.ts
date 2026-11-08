@@ -6,8 +6,40 @@ import { describe, expect, it } from "vitest";
 import { TEMPLATES, UI_READINGS, rubySegments } from "@kimi/core";
 import { ui } from "./text.ts";
 import { checkText } from "../check/text.ts";
+import { stepsText } from "../steps/text.ts";
 
 const KANJI = /[一-鿿々]/;
+
+/** The step screens' fixed lines, their slots filled with nothing (Q62). */
+function stepLines(): [string, string][] {
+  const s = stepsText("ja");
+  return [
+    ["steps", s.label],
+    ["steps", s.fact("", "", "")],
+    ["steps", s.factHint],
+    ["steps", s.relation("", "")],
+    ["steps", s.relationHint("")],
+    ["steps", s.unknown],
+    ["steps", s.misread("", "")],
+    ["steps", s.misreadCount("", "", 0, "", true)],
+    ["steps", s.again],
+    ["steps", s.explain(0, 0)],
+    ["steps", s.unitWhole("", "", "", 0)],
+    ["steps", s.unitPart("", "", "", 0)],
+    ["steps", s.unitHelp("")],
+    ["steps", s.total("", 0, "")],
+    ["steps", s.totalHelp(0)],
+    ["steps", s.pad],
+    ["steps", s.solved],
+    ["steps", s.held],
+    ["steps", s.nextProblem],
+    ["steps voice", s.voiceLead],
+    ["steps voice", s.voiceMiss],
+    ["steps voice", s.heard("", "")],
+    ...Object.values(s.voiceNotes).map((v): [string, string] => ["steps voice", v]),
+    ...Object.values(ui("ja").problem.typed).map((v): [string, string] => ["typed", v]),
+  ];
+}
 
 /** The Japanese lines the child's screens show as they are (the grown-up's consent, details and parent screen aside). */
 function childLines(): { where: string; text: string }[] {
@@ -87,6 +119,8 @@ function childLines(): { where: string; text: string }[] {
     ...c.done.map((l): [string, string] => ["check", l]),
     ["check", c.back],
     ["check", c.close],
+    // The step screens (Q62); a slot (a holder's name, the noun, a number) is the problem's own and left out.
+    ...stepLines(),
   ];
   // The junior's fixed lines (core's templates), their slots taken out: a slot is a holder's name (the problem's own
   // readings), a number or the child's own words.
@@ -106,6 +140,8 @@ describe("furigana over the child's fixed lines", () => {
       "template kohai.unit",
       "template distress.reply",
       "check",
+      "steps",
+      "steps voice",
     ])
       expect(wheres, w).toContain(w);
   });

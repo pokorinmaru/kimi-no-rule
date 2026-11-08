@@ -40,3 +40,23 @@ test("the child's route has no research note", async ({ page }) => {
   await expect(page.locator("body")).not.toContainText("研究ノート");
   await expect(page.getByTestId("toggle-unchecked")).toHaveCount(0);
 });
+
+test("#/try at 1280 px: the old problem screen keeps one column beside the research note (its words are not crushed)", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/#/try");
+  await page.getByTestId("btn-next").click();
+  await page.getByTestId("btn-consent-yes").click();
+  await expect(page.getByTestId("screen-guess")).toBeVisible();
+  const main = await page.locator("main").boundingBox();
+  const text = await page.locator(".k-text").first().boundingBox();
+  expect(main).not.toBeNull();
+  expect(text).not.toBeNull();
+  // One column: the words take the app's whole column (less its padding), not what a 548 px world leaves.
+  expect(text?.width ?? 0).toBeGreaterThan((main?.width ?? 0) * 0.8);
+  // And the world (when drawn) comes under the words, not beside them.
+  const world = page.locator(".k-world").first();
+  if ((await world.count()) > 0) {
+    const w = await world.boundingBox();
+    expect(w?.y ?? 0).toBeGreaterThanOrEqual((text?.y ?? 0) + (text?.height ?? 0) - 1);
+  }
+});

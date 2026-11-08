@@ -1,7 +1,8 @@
 // The child's voice in a real browser (指示書 第7.1節 手順5, 第11節 M6): a fake speech recognizer is put on the page
 // (window.__kimiFakeSpeech) and the local worker's /safety and /interpret are answered by the test. The child
 // says who is taken as 1; the junior acknowledges, restates with the words heard, and the child confirms. Telling the
-// junior by voice is on the old screens, which are on the adults' try route (#/try) since Q62.
+// junior by voice is on the old screens, which are on the adults' try route (#/try) since Q62; on the child's
+// route the words answer the relation step (who is compared with), and core takes the holder as its button.
 import { expect, test } from "@playwright/test";
 import { E2E_API_BASE } from "./api-base.ts";
 
@@ -83,4 +84,39 @@ test("the child tells the junior by talking, sees the words live, and confirms t
   // The child's teaching rebuilds the junior's world; the flow goes on to the unit.
   await expect(page.getByTestId("btn-next")).toBeVisible();
   await expect(page.locator("main")).not.toContainText("8匹");
+});
+
+test("the child's route: the relation question answered in typed words; core takes the holder as its button, and the next screen restates it", async ({ page }) => {
+  const interpretBodies: unknown[] = [];
+  await page.route(`${E2E_API_BASE}/**`, async (route) => {
+    const req = route.request();
+    if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: CORS });
+    const path = new URL(req.url()).pathname;
+    if (path === "/interpret") {
+      interpretBodies.push(req.postDataJSON());
+      return route.fulfill({
+        status: 200,
+        headers: CORS,
+        contentType: "application/json",
+        body: JSON.stringify({ status: "ok", ops: [{ op: "set_relation_reference", target_id: "r_ratio", reference: "q_ai", evidence: "" }] }),
+      });
+    }
+    if (path === "/safety") return route.fulfill({ status: 200, headers: CORS, contentType: "application/json", body: JSON.stringify({ flag: "none" }) });
+    return route.fulfill({ status: 503, headers: CORS, contentType: "application/json", body: JSON.stringify({ error: "no_key" }) });
+  });
+  await page.goto("/");
+  await page.getByTestId("btn-home-start").click();
+  await page.getByTestId("btn-next").click();
+  await page.getByTestId("btn-consent-yes").click();
+  for (const d of ["8", "ok"]) await page.getByTestId(`pad-${d}`).click();
+  await expect(page.getByTestId("screen-steps")).toHaveAttribute("data-step", "relation");
+  await expect(page.getByTestId("steps-voice-lead")).toContainText("ことばで");
+  await page.getByTestId("input-teach").fill("AIくんの金魚の数の3/4だから");
+  await page.getByTestId("btn-teach-send").click();
+  // The other holder's reading: its world, with what was understood on top (a restatement, never a judgement).
+  await expect(page.getByTestId("steps-heard")).toContainText("くらべる」と");
+  await expect(page.getByTestId("btn-step-again")).toBeVisible();
+  expect(interpretBodies).toEqual([{ problem_id: "p_festival_whole", transcript: "AIくんの金魚の数の3/4だから", lang: "ja" }]);
+  await page.getByTestId("btn-step-again").click();
+  await expect(page.getByTestId("steps-heard")).toHaveCount(0);
 });

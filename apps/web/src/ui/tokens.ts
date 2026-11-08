@@ -120,8 +120,8 @@ ruby { ruby-align: center; }
 .k-text { grid-area: text; min-width: 0; } .k-world { grid-area: world; min-width: 0; } .k-act { grid-area: act; min-width: 0; }
 @media (min-width: ${String(PAGE.splitAt)}px) {
   .k-page.k-wide { max-width: ${String(PAGE.wide)}px; }
-  .k-split { grid-template-columns: minmax(0, 1fr) ${String(PAGE.worldPx)}px; grid-template-areas: "text world" "act world"; grid-template-rows: auto 1fr; column-gap: ${String(SPACE.xl)}px; align-items: start; }
-  .k-split .k-world { margin-top: 0 !important; }
+  .k-page:not(.k-nosplit) .k-split { grid-template-columns: minmax(0, 1fr) ${String(PAGE.worldPx)}px; grid-template-areas: "text world" "act world"; grid-template-rows: auto 1fr; column-gap: ${String(SPACE.xl)}px; align-items: start; }
+  .k-page:not(.k-nosplit) .k-split .k-world { margin-top: 0 !important; }
   .k-title-wide-hide { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 

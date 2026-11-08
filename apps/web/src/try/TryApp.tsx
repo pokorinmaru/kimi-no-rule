@@ -168,7 +168,7 @@ export function TryApp({
         </p>
       </section>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start", justifyContent: "center", maxWidth: 1240, margin: "0 auto" }}>
-        <div style={{ flex: "1 1 520px", minWidth: 0, background: "#fff", borderRadius: 10 }}>{ready && <App home={false} stepFlow={false} firstProblemId={CHILD_SECOND_PROBLEM_ID} key={useUnchecked ? "with-unchecked" : "checked-only"} storeName={TRY_DB_NAME} onSession={setHandle} bank={bank} {...apiProp} />}</div>
+        <div style={{ flex: "1 1 520px", minWidth: 0, background: "#fff", borderRadius: 10 }}>{ready && <App home={false} stepFlow={false} split={false} firstProblemId={CHILD_SECOND_PROBLEM_ID} key={useUnchecked ? "with-unchecked" : "checked-only"} storeName={TRY_DB_NAME} onSession={setHandle} bank={bank} {...apiProp} />}</div>
         <div style={{ flex: "1 1 360px", minWidth: 0, maxWidth: 520 }}>
           <TryPanel note={note} />
         </div>

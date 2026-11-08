@@ -1,6 +1,6 @@
 // The screens (指示書 第7.1節, HANDOFF §3 F1・F8・F9). Each screen draws only viewOf(snapshot); every number
 // and world comes from core through the flow, and every tap goes back to the flow as an event.
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { CHILD_FIRST_PROBLEM_ID, CHILD_SECOND_PROBLEM_ID, UI_READINGS, WORDBOOK_READINGS, gate, readingsFor, spokenText, type Lang, type ProblemRecord, type Rational, type Readings, type StatementCheck } from "@kimi/core";
 import { AiBadge } from "./draw/AiBadge.tsx";
 import { Kohai, KohaiBeside, KohaiSays } from "./draw/Kohai.tsx";
@@ -72,8 +72,15 @@ const page: CSSProperties = {
 /** The stage picture's width on the problem screen (px): the world's column on a landscape tablet, less its card's padding; else the page's. */
 export const STAGE_PX = { split: 516, single: 728 } as const;
 
-/** Whether the screen is wide enough for the two-column layout (ui/tokens.ts PAGE.splitAt); false where it cannot be told. */
+/**
+ * Whether the app may use the two-column layout at all: false on the adults' try route, where the research note
+ * beside the app leaves its column far narrower than the window (the split would crush the words' column).
+ */
+const SplitAllowed = createContext(true);
+
+/** Whether the screen is wide enough for the two-column layout (ui/tokens.ts PAGE.splitAt); false where it cannot be told or is not allowed. */
 function useSplit(): boolean {
+  const allowed = useContext(SplitAllowed);
   const query = `(min-width: ${String(PAGE.splitAt)}px)`;
   const get = (): boolean => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(query).matches;
   const [on, setOn] = useState(get);
@@ -84,7 +91,7 @@ function useSplit(): boolean {
     m.addEventListener("change", f);
     return () => m.removeEventListener("change", f);
   }, [query]);
-  return on;
+  return allowed && on;
 }
 /** The card around the junior's world: the stage picture and the tapes together. */
 const worldCard: CSSProperties = { ...card, padding: `${String(SPACE.md)}px 14px`, margin: `${String(SPACE.md)}px 0` };
@@ -848,7 +855,7 @@ function Screen({
       return <ProblemScreen view={view} send={send} voice={voice} reading={reading} />;
     case "steps":
       // The problem one sentence at a time (Q62): one column, so the picture stays under its sentence.
-      return <StepScreen view={view} lang={view.lang} send={send} speaker={reading.speaker} furigana={reading.furigana} onFurigana={reading.onFurigana} stagePx={STAGE_PX.single} />;
+      return <StepScreen view={view} lang={view.lang} send={send} speaker={reading.speaker} furigana={reading.furigana} onFurigana={reading.onFurigana} stagePx={STAGE_PX.single} voice={voice} />;
     case "card":
       return <CardScreen view={view} send={send} ruby={ruby} />;
     case "help":
@@ -1019,6 +1026,7 @@ export function App({
   home: startAtHome = true,
   firstProblemId = CHILD_FIRST_PROBLEM_ID,
   stepFlow = true,
+  split = true,
 }: {
   storeName?: string;
   api?: Parameters<typeof startSession>[0]["api"];
@@ -1037,6 +1045,8 @@ export function App({
   firstProblemId?: string;
   /** The problem one sentence at a time (Q62): on for the child; the adults' try route keeps the old steps. */
   stepFlow?: boolean;
+  /** The two-column layout on a wide window; off on the adults' try route, whose app column sits beside the note. */
+  split?: boolean;
 }) {
   const onSessionRef = useRef(onSession);
   onSessionRef.current = onSession;
@@ -1137,7 +1147,8 @@ export function App({
   };
 
   return (
-    <main className={view !== null && !parent && !check && SPLIT_SCREENS.has(view.screen) ? "k-page k-wide" : "k-page"} style={page} lang={lang}>
+    <SplitAllowed.Provider value={split}>
+    <main className={!split ? "k-page k-nosplit" : view !== null && !parent && !check && SPLIT_SCREENS.has(view.screen) ? "k-page k-wide" : "k-page"} style={page} lang={lang}>
       <style>{GLOBAL_CSS}</style>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: SPACE.md, margin: `0 0 ${String(SPACE.md)}px` }}>
         {/* On a landscape tablet the junior's screens give the title's row to the problem and its world (it stays for screen readers). */}
@@ -1268,5 +1279,6 @@ export function App({
         />
       )}
     </main>
+    </SplitAllowed.Provider>
   );
 }

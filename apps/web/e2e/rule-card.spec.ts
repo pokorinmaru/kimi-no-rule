@@ -81,9 +81,9 @@ async function gallery(page: Page): Promise<string> {
 }
 
 test("two solved problems open the junior's card; choosing who is 1 builds the gallery again", async ({ page }) => {
-  // 900 px wide: on #/try at 1000 px and wider the app column sits beside the research note, but the problem
-  // screen still splits by the window's width (ui/tokens.ts PAGE.splitAt) and its text column is squeezed to
-  // almost nothing. Below that width the note wraps under the app and the screen is laid out as on a tablet.
+  // 900 px wide: on #/try at 1000 px and wider the app column sits beside the research note (the try route never
+  // splits the problem screen, App split={false}), narrower than a tablet. Below that width the note wraps under
+  // the app and the screen is laid out as on a tablet.
   await page.setViewportSize({ width: 900, height: 768 });
   // The old screens live on the adults' try route now (Q62): no top page there; its first problem is the festival one.
   await page.goto("/#/try");

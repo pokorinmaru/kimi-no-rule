@@ -29,6 +29,14 @@ export interface StepsText {
   solved: string;
   held: string;
   nextProblem: string;
+  /** Under the relation's buttons: the child may say or type why (the words go to Claude, core checks what comes back). */
+  voiceLead: string;
+  /** Nothing usable came back from the words: the buttons still choose (no dead end). */
+  voiceMiss: string;
+  /** What was understood from the child's words, on top of the next screen: a restatement only, never a judgement. */
+  heard: (holder: string, noun: string) => string;
+  /** The voice panel's notes on this screen, where the buttons (not the card) are the other way. */
+  voiceNotes: { unsupported: string; denied: string; off: string };
 }
 
 const JA: StepsText = {
@@ -52,6 +60,15 @@ const JA: StepsText = {
   solved: "この問題は、ここまで。",
   held: "この問題は、また あとで やってみよう。",
   nextProblem: "つぎの問題へ",
+  voiceLead: "ことばで こたえても いいよ",
+  voiceMiss: "うまく 聞きとれなかったよ。ボタンでも えらべるよ",
+  // What AI-kun took the words as, said as AI-kun's own taking, never as the child's words (safety review).
+  heard: (holder, noun) => `AIくんは、「${holder}の ${noun}と くらべる」と うけとったよ。`,
+  voiceNotes: {
+    unsupported: "このブラウザでは、声は使えません。ボタンで えらんでね。",
+    denied: "マイクが使えないので、ボタンで えらんでね。",
+    off: "いまは、声は使えません。ボタンで えらんでね。",
+  },
 };
 
 const EN: StepsText = {
@@ -75,6 +92,14 @@ const EN: StepsText = {
   solved: "That is this problem done.",
   held: "Let's try this problem again later.",
   nextProblem: "Next problem",
+  voiceLead: "You can also answer in words.",
+  voiceMiss: "I could not catch that. You can choose with the buttons too.",
+  heard: (holder, noun) => `AI-kun took it as: compared with ${holder}'s ${noun}.`,
+  voiceNotes: {
+    unsupported: "Talking does not work in this browser. Choose with the buttons.",
+    denied: "The microphone is not available. Choose with the buttons.",
+    off: "Talking does not work right now. Choose with the buttons.",
+  },
 };
 
 export const stepsText = (lang: Lang): StepsText => (lang === "en" ? EN : JA);

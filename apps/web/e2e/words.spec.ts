@@ -5,9 +5,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const SIZES = [
-  // Landscape at 900 px, not 1024: on #/try at 1000 px and wider the app column sits beside the research note, but
-  // the problem screen still splits by the window's width (ui/tokens.ts PAGE.splitAt), so its sentence column is
-  // squeezed to almost nothing and no word can be pressed. Below that width the note wraps under the app.
+  // Landscape at 900 px, not 1024: on #/try at 1000 px and wider the app column sits beside the research note (the
+  // try route never splits the problem screen, App split={false}), narrower than a tablet. Below that width the note
+  // wraps under the app and the screen is laid out as on a tablet.
   { width: 900, height: 768 },
   { width: 768, height: 1024 },
 ] as const;

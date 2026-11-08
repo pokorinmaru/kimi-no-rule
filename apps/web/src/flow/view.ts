@@ -317,7 +317,7 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
   // The problem one sentence at a time (Q62), with its own end screens.
   if (p !== null && p.steps !== null) {
     const outcome = s.matches({ active: { problem: "steps" } }) ? "steps" : s.matches({ active: { problem: "solved" } }) ? "solved" : s.matches({ active: { problem: "held" } }) ? "held" : null;
-    const v = outcome === null ? null : stepsView(p, lang, outcome);
+    const v = outcome === null ? null : stepsView(p, lang, outcome, c.voiceOff);
     if (v !== null) return { ...common, ...v };
   }
   const step = STEPS.find((x) => s.matches({ active: { problem: x } }));
@@ -422,8 +422,14 @@ export function childTexts(v: FlowView): string[] {
       const st = stepsText(v.lang);
       out.push(st.label, st.progress(v.at, v.count), st.pad, st.nextProblem, t.pad.clear, t.pad.ok, t.reading.aloud, t.reading.stop, t.reading.furigana);
       out.push(...v.statements.map((s) => s.text), ...v.holders.map((h) => h.label));
-      for (const x of [v.lead, v.question, v.again]) if (x !== null) out.push(x);
+      for (const x of [v.lead, v.question, v.again, v.note, v.heard]) if (x !== null) out.push(x);
       if (v.choices !== null) out.push(...v.choices.map((c) => c.label));
+      if (v.voice !== null) {
+        const p = t.problem;
+        out.push(v.voice.lead, p.voice.talk, p.voice.stop, p.voice.listening, st.voiceNotes.unsupported, st.voiceNotes.denied, st.voiceNotes.off);
+        out.push(p.typed.label, p.typed.hint, p.typed.send);
+        if (v.voice.missed !== null) out.push(v.voice.missed);
+      }
       break;
     }
     case "help":

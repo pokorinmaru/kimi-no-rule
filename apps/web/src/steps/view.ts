@@ -3,8 +3,9 @@
 // objectScene); this file only picks the words. A question's numbers are the problem's own (the given count, the
 // parts of p/q), never the answer or one part before the child has said them.
 import { objectScene, stepScene, type Lang, type ObjectScene, type Rational, type Step } from "@kimi/core";
-import type { ProblemState } from "../flow/machine.ts";
+import { MAX_VOICE_TURNS, type ProblemState } from "../flow/machine.ts";
 import { firstReading } from "../flow/problem.ts";
+import { ui } from "../flow/text.ts";
 import { stepsText } from "./text.ts";
 
 export interface StepsView {
@@ -33,6 +34,16 @@ export interface StepsView {
   hideShare: boolean;
   /** The junior's reading card is not on this screen; the AI mark is beside the junior as everywhere. */
   holders: { id: string; label: string }[];
+  /** On the English screen: the problem is written in Japanese (as on the old problem screen); null in Japanese. */
+  note: string | null;
+  /** What was understood from the child's words at the relation step, on top of the screen after it; or null. */
+  heard: string | null;
+  /**
+   * The child's words at the relation step (only there, and not on the other reading's world): the lead line,
+   * whether the mic and the typing box may be offered now, whether the words are being worked on, whether the voice
+   * is off for the session, and the fixed line when nothing usable came back. Null on every other screen.
+   */
+  voice: { lead: string; canTalk: boolean; listening: boolean; off: boolean; missed: string | null } | null;
 }
 
 const frac = (r: Rational): string => (r.den === 1 ? String(r.num) : `${String(r.num)}/${String(r.den)}`);
@@ -49,7 +60,7 @@ function ratioTokens(tokens: readonly string[], ratio: string): number[] {
   return [at - 1, at].filter((i) => i >= 0 && (i === at || tokens[i] === "の"));
 }
 
-export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solved" | "held"): StepsView | null {
+export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solved" | "held", voiceOff = false): StepsView | null {
   const s = p.steps;
   if (s === null) return null;
   const t = stepsText(lang);
@@ -66,7 +77,15 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
     ...s.steps.slice(0, s.index + 1).map((x) => ("statementIndex" in x ? x.statementIndex : -1)),
     0,
   );
-  const base = { screen: "steps" as const, problemId: w.problem_id, count: s.steps.length, holders: w.holders.map((h) => ({ id: h.id, label: h.label })) };
+  const base = {
+    screen: "steps" as const,
+    problemId: w.problem_id,
+    count: s.steps.length,
+    holders: w.holders.map((h) => ({ id: h.id, label: h.label })),
+    note: ui(lang).problem.note,
+    heard: null,
+    voice: null,
+  };
   if (outcome !== "steps") {
     const last = s.steps.at(-1);
     return {
@@ -87,7 +106,9 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
   }
   const step = s.steps[s.index];
   if (step === undefined) return null;
-  const common = { ...base, at: s.index + 1, kind: step.kind, again: null, choices: null, pad: null, hideShare: false };
+  // The child's words restated (a holder and the noun only), on the screen right after the words chose.
+  const heard = s.heardFrom === null ? null : t.heard(label(s.heardFrom), noun);
+  const common = { ...base, heard, at: s.index + 1, kind: step.kind, again: null, choices: null, pad: null, hideShare: false };
   const relation = s.steps.find((x) => x.kind === "relation");
   const ratio = relation?.kind === "relation" ? frac(relation.amount) : "";
   switch (step.kind) {
@@ -136,6 +157,13 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
         question: t.relation(label(step.subjectHolderId), noun),
         choices: [...ordered.map((h) => ({ holderId: h, label: label(h) })), { holderId: null, label: t.unknown }],
         scene: stepScene(p.record, step, s.said),
+        voice: {
+          lead: t.voiceLead,
+          canTalk: !voiceOff && !p.listening && p.voiceTurns < MAX_VOICE_TURNS,
+          listening: p.listening,
+          off: voiceOff,
+          missed: s.missed ? t.voiceMiss : null,
+        },
       };
     }
     case "unit": {

@@ -40,6 +40,16 @@ describe("the try route", () => {
     await child.close();
   });
 
+  it("never lays the old problem screen out in two columns: the note beside it leaves the app's column too narrow", async () => {
+    render(<TryApp api={null} simDelayMs={0} />);
+    fireEvent.click(await screen.findByTestId("btn-next"));
+    fireEvent.click(await screen.findByTestId("btn-consent-yes"));
+    await screen.findByTestId("screen-guess");
+    const main = document.querySelector("main");
+    expect(main?.classList.contains("k-nosplit")).toBe(true);
+    expect(main?.classList.contains("k-wide")).toBe(false);
+  });
+
   it("the simulated child plays two problems; the note shows the pool's weights change and why the problem was chosen", async () => {
     render(<TryApp api={null} simDelayMs={0} />);
     fireEvent.click(await screen.findByTestId("btn-next"));

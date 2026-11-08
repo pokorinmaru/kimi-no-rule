@@ -27,9 +27,9 @@ async function keepsTheRules(page: Page): Promise<void> {
 }
 
 async function start(page: Page): Promise<void> {
-  // 900 px wide: on #/try at 1000 px and wider the app column sits beside the research note, but the problem
-  // screen still splits by the window's width (ui/tokens.ts PAGE.splitAt), so the word book had only about 576 px
-  // and stacked tall. Below that width the note wraps under the app and the screen is laid out as on a tablet.
+  // 900 px wide: on #/try at 1000 px and wider the app column sits beside the research note (the try route never
+  // splits the problem screen, App split={false}), narrower than a tablet. Below that width the note wraps under
+  // the app and the screen is laid out as on a tablet.
   await page.setViewportSize({ width: 900, height: 768 });
   // The old screens live on the adults' try route now (Q62): no top page there; its first problem is the festival one.
   await page.goto("/#/try");

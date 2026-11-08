@@ -3,7 +3,8 @@
 // generated words (KOHAI_LINE), the research agent's pool (RESEARCH_RESULT) and safety results
 // (SAFETY_RESULT) as events; without them the flow runs on core's templates and the fallback pool. The
 // child's voice comes as VOICE_HEARD (the browser's final words, kept in memory only) and VOICE_OPS (the ops
-// the worker's /interpret returned); core validates the ops again here before any is used.
+// the worker's /interpret returned); core validates the ops again here before any is used. On the step flow
+// (Q62) the words are heard at the relation step only, and a validated reference chooses as that holder's button.
 // Every world, verdict and number comes from @kimi/core through problem.ts.
 import { and, assign, not, or, setup, stateIn } from "xstate";
 import {
@@ -171,7 +172,11 @@ export interface ProblemState {
   shown: Shown;
   /** The junior's world as the problem opened (「この問題をさいしょから」 shows it again). */
   startShown: Shown;
-  /** The child went back to the start of this problem (Q60): what the child does now is no longer an unaided first reading, so nothing more is observed on it. */
+  /**
+   * The child went back to the start of this problem (Q60): what the child does now is no longer an unaided first
+   * reading, so nothing more is observed on it. On the step flow a restart before the relation's first choice leaves
+   * it false (nothing was observed and no other reading's world was shown yet).
+   */
   restarted: boolean;
   /** Where the child has put the "1" card and not yet confirmed. */
   placement: string | null;
@@ -246,6 +251,10 @@ export interface StepState {
   held: boolean;
   /** The relation's choices in the other order on this problem, so the right one does not keep one place (review). */
   flip: boolean;
+  /** The holder the child's words chose at the relation step: restated on top of the next screen, then let go. */
+  heardFrom: string | null;
+  /** The child's words at the relation step gave nothing usable: a fixed line, the buttons stay. */
+  missed: boolean;
 }
 
 export type Outcome = "solved" | "held" | "stopped" | "hard" | "rest";
@@ -479,6 +488,9 @@ function lineOf(ctx: FlowContext, key: TemplateKey, slots: SlotValues, intent: K
 function restartProblem(ctx: FlowContext): Partial<FlowContext> {
   const p = ctx.problem;
   if (p === null) return {};
+  // On the step flow nothing is observed before the relation's first choice, and no other reading's world is shown
+  // before it: a restart before that choice keeps the problem's first reading unaided, so it is still observed.
+  const unobserved = p.steps !== null && p.firstPlacement === null && !p.restarted;
   const problem: ProblemState = {
     ...p,
     guessOne: null,
@@ -491,7 +503,7 @@ function restartProblem(ctx: FlowContext): Partial<FlowContext> {
     listening: false,
     // The voice turns used stay used (they bound the requests sent for this problem).
     firstPlacement: null,
-    firstAided: true,
+    firstAided: !unobserved,
     taughtOps: [],
     fixes: 0,
     unitTries: 0,
@@ -502,9 +514,12 @@ function restartProblem(ctx: FlowContext): Partial<FlowContext> {
     bookOpens: 0,
     orderGuesses: [],
     help: null,
-    restarted: true,
+    restarted: !unobserved,
     // The step flow starts again from the first sentence (Q62).
-    steps: p.steps === null ? null : { ...p.steps, index: 0, tries: 0, hint: false, help: false, misread: null, choices: [], said: [], entries: [], held: false },
+    steps:
+      p.steps === null
+        ? null
+        : { ...p.steps, index: 0, tries: 0, hint: false, help: false, misread: null, choices: [], said: [], entries: [], held: false, heardFrom: null, missed: false },
   };
   return { problem, ...noLine(ctx) };
 }
@@ -683,7 +698,21 @@ function stepStateOf(ctx: FlowContext, record: ProblemRecord): StepState | null 
   if (!ctx.stepFlow) return null;
   const steps = stepsOf(record);
   if (steps === null) return null;
-  return { steps, index: 0, tries: 0, hint: false, help: false, misread: null, choices: [], said: [], entries: [], held: false, flip: ctx.done.length % 2 === 1 };
+  return {
+    steps,
+    index: 0,
+    tries: 0,
+    hint: false,
+    help: false,
+    misread: null,
+    choices: [],
+    said: [],
+    entries: [],
+    held: false,
+    flip: ctx.done.length % 2 === 1,
+    heardFrom: null,
+    missed: false,
+  };
 }
 
 const sameNumber = (a: Rational, b: Rational): boolean => a.num * b.den === b.num * a.den;
@@ -707,7 +736,7 @@ function passStep(s: StepState, outcome: StepLogEntry["outcome"], said: Rational
     outcome,
     ...(step.kind === "relation" ? { choices: [...s.choices], firstRight: first === step.referenceHolderId } : {}),
   };
-  return { ...s, index: s.index + 1, tries: 0, hint: false, help: false, misread: null, choices: [], said, entries: [...s.entries, entry] };
+  return { ...s, index: s.index + 1, tries: 0, hint: false, help: false, misread: null, choices: [], said, entries: [...s.entries, entry], heardFrom: null, missed: false };
 }
 
 /**
@@ -769,6 +798,47 @@ function stepChoose(ctx: FlowContext, holderId: string | null): Partial<FlowCont
   if (q === null) return {};
   const helped = s.hint || s.tries > 0;
   return { problem: { ...q, steps: passStep({ ...s, choices }, helped ? "helped" : "ok") }, research: next.research, researchRequest: next.researchRequest };
+}
+
+/** A tap on the relation's buttons: the child's own choice replaces any words heard, and a late reply for them is dropped. */
+function stepTap(ctx: FlowContext, holderId: string | null): Partial<FlowContext> {
+  const p = ctx.problem;
+  if (p == null || p.steps == null) return {};
+  const problem = { ...p, heard: null, listening: false, steps: { ...p.steps, heardFrom: null, missed: false } };
+  return stepChoose({ ...ctx, problem }, holderId);
+}
+
+/** The child's words at the relation step: kept in memory while /safety and /interpret work on them. */
+function stepHear(ctx: FlowContext, text: string): Partial<FlowContext> {
+  const heard = hear(ctx, text).problem;
+  if (heard == null || heard.steps == null) return {};
+  // The step screen has no junior's line: only the waiting is shown.
+  return { problem: { ...heard, steps: { ...heard.steps, missed: false } } };
+}
+
+/**
+ * The child's words chose a holder at the relation step: core validated the ops (voiceUse), and the holder of the
+ * reference is taken exactly as its button (the same research observation, the same teaching or the other reading's
+ * world). The problem words heard are kept as the tapped words, so they go with the research request (in memory).
+ */
+function stepVoiceChoose(ctx: FlowContext, ops: AnyOp[] | null): Partial<FlowContext> {
+  const p = ctx.problem;
+  const use = voiceUse(ctx, ops);
+  if (p == null || p.steps == null || use === null) return {};
+  const holderId = holderOf(p.record, use.quantityId);
+  if (holderId === undefined) return {};
+  const problem = { ...p, words: use.words.length > 0 ? use.words : p.words, listening: false };
+  const out = stepChoose({ ...ctx, problem }, holderId);
+  const q = out.problem;
+  if (q == null || q.steps == null) return out;
+  return { ...out, problem: { ...q, steps: { ...q.steps, heardFrom: holderId, missed: false } } };
+}
+
+/** Nothing usable came back for the words at the relation step: a fixed line, and the buttons go on (no dead end). */
+function stepVoiceMiss(ctx: FlowContext, offline: boolean): Partial<FlowContext> {
+  const p = ctx.problem;
+  if (p == null || p.steps == null) return {};
+  return { problem: { ...p, heard: null, listening: false, steps: { ...p.steps, missed: true } }, voiceOff: ctx.voiceOff || offline };
 }
 
 /** Builds the state of a new problem from core's choice of problem and the junior's reading. */
@@ -1318,6 +1388,10 @@ export const flowMachine = setup({
     onSteps: ({ context }) => context.problem?.steps != null,
     stepsDone: ({ context }) => context.problem?.steps != null && context.problem.steps.index >= context.problem.steps.steps.length,
     stepsHeld: ({ context }) => context.problem?.steps?.held === true,
+    atRelation: ({ context }) => {
+      const s = context.problem?.steps;
+      return s != null && s.steps[s.index]?.kind === "relation" && s.misread === null;
+    },
     guessOneOk: ({ context, event }) =>
       event.type === "GUESS_ONE" && context.problem !== null && (event.holderId === null || guessHolders(context.problem).includes(event.holderId)),
     guessable: ({ context, event }) =>
@@ -1442,7 +1516,11 @@ export const flowMachine = setup({
     active: {
       initial: "entry",
       on: {
-        DONT_KNOW: "stuck",
+        // Words still waiting for their reply are dropped: back on the step, nothing stays listening (safety review).
+        DONT_KNOW: {
+          target: "stuck",
+          actions: assign(({ context }) => (context.problem?.listening === true ? { problem: { ...context.problem, listening: false, heard: null } } : {})),
+        },
         // From any step of an open problem (its help and word book too), back to its first step (Q60).
         RESTART_PROBLEM: { guard: "restartable", target: ".problem", reenter: true, actions: assign(({ context }) => restartProblem(context)) },
       },
@@ -1479,12 +1557,23 @@ export const flowMachine = setup({
               ],
               on: {
                 STEP_NUMBER: { actions: assign(({ context, event }) => (event.type === "STEP_NUMBER" ? stepNumber(context, event.value) : {})) },
-                STEP_CHOOSE: { actions: assign(({ context, event }) => (event.type === "STEP_CHOOSE" ? stepChoose(context, event.holderId) : {})) },
+                STEP_CHOOSE: { actions: assign(({ context, event }) => (event.type === "STEP_CHOOSE" ? stepTap(context, event.holderId) : {})) },
                 STEP_AGAIN: {
                   actions: assign(({ context }) =>
-                    context.problem?.steps == null ? {} : { problem: { ...context.problem, steps: { ...context.problem.steps, misread: null } } },
+                    context.problem?.steps == null ? {} : { problem: { ...context.problem, steps: { ...context.problem.steps, misread: null, heardFrom: null } } },
                   ),
                 },
+                // The relation question answered in the child's own words: heard only there (not on the other
+                // reading's world); the ops core validates choose as the buttons do.
+                VOICE_HEARD: {
+                  guard: and(["hearable", "atRelation"]),
+                  actions: assign(({ context, event }) => (event.type === "VOICE_HEARD" ? stepHear(context, event.transcript) : {})),
+                },
+                VOICE_OPS: [
+                  { guard: "voicePlaces", actions: assign(({ context, event }) => (event.type === "VOICE_OPS" ? stepVoiceChoose(context, event.ops) : {})) },
+                  { guard: "voicePending", actions: assign(({ context, event }) => stepVoiceMiss(context, event.type === "VOICE_OPS" && event.offline === true)) },
+                  { guard: "voiceOffline", actions: assign({ voiceOff: true }) },
+                ],
               },
             },
             // The child's own first prediction, before the junior shows its world (指示書 第7.1節 手順2): the problem's
