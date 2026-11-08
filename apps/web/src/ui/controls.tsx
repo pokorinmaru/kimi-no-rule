@@ -69,12 +69,15 @@ export function Button(props: {
   highlight?: boolean;
   testId?: string;
   style?: CSSProperties;
+  /** Not pressable yet (for example while a box is empty): dimmed, and announced as unavailable. */
+  disabled?: boolean;
 }) {
   const style = {
     ...BUTTON_STYLE[props.kind ?? "secondary"],
     ...(props.highlight === true
       ? { outline: `4px solid ${COLOR.attention}`, outlineOffset: 2 }
       : {}),
+    ...(props.disabled === true ? { opacity: 0.45, cursor: "not-allowed" } : {}),
     ...props.style,
   };
   return (
@@ -83,6 +86,7 @@ export function Button(props: {
       className="k-btn"
       style={style}
       onClick={props.onClick}
+      disabled={props.disabled === true}
       data-testid={props.testId}
     >
       {props.children}

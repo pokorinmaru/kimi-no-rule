@@ -30,6 +30,8 @@ import { JuniorText, RubyText } from "./ui/Ruby.tsx";
 import { Helplines } from "./ui/Helplines.tsx";
 import { StepScreen } from "./steps/StepScreen.tsx";
 import { StepsNote } from "./steps/StepsNote.tsx";
+import { ParentWishes, WishScreen } from "./wish/Wish.tsx";
+import { createHttpApi } from "./flow/api.ts";
 import { BAR_SPACE, BORDER, COLOR, GLOBAL_CSS, PAGE, RADIUS, SPACE, TYPE, card, prose } from "./ui/tokens.ts";
 
 /** The browser's own speech recognition, in the screen's language (the user chose the Web Speech API). */
@@ -718,6 +720,7 @@ function ParentScreen({
         ))}
       </div>
       <StepsNote store={store} lang={lang} reload={done} />
+      <ParentWishes store={store} t={t} />
       <CheckResults rows={checks} text={t} />
       <ParentNote store={store} lang={lang} reload={done} />
       {/* Deleting every record stands apart, in its own outlined area, and always asks first. */}
@@ -919,6 +922,8 @@ function HomeScreen(props: {
   onStart: () => void;
   onResume: () => void;
   onRestart: () => void;
+  /** 「AIくんに おねがいを いう」 (Q61). */
+  onWish: () => void;
 }) {
   const { t } = props;
   const bad = props.name.trim() !== "" && cleanName(props.name) === null;
@@ -971,6 +976,12 @@ function HomeScreen(props: {
             {t.home.start}
           </Button>
         )}
+      </p>
+      {/* The child's own voice to the app's makers (Q61): quiet, apart from the start. */}
+      <p style={{ ...actions, marginTop: SPACE.xl }}>
+        <Button kind="quiet" onClick={props.onWish} testId="btn-wish">
+          <RubyText text={t.wish.entry} on={props.ruby} />
+        </Button>
       </p>
     </section>
   );
@@ -1038,6 +1049,10 @@ export function App({
   const [check, setCheck] = useState(false);
   const [furigana, setFurigana] = useState(true);
   const [home, setHome] = useState(startAtHome);
+  // A wish to AI-kun (Q61), opened from the top page. It talks to the server as the session does: the local server
+  // when no api is given (the real app), the given one in the tests and the try route, none when null.
+  const [wish, setWish] = useState(false);
+  const wishApi = useMemo(() => (api === undefined ? createHttpApi() : api), [api]);
   // Whether the child has gone from the top page into the session in this run (「つづきから」 is offered only then).
   const [entered, setEntered] = useState(!startAtHome);
   // The name as typed on the top page; only a clean name is kept (on this device) and shown in the problem.
@@ -1097,6 +1112,7 @@ export function App({
   const enter = (): void => {
     setEntered(true);
     setHome(false);
+    setWish(false);
   };
   const startOver = (): void => {
     setRestart((n) => n + 1);
@@ -1183,7 +1199,19 @@ export function App({
             : {})}
         />
       )}
-      {view !== null && home && !parent && !check && (
+      {view !== null && store !== null && home && wish && !parent && !check && (
+        <WishScreen
+          t={t}
+          lang={lang}
+          ruby={furigana && lang === "ja"}
+          furigana={furigana}
+          store={store}
+          api={wishApi}
+          outbound={(text) => unnamed(text, name)}
+          onBack={() => setWish(false)}
+        />
+      )}
+      {view !== null && home && !wish && !parent && !check && (
         <HomeScreen
           t={t}
           ruby={furigana && lang === "ja"}
@@ -1193,6 +1221,7 @@ export function App({
           onStart={() => (view.screen === "ended" ? startOver() : enter())}
           onResume={enter}
           onRestart={startOver}
+          onWish={() => setWish(true)}
         />
       )}
       {shown !== null && !home && !parent && !check && (
@@ -1200,7 +1229,7 @@ export function App({
         <Screen view={shown} send={send} onLang={changeLang} voice={voice} reading={reading} />
       )}
       {/* The grown-ups' doors: quiet, under the child's screen, apart from its one main action. */}
-      {!parent && !check && view !== null && (home || view.screen === "intro" || view.screen === "consent" || view.screen === "ended") && (
+      {!parent && !check && !wish && view !== null && (home || view.screen === "intro" || view.screen === "consent" || view.screen === "ended") && (
         <section data-role="adult-doors" aria-label={t.parent.label} style={{ marginTop: SPACE.xxxl, padding: `${String(SPACE.md)}px ${String(SPACE.lg)}px`, border: `${String(BORDER.thin)}px solid ${COLOR.line}`, borderRadius: RADIUS.md, background: COLOR.surfaceSoft }}>
           {!home && view.screen === "intro" && (
             <details data-testid="intro-adult">

@@ -37,6 +37,9 @@ export interface InterpretReply {
   ops: AnyOp[];
 }
 
+/** POST /wish (Q61): the kind, and for a wish the rephrased request core let through (never the child's words). */
+export type WishReply = { kind: "wish"; request: string } | { kind: "distress" } | { kind: "unchecked" } | { kind: "no_request" };
+
 /** A reply that was not 2xx; the status tells "no key" (503) from other failures. */
 export class WorkerError extends Error {
   constructor(readonly status: number) {
@@ -53,6 +56,8 @@ export interface FlowApi {
   scenes?(req: ScenesRequest, signal: AbortSignal): Promise<ScenesReply>;
   /** Optional: without it the child's voice is not offered. */
   interpret?(req: InterpretRequest, signal: AbortSignal): Promise<InterpretReply>;
+  /** Optional: without it a wish stays on the device with no request. */
+  wish?(text: string, signal: AbortSignal): Promise<WishReply>;
 }
 
 /**
@@ -80,5 +85,6 @@ export function createHttpApi(base: string = DEFAULT_API_BASE, fetchImpl: typeof
     safety: (text, signal) => post<SafetyReply>("/safety", { text }, signal),
     scenes: (req, signal) => post<ScenesReply>("/scenes", req, signal),
     interpret: (req, signal) => post<InterpretReply>("/interpret", req, signal),
+    wish: (text, signal) => post<WishReply>("/wish", { text }, signal),
   };
 }

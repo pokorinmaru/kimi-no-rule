@@ -1,12 +1,12 @@
 // The local worker (指示書 第11節 M5, reduced to HANDOFF §3: the junior's words, the research agent and the
-// safety check; the everyday scenes, 指示書 第6.7節 手順5; and the child's voice as ops, 第6.1節). It calls only @kimi/interpret's functions. Nothing is logged or stored: there is no
+// safety check; the everyday scenes, 指示書 第6.7節 手順5; the child's voice as ops, 第6.1節; and a child's wish to AI-kun rephrased for the developer, Q61). It calls only @kimi/interpret's functions. Nothing is logged or stored: there is no
 // logger, errors answer without details, and every body is capped. Without a key every route answers 503,
 // so the device falls back to its templates, its fallback pool and "unchecked".
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { PREPARED_BANK, redactInterpretation, sameWorld, sceneAvoidValues, schemas, validateWorld, type GateContext, type Hypothesis, type ProblemRecord, type ResearchState, type WorldScene } from "@kimi/core";
-import { INTERPRET_TIMEOUT_MS, WORD_KINDS, checkSafety, interpret, kohai, proposeScenes, writeHypotheses, type AgentClient, type ClaudeClient, type ResearchReading, type WordKind } from "@kimi/interpret";
+import { INTERPRET_TIMEOUT_MS, WORD_KINDS, checkSafety, interpret, kohai, proposeScenes, rephraseWish, writeHypotheses, type AgentClient, type ClaudeClient, type ResearchReading, type WordKind } from "@kimi/interpret";
 
 export interface WorkerDeps {
   /** The Claude client, or null when there is no key. */
@@ -43,7 +43,7 @@ function sameSecret(a: string, b: string): boolean {
 }
 
 /** At most this many calls per route in one window, per process: a runaway page cannot spend the key. */
-export const RATE_LIMITS = { windowMs: 60 * 60 * 1000, research: { max: 30 }, kohai: { max: 300 }, scenes: { max: 60 }, interpret: { max: 120 } } as const;
+export const RATE_LIMITS = { windowMs: 60 * 60 * 1000, research: { max: 30 }, kohai: { max: 300 }, scenes: { max: 60 }, interpret: { max: 120 }, wish: { max: 30 } } as const;
 
 /** A sliding window of call times; true while there is room, and the call is counted. */
 function limiter(max: number, windowMs: number, now: () => number): () => boolean {
@@ -57,7 +57,7 @@ function limiter(max: number, windowMs: number, now: () => number): () => boolea
   };
 }
 
-export const BODY_LIMITS = { kohai: 64 * 1024, research: 256 * 1024, safety: 4 * 1024, scenes: 16 * 1024, interpret: 4 * 1024 } as const;
+export const BODY_LIMITS = { kohai: 64 * 1024, research: 256 * 1024, safety: 4 * 1024, scenes: 16 * 1024, interpret: 4 * 1024, wish: 4 * 1024 } as const;
 const MAX_WORDS = 16;
 const MAX_WORD_CHARS = 40;
 const MAX_SAFETY_CHARS = 500;
@@ -138,6 +138,11 @@ function researchBody(x: unknown): ResearchBody | null {
   return { pool: outPool, weights: weights as ResearchState["weights"], unscored, unexpressible, readings: outReadings };
 }
 
+/** POST /wish (Q61): the child's words to AI-kun, which the worker passes to Claude once and never keeps. */
+function wishBody(x: unknown): { text: string } | null {
+  return isObj(x) && onlyKeys(x, ["text"]) && isStr(x.text, MAX_SAFETY_CHARS) && x.text.trim() !== "" ? { text: x.text } : null;
+}
+
 function safetyBody(x: unknown): { text: string } | null {
   return isObj(x) && onlyKeys(x, ["text"]) && isStr(x.text, MAX_SAFETY_CHARS) ? { text: x.text } : null;
 }
@@ -184,6 +189,7 @@ export function createApp(deps: WorkerDeps): Hono {
     research: limiter(RATE_LIMITS.research.max, RATE_LIMITS.windowMs, now),
     scenes: limiter(RATE_LIMITS.scenes.max, RATE_LIMITS.windowMs, now),
     interpret: limiter(RATE_LIMITS.interpret.max, RATE_LIMITS.windowMs, now),
+    wish: limiter(RATE_LIMITS.wish.max, RATE_LIMITS.windowMs, now),
   };
   // The scenes keep away from every bank problem's answer and one part (a superset of the current and next problem's).
   const sceneAvoid = sceneAvoidValues(bank);
@@ -311,6 +317,16 @@ export function createApp(deps: WorkerDeps): Hono {
     if (b === null) return c.json({ error: "bad_request" }, 400);
     const out = await checkSafety(b.text, client);
     return c.json({ flag: out.flag });
+  });
+
+  // A child's wish to AI-kun (Q61): only the kind and, for a wish, the rephrased words core let through.
+  app.post("/wish", bodyLimit({ maxSize: BODY_LIMITS.wish, onError: tooLarge }), async (c) => {
+    const client = deps.client();
+    if (client === null) return c.json({ error: "no_key" }, 503);
+    const b = wishBody(await jsonOf(c.req.raw));
+    if (b === null) return c.json({ error: "bad_request" }, 400);
+    if (!roomFor.wish()) return c.json({ error: "too_many" }, 429);
+    return c.json(await rephraseWish(b.text, client));
   });
 
   return app;

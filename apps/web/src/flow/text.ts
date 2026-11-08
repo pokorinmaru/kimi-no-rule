@@ -186,9 +186,38 @@ export interface UiText {
   helpline: HelplineText;
   ended: { label: string; line: string };
   parentDoor: string;
+  /** A wish to AI-kun (Q61): what was hard or wanted, kept on this device for the parent. */
+  wish: {
+    entry: string;
+    label: string;
+    lead: readonly string[];
+    field: string;
+    hint: string;
+    send: string;
+    sending: string;
+    done: string;
+    again: string;
+    back: string;
+    /** When the server could not judge the words: a gentle way to the hard screen (Q26). */
+    unchecked: string;
+  };
   parent: {
     label: string;
     lines: readonly string[];
+    /** The child's wishes to AI-kun (Q61): the words, the rephrased request, and sending it (copied) to the developer. */
+    wishTitle: string;
+    wishLines: readonly string[];
+    wishNone: string;
+    wishOriginal: string;
+    wishRequest: string;
+    wishNoRequest: string;
+    /** A wish the safety check found heavy: never sent, and a word to the parent. */
+    wishHeavy: string;
+    wishCopy: string;
+    wishSent: string;
+    wishDelete: string;
+    /** What is copied for the developer: the rephrased request only. */
+    wishMessage: (request: string) => string;
     checksTitle: string;
     checksNone: string;
     checkRow: (date: string, right: number, total: number) => string;
@@ -427,12 +456,40 @@ const JA: UiText = {
   },
   ended: { label: "おわり", line: "おつかれさまでした。" },
   parentDoor: "おうちの人へ（2びょう おしつづける）",
+  wish: {
+    entry: "AIくんに おねがいを いう",
+    label: "AIくんへの おねがい",
+    lead: ["わかりにくかったところや、こうだったらいいなと思うことを、AIくんに教えてね。", "おうちの人が読んで、このアプリを作っている人に とどけます。"],
+    field: "おねがい",
+    hint: "れい：AIくんの ことばが ながくて よみにくい",
+    send: "とどける",
+    sending: "AIくんが 読んでいます…",
+    done: "ありがとう。おうちの人に とどけたよ。",
+    again: "もうひとつ いう",
+    back: "トップへ",
+    unchecked: "つらいことが あったら、下の「つらい」を おしてね。",
+  },
   parent: {
     label: "おうちの人へ",
     lines: [
-      "このアプリの記録は、この端末の中にだけ保存されます。子どもの言葉の本文は保存しません。",
+      "このアプリの記録は、この端末の中にだけ保存されます。子どもの言葉の本文は保存しません。ただし「AIくんへのおねがい」に子どもが書いた言葉だけは、おうちの人が読めるように、この端末に残ります（下の一覧から消せます）。",
       "AIくんは AI（Anthropic の Claude）で、人ではありません。2問目からは、1問目で子どもが「だれとくらべるか」で選んだ人から作った読み方や、多くの子がする別の読み方で問題を読みます。AIくんは答えを知らされていません。",
     ],
+    wishTitle: "子どもの声（AIくんへのおねがい）",
+    wishLines: [
+      "子どもが書いた言葉は、この端末に残ります。言い直しのために一度だけ Claude（Anthropic）に送られ、Anthropic が一定期間保持することがあります。アプリのサーバーは何も残しません。",
+      "Claude が名前や学校などをのぞいて、アプリを作る人への要望に言い直したものを、その下に並べます。のぞききれないこともあるので、コピーする前に読んで確かめてください。",
+      "「開発者へ送る」を押すと、言い直した要望だけがコピーされます。子どもの言葉そのものは開発者へは送られません。",
+    ],
+    wishNone: "まだありません。",
+    wishOriginal: "子どもの言葉",
+    wishRequest: "要望（Claude の言い直し）",
+    wishNoRequest: "言い直した要望はありません（アプリについての要望ではないか、確かめられませんでした）。",
+    wishHeavy: "この日、つらい気持ちが書かれたかもしれません。子どもは「相談できるところ」の画面を見ました。子どもを守るため、言葉は残していません。お子さんの様子を気にかけてあげてください。",
+    wishCopy: "開発者へ送る（コピー）",
+    wishSent: "コピーしました。開発者に貼りつけて送ってください。",
+    wishDelete: "消す",
+    wishMessage: (request) => `【君のルールで世界を作る への要望】${request}`,
     checksTitle: "AIなしで ためした記録",
     checksNone: "まだありません。",
     checkRow: (date, right, total) => `${date}：${String(total)}問中${String(right)}問 プログラムの答えと同じ数を入れました`,
@@ -631,12 +688,40 @@ const EN: UiText = {
   },
   ended: { label: "The end", line: "That's all for now." },
   parentDoor: "For parents (press and hold for 2 seconds)",
+  wish: {
+    entry: "Tell AI-kun a wish",
+    label: "A wish to AI-kun",
+    lead: ["Tell AI-kun what was hard to understand, or what you wish were different.", "A grown-up at home will read it and pass it on to the people who make this app."],
+    field: "Your wish",
+    hint: "e.g. AI-kun's words are too long to read",
+    send: "Send",
+    sending: "AI-kun is reading…",
+    done: "Thank you. It is with the grown-ups at home now.",
+    again: "Tell another",
+    back: "Back to top",
+    unchecked: 'If something is hard for you, press "I feel bad" below.',
+  },
   parent: {
     label: "For parents and guardians",
     lines: [
-      "This app keeps its records only on this device. It does not keep the text of the child's words.",
+      "This app keeps its records only on this device. It does not keep the text of the child's words, except what the child writes in \"A wish to AI-kun\": that stays on this device so you can read it (you can delete it below).",
       'AI-kun is an AI (Anthropic\'s Claude), not a person. From the second problem, it reads problems with a way of reading made from whom the child chose to compare with on the first problem, or with a way of reading many children use. AI-kun is not told the answers.',
     ],
+    wishTitle: "The child's voice (wishes to AI-kun)",
+    wishLines: [
+      "What the child wrote stays on this device. It is sent once to Claude (Anthropic) to be reworded, and Anthropic may keep it for a period. The app's server keeps nothing.",
+      "Below each one is Claude's rewording as a request to the app's makers, with names, schools and the like taken out. Some may slip through, so read it before copying.",
+      "\"Send to the developer\" copies only the reworded request. The child's own words are never sent to the developer.",
+    ],
+    wishNone: "None yet.",
+    wishOriginal: "The child's words",
+    wishRequest: "Request (Claude's rewording)",
+    wishNoRequest: "No reworded request (it was not about the app, or it could not be checked).",
+    wishHeavy: "On this day the child may have written about a hard time. The child was shown the places to talk to. To protect the child, the words were not kept. Please keep an eye on how your child is doing.",
+    wishCopy: "Send to the developer (copy)",
+    wishSent: "Copied. Paste it to the developer to send it.",
+    wishDelete: "Delete",
+    wishMessage: (request) => `[Request for the app] ${request}`,
     checksTitle: "Records of trying without AI",
     checksNone: "None yet.",
     checkRow: (date, right, total) => `${date}: ${String(right)} of ${String(total)} entered the same number as the program's answer`,

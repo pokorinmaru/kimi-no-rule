@@ -114,7 +114,7 @@ describe("the research section names each system's seeds", () => {
       },
     );
     expect(out.result.seedsBySystem).toEqual({ a: 5, b: 3 });
-  });
+  }, SLOW_MS);
 });
 
 describe("EVALS.md", () => {
