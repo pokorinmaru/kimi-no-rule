@@ -112,8 +112,8 @@ test("the festival problem one sentence at a time: a wrong count, the other read
 });
 
 // Q62・Q65: a wrong one part is dealt as the child said it (the plates run out), the child can move the things, and
-// the plates' shares come from core; two wrong answers keep the problem for later.
-test("a wrong one part is dealt as the child said it and can be moved, never the number; two wrong answers hold the problem", async ({ page }) => {
+// the plates' shares come from core; four wrong answers at the total keep the problem for later.
+test("a wrong one part is dealt as the child said it and can be moved, never the number; four wrong answers hold the problem", async ({ page }) => {
   await startChild(page);
   await typeNumber(page, 8);
   await page.getByTestId("btn-step-h_me").click();
@@ -135,6 +135,10 @@ test("a wrong one part is dealt as the child said it and can be moved, never the
   await typeNumber(page, 5);
   await expect(stepScreen(page)).toHaveAttribute("data-step", "total");
   await expect(page.getByTestId("steps-lead")).toBeVisible();
+  await typeNumber(page, 5);
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "total");
+  await typeNumber(page, 5);
+  await expect(stepScreen(page)).toHaveAttribute("data-step", "total");
   await typeNumber(page, 5);
   await expect(stepScreen(page)).toHaveAttribute("data-step", "held");
   await expect.poll(() => plainOf(page.getByTestId("btn-next"))).toBe("つぎの問題へ");
