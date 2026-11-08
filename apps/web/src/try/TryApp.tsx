@@ -3,7 +3,7 @@
 // simulated child that plays a problem by a chosen reading. The device store has a name of its own, so no child
 // record mixes in, and it is emptied every time the route opens: a try keeps nothing for the next visit.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import type { ProblemRecord } from "@kimi/core";
+import { CHILD_SECOND_PROBLEM_ID, type ProblemRecord } from "@kimi/core";
 import { App, type SessionHandle } from "../App.tsx";
 import { STORED_PROBLEMS, bankFor } from "../flow/bank.ts";
 import type { FlowApi } from "../flow/session.ts";
@@ -168,7 +168,7 @@ export function TryApp({
         </p>
       </section>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start", justifyContent: "center", maxWidth: 1240, margin: "0 auto" }}>
-        <div style={{ flex: "1 1 520px", minWidth: 0, background: "#fff", borderRadius: 10 }}>{ready && <App home={false} key={useUnchecked ? "with-unchecked" : "checked-only"} storeName={TRY_DB_NAME} onSession={setHandle} bank={bank} {...apiProp} />}</div>
+        <div style={{ flex: "1 1 520px", minWidth: 0, background: "#fff", borderRadius: 10 }}>{ready && <App home={false} stepFlow={false} firstProblemId={CHILD_SECOND_PROBLEM_ID} key={useUnchecked ? "with-unchecked" : "checked-only"} storeName={TRY_DB_NAME} onSession={setHandle} bank={bank} {...apiProp} />}</div>
         <div style={{ flex: "1 1 360px", minWidth: 0, maxWidth: 520 }}>
           <TryPanel note={note} />
         </div>

@@ -9,6 +9,17 @@ import { gate } from "../gates/index.ts";
 import { stepScene, stepsOf } from "./index.ts";
 
 const r = (num: number, den = 1) => ({ num, den });
+/** The steps of a record, which must exist here. */
+const stepsOrThrow = (rec: Parameters<typeof stepsOf>[0]) => {
+  const s = stepsOf(rec);
+  if (s === null) throw new Error("no steps");
+  return s;
+};
+const at = <T,>(xs: readonly T[], i: number): T => {
+  const x = xs[i];
+  if (x === undefined) throw new Error(`no item ${String(i)}`);
+  return x;
+};
 
 describe("the first problem: the whole is given (Q62)", () => {
   it("is a valid world: the child's 8, and AI-kun's is 3/4 of the child's, so 6", () => {
@@ -65,19 +76,18 @@ describe("stepsOf", () => {
 
 describe("stepScene", () => {
   it("at the number sentence draws the child's things alone, and nothing of AI-kun", () => {
-    const steps = stepsOf(festivalWholeRecord);
-    const scene = steps && stepScene(festivalWholeRecord, steps[0]!, []);
+    const scene = stepScene(festivalWholeRecord, at(stepsOrThrow(festivalWholeRecord), 0), []);
     expect(scene?.holders).toHaveLength(1);
     expect(scene?.holders[0]).toMatchObject({ holderId: "h_me", count: { wholes: 8, piece: null }, hidden: false });
     expect(scene?.share).toBeNull();
   });
 
   it("from the relation on draws both, AI-kun as 「？」, and deals one part only once the child has said it", () => {
-    const steps = stepsOf(festivalWholeRecord)!;
-    const before = stepScene(festivalWholeRecord, steps[2]!, []);
+    const steps = stepsOrThrow(festivalWholeRecord);
+    const before = stepScene(festivalWholeRecord, at(steps, 2), []);
     expect(before?.holders.find((h) => h.holderId === "h_ai")?.hidden).toBe(true);
     expect(before?.share).toBeNull();
-    const after = stepScene(festivalWholeRecord, steps[2]!, [r(2)]);
+    const after = stepScene(festivalWholeRecord, at(steps, 2), [r(2)]);
     expect(after?.share).toEqual({ wholes: 2, piece: null });
   });
 });

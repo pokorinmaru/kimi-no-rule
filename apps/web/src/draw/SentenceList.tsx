@@ -92,6 +92,8 @@ export interface SentenceListProps {
   readingIndex?: number | null;
   /** The holders' names, coloured as in the stage picture; absent = none. */
   holders?: readonly HolderInk[];
+  /** Words of one sentence lit as a hint (Q62: the sentence's number, or its 「の」 and ratio); absent = none. */
+  litWords?: { statementIndex: number; tokens: readonly number[] };
 }
 
 const srOnly = {
@@ -112,6 +114,7 @@ function Sentence({
   readings,
   reading,
   holders,
+  lit,
 }: {
   s: SentenceItem;
   glow: boolean;
@@ -121,6 +124,7 @@ function Sentence({
   readings: Readings | null;
   reading: boolean;
   holders: readonly HolderInk[];
+  lit: readonly number[] | null;
 }) {
   const perToken = readings === null ? null : rubyTokens(s.tokens, readings);
   const holderOf = (t: string): HolderInk | undefined =>
@@ -193,7 +197,18 @@ function Sentence({
           // The lit sentence is marked by its band and outline alone: a wavy line under every word read as an error mark (screen check, 2026-11-08).
         }}
       >
-        {onTapWord === undefined
+        {lit !== null && onTapWord === undefined
+          ? s.tokens.map((t, i) => {
+              const node = perToken === null ? fractions(t) : rubyNodes(perToken[i] ?? [{ text: t, ruby: null }]);
+              return lit.includes(i) ? (
+                <mark key={i} data-role="lit-word" style={{ background: COLOR.highlight, color: "inherit", borderBottom: `3px solid ${COLORS.accent}`, borderRadius: 4 }}>
+                  {node}
+                </mark>
+              ) : (
+                <span key={i}>{node}</span>
+              );
+            })
+          : onTapWord === undefined
           ? splitByHolders(s.tokens.join(""), holders).map((part, i) => {
               const node =
                 readings === null
@@ -284,6 +299,7 @@ export function SentenceList({
   readings = null,
   readingIndex = null,
   holders = [],
+  litWords,
 }: SentenceListProps) {
   const glowText = ui(lang).draw.glow;
   const reduced = useReducedMotion(reducedMotion);
@@ -306,6 +322,7 @@ export function SentenceList({
           readings={readings}
           reading={readingIndex === s.index}
           holders={holders}
+          lit={litWords !== undefined && litWords.statementIndex === s.index ? litWords.tokens : null}
         />
       ))}
     </ol>

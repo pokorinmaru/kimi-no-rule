@@ -71,7 +71,7 @@ describe("the mic on the problem screen", () => {
     const name = await ready();
     const { api, interpret, safety } = fakeApi();
     const sp = speech();
-    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={api} speech={sp.factory} />);
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName={name} api={api} speech={sp.factory} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     const talk = await screen.findByTestId("btn-talk");
@@ -99,7 +99,7 @@ describe("the mic on the problem screen", () => {
     let release: () => void = () => undefined;
     api.interpret = () => new Promise((r) => (release = () => r({ status: "ok", ops: [toOtouto] })));
     const sp = speech();
-    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={api} speech={sp.factory} />);
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName={name} api={api} speech={sp.factory} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     fireEvent.click(await screen.findByTestId("btn-talk"));
@@ -116,7 +116,7 @@ describe("the mic on the problem screen", () => {
   it("without the browser's speech recognition there is no mic, a short line, and the card works as before", async () => {
     const name = await ready();
     const { api } = fakeApi();
-    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={api} speech={speech(false).factory} />);
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName={name} api={api} speech={speech(false).factory} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     expect((await screen.findByTestId("voice-note")).textContent).toBe("このブラウザでは、声は使えません。札で教えてね。");
@@ -138,7 +138,7 @@ describe("the mic on the problem screen", () => {
     const name = await ready();
     const { api } = fakeApi();
     const sp = speech();
-    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={api} speech={sp.factory} />);
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName={name} api={api} speech={sp.factory} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     fireEvent.click(await screen.findByTestId("btn-talk"));
@@ -149,7 +149,7 @@ describe("the mic on the problem screen", () => {
 
   it("without a worker client there is no mic", async () => {
     const name = await ready();
-    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={null} speech={speech().factory} />);
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName={name} api={null} speech={speech().factory} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     await screen.findByTestId("junior-line");
@@ -160,7 +160,7 @@ describe("the mic on the problem screen", () => {
     const name = await ready("en");
     const { api } = fakeApi();
     const sp = speech();
-    render(<App home={false} firstProblemId="p_signboard" storeName={name} api={api} speech={sp.factory} />);
+    render(<App stepFlow={false} home={false} firstProblemId="p_signboard" storeName={name} api={api} speech={sp.factory} />);
     fireEvent.click(await screen.findByTestId("btn-guess-unknown"));
     fireEvent.click(await screen.findByTestId("btn-predict-fits"));
     const talk = await screen.findByTestId("btn-talk");

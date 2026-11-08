@@ -327,7 +327,7 @@ const JA: UiText = {
         title: "AIくんの読み方",
         lines: [
           "AIくんは、いろいろな読み方で問題を読みます。まちがえることもあります。",
-          "きみが置いた「1」の札や、直したルールカードの読み方で、つぎの問題を読むこともあります。",
+          "きみが「だれと くらべるか」で えらんだ 読み方で、つぎの問題を読むことも あります。",
         ],
       },
       {
@@ -345,7 +345,7 @@ const JA: UiText = {
     adultTitle: "おうちの人へ（くわしく）",
     adultLines: [
       "AIくんは AI（Anthropic の Claude）で、人ではなく、心や気持ちもありません。",
-      "2問目からのAIくんは、1問目で子どもが「1」の札を置いた場所から作った読み方や、子どもが直したルールカードの読み方で、問題を読むことがあります。",
+      "2問目からのAIくんは、1問目で子どもが「だれとくらべるか」で選んだ人から作った読み方で、問題を読むことがあります。",
       "このアプリの記録は、この端末の中にだけしまいます。",
       "「話して教える」で話したことは、ブラウザの音声認識が文字にし、AIくんがわかるようにその文字を AI の Claude に送ります。話したことは、この端末には残しません。",
     ],
@@ -356,10 +356,10 @@ const JA: UiText = {
     child: "ここは、おうちの人が読むところです。おうちの人に見せてね。",
     lines: [
       "保護者の方へ",
-      "AIくんの言葉と読み方の研究のために、問題、子どもが置いた「1」の札（この端末に残っている前の回の置き方も含みます）、子どもがタップした問題文の言葉、子どもが直したルールカードの読み方（AIくんの世界として）を、Anthropic の Claude に送ります。",
+      "AIくんの言葉と読み方の研究のために、問題と、子どもが「だれとくらべるか」で選んだ人（この端末に残っている前の回の選び方も含みます）を、Anthropic の Claude に送ります。",
       "子どもが「話して教える」で話したことは、ブラウザの音声認識が文字にし、その文字を Claude に送ります。送るのは、AIくんがその意味をわかるため、安全の確認（つらい気持ちの言葉がないかを見ること）のため、その回の読み方の研究のためです。Claude に送るのは文字だけで、声の録音は送りません。話したことの文字は、この端末には残しません。",
       "子どもが「文字で教える」に書いたことは、「話して教える」の文字と同じように Claude に送り、この端末には残しません。名前の欄に入れた名前は、画面に出すだけで、送りません。話したり書いたりした言葉の中にその名前があれば、送る前にお話の中の名前に置きかえます（入れた名前と同じ書き方の時だけです。ひらがなとカタカナは、どちらも置きかえます）。送ったものは、Anthropic の方針に従って Anthropic 側に一定の期間残ることがあります。",
-      "このアプリの記録はこの端末の中にだけしまい、保護者の画面からいつでも消せます。2問目からのAIくんは、1問目の子どもの置き方から作った読み方や、子どもが直したルールカードの読み方で読むことがあります。",
+      "このアプリの記録はこの端末の中にだけしまい、保護者の画面からいつでも消せます。2問目からのAIくんは、1問目で子どもが選んだ人から作った読み方で読むことがあります。",
       "「同意する」は、保護者の方が押してください。",
       "同意して始めますか？",
     ],
@@ -431,7 +431,7 @@ const JA: UiText = {
     label: "おうちの人へ",
     lines: [
       "このアプリの記録は、この端末の中にだけ保存されます。子どもの言葉の本文は保存しません。",
-      "AIくんは AI（Anthropic の Claude）で、人ではありません。2問目からは、1問目の子どもの「1」の札の置き方から作った読み方や、多くの子がする別の読み方で問題を読みます。AIくんは答えを知らされていません。",
+      "AIくんは AI（Anthropic の Claude）で、人ではありません。2問目からは、1問目で子どもが「だれとくらべるか」で選んだ人から作った読み方や、多くの子がする別の読み方で問題を読みます。AIくんは答えを知らされていません。",
     ],
     checksTitle: "AIなしで ためした記録",
     checksNone: "まだありません。",
@@ -529,7 +529,7 @@ const EN: UiText = {
         title: "How AI-kun reads",
         lines: [
           "AI-kun reads problems in different ways. Sometimes it cannot read well.",
-          'It may read the next problem the way you placed the "1" card, or with the rule card you fixed.',
+          'It may read the next problem the way you chose who is compared with whom.',
         ],
       },
       {
@@ -549,7 +549,7 @@ const EN: UiText = {
     adultTitle: "For parents (details)",
     adultLines: [
       "AI-kun is an AI (Anthropic's Claude). It is not a person and has no heart or feelings.",
-      'From the second problem, AI-kun may read with a way of reading made from where the child put the "1" card on the first problem, or with the rule card the child fixed.',
+      'From the second problem, AI-kun may read with a way of reading made from whom the child chose to compare with on the first problem.',
       "This app keeps its records only on this device.",
       'What the child says with "Tell by talking" is turned into text by the browser’s speech recognition, and that text is sent to Claude, an AI, so AI-kun can understand it. What was said is not kept on this device.',
     ],
@@ -560,10 +560,10 @@ const EN: UiText = {
     child: "This part is for a grown-up at home. Please show it to them.",
     lines: [
       "For parents and guardians",
-      'For AI-kun\'s words and for research on ways of reading, this app sends the problem, where the child put the "1" card (including earlier placements kept on this device) the words of the problem the child tapped, and the way of reading on the rule card the child fixed (as AI-kun world) to Anthropic\'s Claude.',
+      'For AI-kun\'s words and for research on ways of reading, this app sends the problem and whom the child chose to compare with (including earlier choices kept on this device) to Anthropic\'s Claude.',
       'What the child says with "Tell by talking" is turned into text by the browser\'s speech recognition, and that text is sent to Claude: so AI-kun can understand it, for the safety check (looking for words of distress), and for research on that session\'s way of reading. Only text is sent to Claude, not a recording of the voice. The text of what the child said is not kept on this device.',
       "What the child types in \"Tell by typing\" is sent to Claude in the same way as the text of \"Tell by talking\", and is not kept on this device. The name entered in the name box is only shown on the screen and is never sent. Where that name is in what the child says or types, it is replaced with the story's own name before sending (only when written the same way; hiragana and katakana are both replaced). What is sent may be kept by Anthropic for some time under Anthropic's policies.",
-      "This app keeps its records only on this device, and you can delete them at any time from the parent screen. From the second problem, AI-kun may read with a way of reading made from how the child placed the card on the first problem, or with the rule card the child fixed.",
+      "This app keeps its records only on this device, and you can delete them at any time from the parent screen. From the second problem, AI-kun may read with a way of reading made from whom the child chose on the first problem.",
       'Please have a parent or guardian press "I agree".',
       "Do you agree and start?",
     ],
@@ -635,7 +635,7 @@ const EN: UiText = {
     label: "For parents and guardians",
     lines: [
       "This app keeps its records only on this device. It does not keep the text of the child's words.",
-      'AI-kun is an AI (Anthropic\'s Claude), not a person. From the second problem, it reads problems with a way of reading made from how the child placed the "1" card on the first problem, or with a way of reading many children use. AI-kun is not told the answers.',
+      'AI-kun is an AI (Anthropic\'s Claude), not a person. From the second problem, it reads problems with a way of reading made from whom the child chose to compare with on the first problem, or with a way of reading many children use. AI-kun is not told the answers.',
     ],
     checksTitle: "Records of trying without AI",
     checksNone: "None yet.",

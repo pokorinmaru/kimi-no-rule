@@ -2,11 +2,11 @@
 // goldfish; a fix that makes every sentence fit goes straight to the rebuilt world (no word book by itself there).
 import { describe, expect, it } from "vitest";
 import { createActor } from "xstate";
-import { CHILD_FIRST_PROBLEM_ID, PREPARED_BANK } from "@kimi/core";
+import { CHILD_SECOND_PROBLEM_ID, PREPARED_BANK } from "@kimi/core";
 import { flowMachine } from "./machine.ts";
 
 function run() {
-  const actor = createActor(flowMachine, { input: { introSeen: true, consented: true, bank: PREPARED_BANK, firstProblemId: CHILD_FIRST_PROBLEM_ID } });
+  const actor = createActor(flowMachine, { input: { introSeen: true, consented: true, bank: PREPARED_BANK, firstProblemId: CHILD_SECOND_PROBLEM_ID } });
   actor.start();
   actor.send({ type: "GUESS", larger: null });
   actor.send({ type: "PREDICT", answer: "odd" });

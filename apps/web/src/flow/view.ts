@@ -1,5 +1,6 @@
 // What each screen shows, from a snapshot of the session machine. The screens draw only this, so the
 // tests can read every word a child may see (childTexts) on every path.
+import { stepsView, type StepsView } from "../steps/view.ts";
 import type { SnapshotFrom } from "xstate";
 import { CARD_RULES, apply, cardSlot, checkScene, fromSchema, gate, objectScene, type ObjectScene, sceneAvoidValues, readingCard, render, toString, verifiedDrawWorld, viewScene, wordbookPage, type GateContext, type Hypothesis, type Lang, type ProblemRecord, type Rational, type Scene, type WordbookPageView, type WorldScene } from "@kimi/core";
 import type { CardScenes } from "./machine.ts";
@@ -206,6 +207,7 @@ export type FlowView =
   | WordbookView
   | (Common & { screen: "consent"; lines: string[] })
   | ProblemView
+  | (Common & StepsView)
   | CardScreenView
   | (Common & { screen: "research"; lines: string[] })
   | (Common & { screen: "stuck"; lines: string[]; resume: string; hold: string | null })
@@ -310,6 +312,12 @@ export function viewOf(s: FlowSnapshot, lang: Lang = s.context.lang): FlowView {
   if (p !== null && s.matches({ active: { problem: "wordbook" } })) {
     const id = bookPageId({ ...c, lang });
     return { ...common, screen: "wordbook", problemId: p.record.world.problem_id, page: id === null ? null : wordbookPage(id, p.record, lang), line: juniorLine };
+  }
+  // The problem one sentence at a time (Q62), with its own end screens.
+  if (p !== null && p.steps !== null) {
+    const outcome = s.matches({ active: { problem: "steps" } }) ? "steps" : s.matches({ active: { problem: "solved" } }) ? "solved" : s.matches({ active: { problem: "held" } }) ? "held" : null;
+    const v = outcome === null ? null : stepsView(p, lang, outcome);
+    if (v !== null) return { ...common, ...v };
   }
   const step = STEPS.find((x) => s.matches({ active: { problem: x } }));
   if (p === null || step === undefined) return { ...common, screen: "research", lines: [t.research.wait] };

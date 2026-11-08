@@ -20,7 +20,7 @@ const plain = (el: Element): string => {
 };
 
 async function toProblem(storeName: string, name: string | null, api: Parameters<typeof App>[0]["api"] = null) {
-  render(<App storeName={storeName} api={api} />);
+  render(<App stepFlow={false} storeName={storeName} api={api} />);
   expect(await screen.findByTestId("screen-home")).toBeTruthy();
   if (name !== null) fireEvent.change(screen.getByTestId("input-name"), { target: { value: name } });
   fireEvent.click(screen.getByTestId("btn-home-start"));
@@ -31,7 +31,7 @@ async function toProblem(storeName: string, name: string | null, api: Parameters
 
 describe("the top page", () => {
   it("opens first, with the lead, the name box and one start button, and the grown-ups' door", async () => {
-    render(<App storeName="kimi-home-open" api={null} />);
+    render(<App stepFlow={false} storeName="kimi-home-open" api={null} />);
     const home = await screen.findByTestId("screen-home");
     for (const l of t.home.lead) expect(plain(home)).toContain(l);
     expect(screen.getByLabelText(t.home.nameLabel)).toBe(screen.getByTestId("input-name"));
@@ -43,7 +43,7 @@ describe("the top page", () => {
   });
 
   it("「つらい」 on the top page goes to the hard screen", async () => {
-    render(<App storeName="kimi-home-hard" api={null} />);
+    render(<App stepFlow={false} storeName="kimi-home-hard" api={null} />);
     await screen.findByTestId("screen-home");
     fireEvent.click(screen.getByTestId("btn-hard"));
     expect(await screen.findByTestId("screen-hard")).toBeTruthy();
@@ -51,7 +51,7 @@ describe("the top page", () => {
   });
 
   it("deleting every record from the grown-up's screen takes the name off the screen too", async () => {
-    render(<App storeName="kimi-home-delete" api={null} parentHoldMs={0} />);
+    render(<App stepFlow={false} storeName="kimi-home-delete" api={null} parentHoldMs={0} />);
     await screen.findByTestId("screen-home");
     fireEvent.change(screen.getByTestId("input-name"), { target: { value: "ゆい" } });
     fireEvent.pointerDown(screen.getByTestId("btn-parent"));
@@ -79,7 +79,7 @@ describe("the top page", () => {
   });
 
   it("refuses a name with a number and says why, and keeps none", async () => {
-    render(<App storeName="kimi-home-bad" api={null} />);
+    render(<App stepFlow={false} storeName="kimi-home-bad" api={null} />);
     await screen.findByTestId("screen-home");
     fireEvent.change(screen.getByTestId("input-name"), { target: { value: "ゆい3" } });
     expect(screen.getByTestId("name-bad").textContent).toBe(t.home.nameBad);

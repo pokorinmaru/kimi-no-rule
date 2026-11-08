@@ -77,7 +77,8 @@ describe("the child's route", () => {
     fireEvent.click(await screen.findByTestId("btn-home-start"));
     fireEvent.click(await screen.findByTestId("btn-next"));
     fireEvent.click(await screen.findByTestId("btn-consent-yes"));
-    await screen.findByTestId("guess");
+    // The child's route goes one sentence at a time (Q62).
+    await screen.findByTestId("screen-steps");
     expect(screen.queryByTestId("research-note")).toBeNull();
     expect(screen.queryByTestId("try-banner")).toBeNull();
     expect(screen.queryByTestId("btn-sim-play")).toBeNull();
