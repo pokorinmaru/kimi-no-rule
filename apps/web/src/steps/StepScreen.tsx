@@ -91,13 +91,6 @@ export function StepScreen({
             {view.note}
           </p>
         )}
-        {/* The step's progress and the reading tools, as on every step (code review, 2026-11-08), in one row to keep one screen. */}
-        <div style={{ display: "flex", alignItems: "center", gap: SPACE.md, flexWrap: "wrap", marginBottom: SPACE.xs }}>
-          <p data-testid="steps-progress" style={{ margin: 0, color: COLOR.inkSoft, fontSize: TYPE.small }}>
-            {t.progress(view.at, view.count)}
-          </p>
-          <ReadingTools lang={lang} lines={readLines} speaker={speaker} onReading={setReadingIndex} furigana={furigana} onFurigana={onFurigana} />
-        </div>
         <div style={{ display: "grid", gridTemplateColumns: wide ? "minmax(0, 5fr) minmax(0, 6fr)" : "minmax(0, 1fr)", gap: SPACE.md, alignItems: "start" }}>
           <div>
             <KohaiBeside pose="look">
@@ -134,6 +127,14 @@ export function StepScreen({
             )}
           </div>
           <div>
+            {/* The step's progress and the reading tools, as on every step (code review, 2026-11-08): in the plates' column,
+                which has room, so the answer pad keeps one screen. */}
+            <div style={{ display: "flex", alignItems: "center", gap: SPACE.md, flexWrap: "wrap", marginBottom: SPACE.xs }}>
+              <p data-testid="steps-progress" style={{ margin: 0, color: COLOR.inkSoft, fontSize: TYPE.small }}>
+                {t.progress(view.at, view.count)}
+              </p>
+              <ReadingTools lang={lang} lines={readLines} speaker={speaker} onReading={setReadingIndex} furigana={furigana} onFurigana={onFurigana} />
+            </div>
             <div className="k-deal-sentences" style={{ ...card, padding: `0 ${String(SPACE.sm)}px`, marginBottom: SPACE.sm }}>
               <SentenceList statements={view.statements} readings={furigana ? problemReadings : null} readingIndex={lineIndex} holders={holderColors(view.holders)} checks={checks} label={t.label} lang={lang} />
             </div>

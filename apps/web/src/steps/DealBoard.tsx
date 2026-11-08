@@ -168,7 +168,7 @@ export function DealBoard({
         }}
         style={plateStyle(s === "pool", picked === s || over, status.equal && s !== "pool")}
       >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 2, justifyContent: "center", alignContent: "flex-start", minHeight: size * 2 + 4 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 2, justifyContent: "center", alignContent: "flex-start", minHeight: size + 4 }}>
           {Array.from({ length: n }, (_, i) => {
             const lifted = dragging && drag.from === s && i === n - 1;
             return (
@@ -209,7 +209,7 @@ export function DealBoard({
         <p
           data-testid="deal-hint"
           className="k-deal-glow"
-          style={{ margin: `0 0 ${String(SPACE.sm)}px`, padding: `${String(SPACE.sm)}px ${String(SPACE.md)}px`, borderRadius: RADIUS.md, background: COLOR.attention, color: COLOR.ink, fontSize: TYPE.large, fontWeight: 800, lineHeight: 1.5, textAlign: "center", border: `${String(BORDER.thin)}px solid ${COLOR.outline}` }}
+          style={{ margin: `0 0 ${String(SPACE.xs)}px`, padding: `${String(SPACE.xs)}px ${String(SPACE.md)}px`, borderRadius: RADIUS.md, background: COLOR.attention, color: COLOR.ink, fontSize: TYPE.body, fontWeight: 800, lineHeight: 1.5, textAlign: "center", border: `${String(BORDER.thin)}px solid ${COLOR.outline}` }}
         >
           <span aria-hidden="true" style={{ marginRight: 6 }}>
             ☝

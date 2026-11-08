@@ -230,7 +230,19 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
           statements: statementsUpTo(all),
           current: relation?.kind === "relation" ? relation.statementIndex : null,
           lit: null,
-          lead: join(dealStartLine(p.record, start, lang), coinNote(stepScene(p.record, step, s.said))),
+          // What p/q (or a percent off) means comes first, as on the step without plates; then AI-kun's call to deal.
+          lead: join(
+            relation?.kind === "relation" && percentOff(p.record, relation) !== null
+              ? (() => {
+                  const pc = percentOff(p.record, relation);
+                  return pc === null ? null : t.percent(pc.percent, pc.parts, pc.kept);
+                })()
+              : amount === null
+                ? null
+                : t.explain(amount.num, amount.den),
+            dealStartLine(p.record, start, lang),
+            coinNote(stepScene(p.record, step, s.said)),
+          ),
           question,
           pad: t.pad,
           scene: null,
