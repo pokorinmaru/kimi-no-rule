@@ -29,6 +29,8 @@ export interface ObjectSceneProps {
   compact?: boolean;
   /** The width the picture is drawn at on a 1024 screen (px), when narrower than the page. */
   pagePx?: number;
+  /** The description does not say what one dish gets (Q62: the child is counting it). */
+  hideShare?: boolean;
 }
 
 const srOnly = {
@@ -44,7 +46,14 @@ const srOnly = {
 const STAGGER = { step: 150, total: 1200 } as const;
 
 /** What is drawn, said in words: the counts as drawn, the dishes, a cut thing. Never a verdict, never a hidden value. */
-export function describeStage(scene: ObjectScene, layout: StageLayout, lang: Lang = "ja", shareStyle: (item: ItemPart) => ShareStyle = shareStyleOf): string {
+export function describeStage(
+  scene: ObjectScene,
+  layout: StageLayout,
+  lang: Lang = "ja",
+  shareStyle: (item: ItemPart) => ShareStyle = shareStyleOf,
+  /** Say how many dishes, not what one dish gets (Q62: the smaller step draws one part the child has not said yet). */
+  hideShare = false,
+): string {
   const styleOf = (item: StageItem): ShareStyle => (item === "cup" || item === "token" ? "cut" : shareStyle(item));
   const w = ui(lang).draw;
   const { noun, counter } = scene.item;
@@ -54,6 +63,7 @@ export function describeStage(scene: ObjectScene, layout: StageLayout, lang: Lan
     const out = [w.stageHolder(h.label, noun, w.amount(h.count.wholes, h.count.piece, counter))];
     const drawn = layout.holders.find((x) => x.holderId === h.holderId);
     if (scene.share !== null && drawn !== undefined && drawn.dishes.length > 0) {
+      if (hideShare) return [...out, w.stageDishes(h.label, noun, drawn.dishes.length)];
       const each = w.amount(scene.share.wholes, scene.share.piece, counter);
       if (drawn.item === "cup") out.push(w.stagePoured(h.label, noun, drawn.dishes.length), w.stageEachGroup(each));
       else if (drawn.item === "yarn") out.push(w.stageMeasured(h.label, noun, drawn.dishes.length), w.stageEachGroup(each));
@@ -168,12 +178,12 @@ function Thing({ t, holderId, part, clipId, style }: { t: ThingLayout; holderId:
   );
 }
 
-export function ObjectSceneView({ scene, reducedMotion, lang = "ja", label, shareStyle = shareStyleOf, counters = false, compact = false, pagePx }: ObjectSceneProps) {
+export function ObjectSceneView({ scene, reducedMotion, lang = "ja", label, shareStyle = shareStyleOf, counters = false, compact = false, pagePx, hideShare = false }: ObjectSceneProps) {
   const words = ui(lang).draw;
   const reduced = useReducedMotion(reducedMotion);
   const uid = safeId(useId());
   const layout = useMemo(() => layoutStage(scene, undefined, { counters, compact, ...(pagePx === undefined ? {} : { pagePx }) }), [scene, counters, compact, pagePx]);
-  const desc = useMemo(() => (layout === null ? "" : describeStage(scene, layout, lang, shareStyle)), [scene, layout, lang, shareStyle]);
+  const desc = useMemo(() => (layout === null ? "" : describeStage(scene, layout, lang, shareStyle, hideShare)), [scene, layout, lang, shareStyle, hideShare]);
   const root = useRef<HTMLDivElement>(null);
   const colors = useMemo(() => new Map(holderColors(scene.holders.map((h) => ({ id: h.holderId, label: h.label }))).map((c) => [c.id, c.color])), [scene]);
 

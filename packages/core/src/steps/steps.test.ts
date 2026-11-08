@@ -68,7 +68,13 @@ describe("stepsOf", () => {
     }
   });
 
-  it("takes the ribbon problem of the bank", () => {
+  it("gives no steps when the asked holder is one part, so one part is never the answer (safety review S3)", () => {
+    const card = FRACTION_BANK.find((p) => p.world.problem_id === "p_bank_card");
+    expect(card).toBeDefined();
+    if (card !== undefined) expect(stepsOf(card)).toBeNull();
+  });
+
+    it("takes the ribbon problem of the bank", () => {
     const ribbon = FRACTION_BANK.find((p) => p.world.problem_id === "p_fraction_c");
     expect(ribbon && stepsOf(ribbon)?.map((s) => s.kind)).toEqual(["fact", "relation", "unit", "total"]);
   });

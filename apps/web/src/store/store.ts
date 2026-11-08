@@ -251,7 +251,15 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
           : { transfer: { fixedProblemId: log.transfer.fixedProblemId, oldReadingId: log.transfer.oldReadingId, wording: log.transfer.wording, beyondWording: log.transfer.beyondWording } }),
         ...(log.steps === undefined
           ? {}
-          : { steps: log.steps.map((e) => ({ kind: e.kind, tries: e.tries, outcome: e.outcome, ...(e.choices === undefined ? {} : { choices: [...e.choices] }) })) }),
+          : {
+              steps: log.steps.map((e) => ({
+                kind: e.kind,
+                tries: e.tries,
+                outcome: e.outcome,
+                ...(e.choices === undefined ? {} : { choices: [...e.choices] }),
+                ...(e.firstRight === undefined ? {} : { firstRight: e.firstRight }),
+              })),
+            }),
       });
     },
     async listAttempts() {

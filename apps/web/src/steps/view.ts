@@ -29,6 +29,8 @@ export interface StepsView {
   /** After the world of another reading: the button back to the question. */
   again: string | null;
   scene: ObjectScene | null;
+  /** The picture's description must not say what one dish gets (the child is counting one part). */
+  hideShare: boolean;
   /** The junior's reading card is not on this screen; the AI mark is beside the junior as everywhere. */
   holders: { id: string; label: string }[];
 }
@@ -40,7 +42,7 @@ function numberTokens(tokens: readonly string[]): number[] {
   return tokens.flatMap((t, i) => (/[0-9０-９]/.test(t) ? [i] : []));
 }
 
-/** The relation sentence's 「の」 and ratio tokens (the relation's hint): the words to look for, not the answer. */
+/** The relation sentence's ratio, and the 「の」 just before it when there is one (the relation's hint): never the holder. */
 function ratioTokens(tokens: readonly string[], ratio: string): number[] {
   const at = tokens.indexOf(ratio);
   if (at < 0) return [];
@@ -59,6 +61,11 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
   const statementsUpTo = (k: number) =>
     p.record.statements.filter((st) => st.index <= k).map((st) => ({ index: st.index, text: st.text, tokens: [...st.tokens] }));
   const all = p.record.statements.length - 1;
+  // The sentences read so far stay: up to the furthest sentence of the steps passed and this one (a relation may come first).
+  const reached = Math.max(
+    ...s.steps.slice(0, s.index + 1).map((x) => ("statementIndex" in x ? x.statementIndex : -1)),
+    0,
+  );
   const base = { screen: "steps" as const, problemId: w.problem_id, count: s.steps.length, holders: w.holders.map((h) => ({ id: h.id, label: h.label })) };
   if (outcome !== "steps") {
     const last = s.steps.at(-1);
@@ -75,11 +82,12 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
       pad: null,
       again: null,
       scene: last === undefined ? null : stepScene(p.record, last, s.said),
+      hideShare: false,
     };
   }
   const step = s.steps[s.index];
   if (step === undefined) return null;
-  const common = { ...base, at: s.index + 1, kind: step.kind, again: null, choices: null, pad: null };
+  const common = { ...base, at: s.index + 1, kind: step.kind, again: null, choices: null, pad: null, hideShare: false };
   const relation = s.steps.find((x) => x.kind === "relation");
   const ratio = relation?.kind === "relation" ? frac(relation.amount) : "";
   switch (step.kind) {
@@ -87,7 +95,7 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
       const st = p.record.statements[step.statementIndex];
       return {
         ...common,
-        statements: statementsUpTo(step.statementIndex),
+        statements: statementsUpTo(reached),
         current: step.statementIndex,
         lit: s.hint && st !== undefined ? { statementIndex: st.index, tokens: numberTokens(st.tokens) } : null,
         lead: s.hint ? t.factHint : null,
@@ -100,7 +108,7 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
       const st = p.record.statements[step.statementIndex];
       const holders = [step.subjectHolderId, step.referenceHolderId];
       // The order of the holders changes from problem to problem, so no answer keeps one place (safety review).
-      const ordered = p.record.world.problem_id.length % 2 === 0 ? holders : [...holders].reverse();
+      const ordered = s.flip ? [...holders].reverse() : holders;
       if (s.misread !== null) {
         const reading = firstReading(p.record, step.relationId, s.misread);
         const chosen = w.quantities.find((q) => q.id === s.misread)?.holder ?? "";
@@ -110,7 +118,7 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
         const count = asked?.count != null && !asked.hidden ? t.misreadCount(label(asked.holderId), noun, asked.count.wholes, counter, asked.count.piece !== null) : "";
         return {
           ...common,
-          statements: statementsUpTo(step.statementIndex),
+          statements: statementsUpTo(reached),
           current: step.statementIndex,
           lit: null,
           lead: count + t.misread(label(chosen), noun),
@@ -121,7 +129,7 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
       }
       return {
         ...common,
-        statements: statementsUpTo(step.statementIndex),
+        statements: statementsUpTo(reached),
         current: step.statementIndex,
         lit: s.hint && st !== undefined ? { statementIndex: st.index, tokens: ratioTokens(st.tokens, ratio) } : null,
         lead: s.hint ? t.relationHint(ratio) : null,
@@ -144,8 +152,10 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
         lead: amount === null ? null : t.explain(amount.num, amount.den),
         question,
         pad: t.pad,
-        // The smaller step draws the dealing so the child can count one part (Q62: a smaller step is allowed).
+        // The smaller step draws the dealing so the child can count one part (Q62: a smaller step is allowed);
+        // its description says the dishes, never what one dish gets (safety review S1).
         scene: stepScene(p.record, step, s.help ? [...s.said, step.value] : s.said),
+        hideShare: s.help,
       };
     }
     case "total":

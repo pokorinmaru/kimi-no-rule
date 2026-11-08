@@ -44,7 +44,7 @@ describe("the child's route, one sentence at a time", () => {
     await waitFor(() => expect(stepOf()).toBe("relation"));
     expect(plain(screen.getByTestId("steps-question"))).toContain("だれの");
     fireEvent.click(screen.getByTestId("btn-step-h_ai"));
-    expect(plain(await screen.findByTestId("steps-lead"))).toContain("くらべると");
+    expect(plain(await screen.findByTestId("steps-lead"))).toContain("くらべて 読むと");
     fireEvent.click(screen.getByTestId("btn-step-again"));
     fireEvent.click(await screen.findByTestId("btn-step-h_me"));
     await waitFor(() => expect(stepOf()).toBe("unit"));

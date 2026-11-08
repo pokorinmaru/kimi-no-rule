@@ -43,6 +43,8 @@ export function stepsOf(record: ProblemRecord): Step[] | null {
   const relationAt = sentenceOf(rel.id);
   const askedAt = record.statements.findIndex((s) => s.is_question);
   if (factAt < 0 || relationAt < 0 || askedAt < 0) return null;
+  // One part must not be the answer itself (the asked holder one part): the smaller step would draw it (safety review S3).
+  if (partsOf(asked.id) === 1) return null;
   // The steps' answers must agree with the solution: one part times the asked parts is the answer.
   const total = mul(unit, rat(partsOf(asked.id)));
   if (total.num * answer.den !== answer.num * total.den) return null;

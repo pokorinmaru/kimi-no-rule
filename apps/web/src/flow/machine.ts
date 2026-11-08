@@ -222,6 +222,8 @@ export interface StepLogEntry {
   outcome: "ok" | "helped" | "stopped";
   /** At the relation sentence: the holders chosen, in order ("unknown" for わからない). */
   choices?: string[];
+  /** At the relation sentence: the first holder chosen was the one compared with (kept here, not looked up later). */
+  firstRight?: boolean;
 }
 
 export interface StepState {
@@ -242,6 +244,8 @@ export interface StepState {
   entries: StepLogEntry[];
   /** The answer step was not right twice: the problem is kept for later. */
   held: boolean;
+  /** The relation's choices in the other order on this problem, so the right one does not keep one place (review). */
+  flip: boolean;
 }
 
 export type Outcome = "solved" | "held" | "stopped" | "hard" | "rest";
@@ -679,16 +683,30 @@ function stepStateOf(ctx: FlowContext, record: ProblemRecord): StepState | null 
   if (!ctx.stepFlow) return null;
   const steps = stepsOf(record);
   if (steps === null) return null;
-  return { steps, index: 0, tries: 0, hint: false, help: false, misread: null, choices: [], said: [], entries: [], held: false };
+  return { steps, index: 0, tries: 0, hint: false, help: false, misread: null, choices: [], said: [], entries: [], held: false, flip: ctx.done.length % 2 === 1 };
 }
 
 const sameNumber = (a: Rational, b: Rational): boolean => a.num * b.den === b.num * a.den;
+
+/** The steps for the log: when the problem ended on an open step (stopped, hard, rest), that step is kept as stopped. */
+function stepLogOf(s: StepState, outcome: Outcome): StepLogEntry[] {
+  const entries = s.entries.map((e) => ({ ...e, ...(e.choices === undefined ? {} : { choices: [...e.choices] }) }));
+  const open = s.steps[s.index];
+  if (outcome === "solved" || s.held || open === undefined) return entries;
+  return [...entries, { kind: open.kind, tries: s.tries, outcome: "stopped", ...(open.kind === "relation" ? { choices: [...s.choices] } : {}) }];
+}
 
 /** The step done: its entry kept, and on to the next step. */
 function passStep(s: StepState, outcome: StepLogEntry["outcome"], said: Rational[] = s.said): StepState {
   const step = s.steps[s.index];
   if (step === undefined) return s;
-  const entry: StepLogEntry = { kind: step.kind, tries: s.tries + 1, outcome, ...(step.kind === "relation" ? { choices: [...s.choices] } : {}) };
+  const first = s.choices.find((c) => c !== "unknown");
+  const entry: StepLogEntry = {
+    kind: step.kind,
+    tries: s.tries + 1,
+    outcome,
+    ...(step.kind === "relation" ? { choices: [...s.choices], firstRight: first === step.referenceHolderId } : {}),
+  };
   return { ...s, index: s.index + 1, tries: 0, hint: false, help: false, misread: null, choices: [], said, entries: [...s.entries, entry] };
 }
 
@@ -772,7 +790,8 @@ function loadProblem(ctx: FlowContext): Partial<FlowContext> {
   // A transfer problem is offered only right after a fix, never as an ordinary pick.
   const transferIds = new Set(ctx.transfers.map((l) => l.problemId));
   pick ??= selectNext(
-    ctx.bank.filter((r) => !transferIds.has(r.world.problem_id)),
+    // On the step flow only problems core can take one sentence at a time (safety review S3).
+    ctx.bank.filter((r) => !transferIds.has(r.world.problem_id) && (!ctx.stepFlow || stepsOf(r) !== null)),
     ctx.done,
     ctx.research,
     ctx.session,
@@ -1023,7 +1042,7 @@ function logOf(p: ProblemState, outcome: Outcome, transfer?: TransferLog): Probl
     orderGuesses: [...p.orderGuesses],
     bookOpens: p.bookOpens,
     ...(transfer === undefined ? {} : { transfer }),
-    ...(p.steps === null ? {} : { steps: p.steps.entries.map((e) => ({ ...e, ...(e.choices === undefined ? {} : { choices: [...e.choices] }) })) }),
+    ...(p.steps === null ? {} : { steps: stepLogOf(p.steps, outcome) }),
   };
 }
 

@@ -327,7 +327,7 @@ const JA: UiText = {
         title: "AIくんの読み方",
         lines: [
           "AIくんは、いろいろな読み方で問題を読みます。まちがえることもあります。",
-          "きみが「だれと くらべるか」で えらんだ 読み方で、つぎの問題を読むことも あります。",
+          "AIくんは、きみが えらんだ 人を ヒントにして、つぎの問題の 読み方を かんがえることも あります。",
         ],
       },
       {
@@ -440,7 +440,7 @@ const JA: UiText = {
       "AIくんも図もなしで、問題の文と数の入力だけで解いた結果です。答えはプログラムが確かめています。「わからない」でとばした問題は、同じ数を入れた問題に数えません。",
     researchTitle: "研究ノート（アプリの今の考え）",
     researchLines: [
-      "AIくんが問題を読むために、アプリが子どもの「1」の札の置き方から立てている、読み方についての今の考えです。",
+      "AIくんが問題を読むために、アプリが、子どもが「だれとくらべるか」で最初に選んだ人から立てている、読み方についての今の考えです。",
       "数問から立てた仮の考えで、子どもを判定したものではありません。読み方は日によって変わります。",
       "ここは子どもの画面には出ません。子どもの画面では、どれもAIくんが問題を読む時の読み方として出るだけで、子どもから作ったとは伝えていません。問題の答えは、ここには出しません。",
     ],
@@ -529,7 +529,7 @@ const EN: UiText = {
         title: "How AI-kun reads",
         lines: [
           "AI-kun reads problems in different ways. Sometimes it cannot read well.",
-          'It may read the next problem the way you chose who is compared with whom.',
+          'AI-kun may use whom you chose as a hint for how to read the next problem.',
         ],
       },
       {
@@ -644,7 +644,7 @@ const EN: UiText = {
       'These are results of solving with only the problem text and number entry, without AI-kun or pictures. The program checks the answers. A problem skipped with "I don\'t know" is not counted as the same number.',
     researchTitle: "Research note (what the app thinks for now)",
     researchLines: [
-      "These are the app's current ideas about how the child reads, made from where the child placed the \"1\" card, so that AI-kun can read problems.",
+      "These are the app's current ideas about how the child reads, made from whom the child first chose to compare with, so that AI-kun can read problems.",
       "They are guesses from a few problems, not an assessment of the child. Ways of reading change from day to day.",
       "None of this is on the child's screens. There, each one only appears as a way AI-kun reads a problem, and the child is not told it was made from the child. The answers of the problems are not shown here.",
     ],

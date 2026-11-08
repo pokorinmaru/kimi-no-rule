@@ -1,7 +1,7 @@
 // One step of the problem on the screen (Q62): the sentences so far (this one lit, the later ones not yet shown),
 // the picture of this step, and one question with its answers. No tape diagram, no "1" card, no word book here.
 import { useState, type CSSProperties } from "react";
-import { readingsFor, spokenText, type Lang, type StatementCheck } from "@kimi/core";
+import { UI_READINGS, readingsFor, spokenText, type Lang, type StatementCheck } from "@kimi/core";
 import { KohaiBeside } from "../draw/Kohai.tsx";
 import { ObjectSceneView } from "../draw/ObjectScene.tsx";
 import { SentenceList } from "../draw/SentenceList.tsx";
@@ -39,7 +39,7 @@ export function StepScreen({
   const problemReadings = readingsFor(view.problemId);
   const rubyUi = furigana && lang === "ja";
   // The step's own words read with the problem's readings too (the holders' names, the thing's noun).
-  const readings = { ...problemReadings };
+  const readings = { ...UI_READINGS, ...problemReadings };
   const readLines: ReadLine[] = [
     ...view.statements.map((s) => ({ text: spokenText(s.text, problemReadings), lang: "ja-JP" })),
     ...[view.lead, view.question].filter((x): x is string => x !== null).map((x) => ({ text: lang === "ja" ? spokenText(x, problemReadings) : x, lang: lang === "ja" ? "ja-JP" : "en-US" })),
@@ -68,7 +68,7 @@ export function StepScreen({
       {view.scene !== null && (
         <div data-role="world-card" style={{ ...card, marginTop: SPACE.lg, padding: SPACE.md }}>
           <div style={{ maxWidth: stagePx, margin: "0 auto" }}>
-            <ObjectSceneView scene={view.scene} lang={lang} pagePx={stagePx} />
+            <ObjectSceneView scene={view.scene} lang={lang} pagePx={stagePx} hideShare={view.hideShare} />
           </div>
         </div>
       )}

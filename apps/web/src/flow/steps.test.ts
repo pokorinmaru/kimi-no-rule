@@ -59,7 +59,7 @@ describe("the step flow", () => {
     a.send({ type: "STEP_AGAIN" });
     expect(steps(a)?.misread).toBeNull();
     a.send({ type: "STEP_CHOOSE", holderId: "h_me" });
-    expect(steps(a)?.entries[1]).toEqual({ kind: "relation", tries: 2, outcome: "helped", choices: ["h_ai", "h_me"] });
+    expect(steps(a)?.entries[1]).toEqual({ kind: "relation", tries: 2, outcome: "helped", choices: ["h_ai", "h_me"], firstRight: false });
   });
 
   it("わからない at the relation lights its words and asks again", () => {
@@ -98,6 +98,44 @@ describe("the step flow", () => {
       a.send(e);
     expect(a.getSnapshot().context.problem?.record.world.problem_id).toBe("p_festival");
     expect(a.getSnapshot().matches({ active: { problem: "steps" } })).toBe(true);
+  });
+
+  it("puts the holder compared with in another place on the second problem (no answer keeps one place)", () => {
+    const a = run();
+    const placeOf = () => {
+      const st = steps(a);
+      const rel = st?.steps.find((x) => x.kind === "relation");
+      return rel?.kind === "relation" ? (st?.flip ? 0 : 1) : -1;
+    };
+    const first = placeOf();
+    for (const e of [
+      { type: "STEP_NUMBER", value: r(8) },
+      { type: "STEP_CHOOSE", holderId: "h_me" },
+      { type: "STEP_NUMBER", value: r(2) },
+      { type: "STEP_NUMBER", value: r(6) },
+      { type: "NEXT" },
+      { type: "RESEARCH_RESULT", pool: null },
+    ] as const)
+      a.send(e);
+    expect(placeOf()).not.toBe(first);
+  });
+
+  it("takes the third problem only from those core can step (never the old screens)", () => {
+    const a = createActor(flowMachine, { input: { introSeen: true, consented: true, bank: PREPARED_BANK, firstProblemId: CHILD_FIRST_PROBLEM_ID, stepFlow: true, maxProblems: 3 } });
+    a.start();
+    const solve = (vals: number[], ref: string) => {
+      a.send({ type: "STEP_NUMBER", value: r(vals[0] ?? 0) });
+      a.send({ type: "STEP_CHOOSE", holderId: ref });
+      a.send({ type: "STEP_NUMBER", value: r(vals[1] ?? 0) });
+      a.send({ type: "STEP_NUMBER", value: r(vals[2] ?? 0) });
+      a.send({ type: "NEXT" });
+    };
+    solve([8, 2, 6], "h_me");
+    a.send({ type: "RESEARCH_RESULT", pool: null });
+    solve([6, 2, 8], "h_ai");
+    const s = a.getSnapshot();
+    expect(s.context.problem?.steps).not.toBeNull();
+    expect(s.matches({ active: { problem: "steps" } })).toBe(true);
   });
 
   it("「この問題をさいしょから」 starts the steps again from the first sentence", () => {
