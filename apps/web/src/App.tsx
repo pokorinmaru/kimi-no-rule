@@ -910,6 +910,11 @@ function Screen({
       return (
         <section aria-label={t.ended.label} data-testid="screen-ended">
           <p style={prose}>{t.ended.line}</p>
+          {/* Where to talk is always reachable: the 「つらい」 button is off the bar (Q64; safety review, 2026-11-08). */}
+          <p style={{ ...prose, marginTop: SPACE.lg }}>
+            <RubyText text={t.ended.help} on={reading.furigana && view.lang === "ja"} />
+          </p>
+          <Helplines helpline={t.helpline} lang={view.lang} furigana={reading.furigana} />
         </section>
       );
   }
@@ -932,6 +937,8 @@ function HomeScreen(props: {
   onRestart: () => void;
   /** 「AIくんに おねがいを いう」 (Q61). */
   onWish: () => void;
+  /** 「こまったときは」: the hard screen with the places to talk (the 「つらい」 button is off the bar, Q64). */
+  onHelp: () => void;
   /** The route's problems to start from (Q64), or null on the adults' old flow. */
   picks: readonly { id: string; title: string; note: string }[] | null;
   onPick: (id: string) => void;
@@ -1020,6 +1027,9 @@ function HomeScreen(props: {
       <p style={{ ...actions, marginTop: SPACE.xl }}>
         <Button kind="quiet" onClick={props.onWish} testId="btn-wish">
           <RubyText text={t.wish.entry} on={props.ruby} />
+        </Button>
+        <Button kind="quiet" onClick={props.onHelp} testId="btn-home-help">
+          <RubyText text={t.homeHelp} on={props.ruby} />
         </Button>
       </p>
     </section>
@@ -1284,6 +1294,10 @@ export function App({
           onResume={enter}
           onRestart={startOver}
           onWish={() => setWish(true)}
+          onHelp={() => {
+            enter();
+            send({ type: "HARD" });
+          }}
           picks={picks !== null && picks.length > 0 ? picks : null}
           onPick={pick}
         />

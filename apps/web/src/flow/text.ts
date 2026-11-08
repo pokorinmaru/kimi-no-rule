@@ -189,7 +189,10 @@ export interface UiText {
   hard: { label: string; talk: string; close: string };
   rest: { label: string; first: string };
   helpline: HelplineText;
-  ended: { label: string; line: string };
+  /** help: the line over the places to talk (the 「つらい」 button is off the bar, Q64; safety review). */
+  ended: { label: string; line: string; help: string };
+  /** The top page's quiet way to the places to talk. */
+  homeHelp: string;
   parentDoor: string;
   /** A wish to AI-kun (Q61): what was hard or wanted, kept on this device for the parent. */
   wish: {
@@ -466,7 +469,8 @@ const JA: UiText = {
     note: null,
     entries: HELPLINES,
   },
-  ended: { label: "おわり", line: "おつかれさまでした。" },
+  ended: { label: "おわり", line: "おつかれさまでした。", help: "こまったことや つらいことが あったら、ここで そうだんできるよ。" },
+  homeHelp: "こまったときは",
   parentDoor: "おうちの人へ（2びょう おしつづける）",
   wish: {
     entry: "AIくんに おねがいを いう",
@@ -705,7 +709,8 @@ const EN: UiText = {
     note: "These are free phone lines in Japan. The people on these lines speak Japanese. If that is hard, show this screen to a grown-up you trust.",
     entries: HELPLINES_EN,
   },
-  ended: { label: "The end", line: "That's all for now." },
+  ended: { label: "The end", line: "That's all for now.", help: "If something is hard or worrying, you can talk to these places." },
+  homeHelp: "When something is wrong",
   parentDoor: "For parents (press and hold for 2 seconds)",
   wish: {
     entry: "Tell AI-kun a wish",
