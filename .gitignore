@@ -15,3 +15,6 @@ dist-judge/
 dist-cf/
 .wrangler/
 .dev.vars
+# Scratch scripts a session drives the app with (kept out of commits; the history audit, 2026-11-08)
+*.tmp.*
+tools/asset-builder/tmp-*
