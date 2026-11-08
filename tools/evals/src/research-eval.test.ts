@@ -6,6 +6,9 @@ import { SIM_CHILDREN } from "./research-children.ts";
 import { FIRST_PROBLEM, enumerateRules, firstWorld, poolResearcher, recovers, rng, runEpisode, weighedResearcher } from "./research-eval.ts";
 import { renderEvalsMd } from "./report.ts";
 
+// Slow under the full run's load (7-15 s with every package in parallel): a minute, not the default 5 s.
+const SLOW_MS = 60_000;
+
 const child = (id: string) => {
   const c = SIM_CHILDREN.find((x) => x.id === id);
   if (c === undefined) throw new Error(id);
@@ -34,7 +37,7 @@ describe("the simulated children", () => {
     for (const c of SIM_CHILDREN.filter((x) => x.kind === "inside" || x.kind === "outside")) {
       expect(rules.some((h) => recovers(h, c, FRACTION_BANK)), c.id).toBe(c.kind === "inside");
     }
-  });
+  }, SLOW_MS);
 });
 
 describe("the inexpressible children", () => {
@@ -46,7 +49,7 @@ describe("the inexpressible children", () => {
         expect(fits.map((h) => h.id), c.id).toEqual([]);
       }
     }
-  });
+  }, SLOW_MS);
 });
 
 describe("the eval's pieces", () => {
