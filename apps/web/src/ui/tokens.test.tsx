@@ -108,3 +108,14 @@ describe("the child's screens", () => {
     },
   );
 });
+
+describe("the page's CSS text", () => {
+  // The CSS sits in a <style> on every screen, so its words are in the page's text: the screen checks (forbidden
+  // phrases, Japanese on the English screen) read them too. A comment there once broke them (2026-11-08).
+  it("is ASCII only and holds no forbidden phrase", async () => {
+    const { GLOBAL_CSS } = await import("./tokens.ts");
+    const { hasForbiddenPhrase } = await import("../flow/text.ts");
+    expect([...GLOBAL_CSS].every((c) => c.charCodeAt(0) < 128)).toBe(true);
+    expect(hasForbiddenPhrase(GLOBAL_CSS)).toBe(false);
+  });
+});
