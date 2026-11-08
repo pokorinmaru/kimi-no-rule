@@ -50,6 +50,14 @@ async function openParent() {
 }
 
 describe("a wish to AI-kun", () => {
+  it("opens the help screen on the device's distress words even when the server is down, sending nothing (Q64)", async () => {
+    const { api, wish } = apiWith(new Error("503"));
+    await sendWish("kimi-wish-floor", api, "たすけて");
+    expect(await screen.findByTestId("wish-hard")).toBeTruthy();
+    expect(screen.getByTestId("helplines")).toBeTruthy();
+    expect(wish).not.toHaveBeenCalled();
+  });
+
   it("is offered on the top page, and sends nothing while the box is empty", async () => {
     const { api, wish } = apiWith({ kind: "no_request" });
     render(<App storeName="kimi-wish-empty" api={api} />);

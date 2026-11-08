@@ -5,7 +5,7 @@
 // The buttons of the top page stay under this screen (Q60; no 「つらい」 button since Q64). On the parent screen only the rephrased request, checked by core
 // again here, can be sent to the developer, copied by the parent's own hand.
 import { useEffect, useState, type CSSProperties } from "react";
-import { wishGate, type Lang } from "@kimi/core";
+import { hasDistressWord, wishGate, type Lang } from "@kimi/core";
 import { KohaiBeside } from "../draw/Kohai.tsx";
 import type { FlowApi, WishReply } from "../flow/api.ts";
 import type { UiText } from "../flow/text.ts";
@@ -59,7 +59,9 @@ export function WishScreen(props: {
     const words = text.trim();
     if (words === "") return;
     setPhase("sending");
-    const reply = await ask(props.api, props.outbound(words));
+    // The device's distress words are a floor (Q61): they open the help screen even when the server cannot judge,
+    // since there is no 「つらい」 button to go there by hand (Q64; safety review).
+    const reply = hasDistressWord(words) ? ({ kind: "distress" } as const) : await ask(props.api, props.outbound(words));
     if (reply.kind === "distress") {
       // Help comes first: the screen shows where to talk. Only a mark and the date are kept (the store drops the words).
       await props.store.logSafety("distress");
