@@ -1,13 +1,16 @@
 // The list of every stage picture the app can show for the bank (the premise harness).
 import { describe, expect, it } from "vitest";
-import { PREPARED_BANK } from "@kimi/core";
+import { PREPARED_BANK, objectScene } from "@kimi/core";
 import { sceneCases } from "./scenes.ts";
 
 describe("sceneCases", () => {
   const cases = sceneCases();
-  it("has the correct world before and after the answer, and misread worlds, for every countable bank problem", () => {
+  it("has the correct world before and after the answer, and misread worlds, for every bank problem core can draw as things", () => {
     const ids = new Set(cases.map((c) => c.problemId));
-    expect(ids.size).toBe(PREPARED_BANK.length);
+    // A problem whose counts pass the picture's limit (the sale problem's 800円, Q63) has no stage picture.
+    const drawable = PREPARED_BANK.filter((r) => objectScene(r.world, r.world, { values: [] }) !== null);
+    expect(drawable.map((r) => r.world.problem_id)).not.toContain("p_sale");
+    expect(ids.size).toBe(drawable.length);
     for (const id of ids) {
       expect(cases.some((c) => c.id === `${id}/correct`)).toBe(true);
       expect(cases.some((c) => c.id === `${id}/correct_answered`)).toBe(true);

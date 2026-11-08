@@ -3,7 +3,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { FRACTION_BANK } from "@kimi/core";
+import { PREPARED_BANK } from "@kimi/core";
 import { App } from "./App.tsx";
 
 afterEach(cleanup);
@@ -14,7 +14,7 @@ describe("the AI-free check from the intro screen", () => {
     fireEvent.click(await screen.findByRole("button", { name: "AIなしで ためしてみる" }));
     for (let i = 0; i < 3; i++) {
       const el = await screen.findByTestId("check-problem");
-      const r = FRACTION_BANK.find((x) => x.world.problem_id === el.getAttribute("data-problem-id"));
+      const r = PREPARED_BANK.find((x) => x.world.problem_id === el.getAttribute("data-problem-id"));
       if (r === undefined) throw new Error("bank problem expected");
       expect(document.querySelector('[data-role="ai-badge"]')).not.toBeNull();
       expect(screen.getByTestId("btn-hard")).toBeTruthy();

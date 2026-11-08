@@ -53,9 +53,10 @@ describe("the festival problem", () => {
     expect(valueOf("c_additive")).toBe("9/1");
   });
 
-  it("comes second in the prepared bank, after the story where the child's count is the whole (Q62), before the locked fraction bank", () => {
+  it("comes second in the prepared bank, after the story where the child's count is the whole (Q62); the locked fraction bank comes after the sale problem (Q63)", () => {
     expect(PREPARED_BANK[0]?.world.problem_id).toBe("p_festival_whole");
     expect(PREPARED_BANK[1]).toBe(r);
-    expect(PREPARED_BANK.slice(2)).toEqual(FRACTION_BANK);
+    expect(PREPARED_BANK[2]?.world.problem_id).toBe("p_sale");
+    expect(PREPARED_BANK.slice(3)).toEqual(FRACTION_BANK);
   });
 });
