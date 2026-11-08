@@ -6,8 +6,9 @@ main = "src/cf.ts"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
+preview_urls = false
 
 [vars]
 # Fill in after the first deploy (the page's URL from Cloudflare Pages, and this worker's workers.dev host name).
-ALLOWED_ORIGINS = ""
-WORKER_HOSTS = ""
+ALLOWED_ORIGINS = "https://kimi-no-rule.kimi-no-rule.workers.dev"
+WORKER_HOSTS = "kimi-no-rule-worker.kimi-no-rule.workers.dev"

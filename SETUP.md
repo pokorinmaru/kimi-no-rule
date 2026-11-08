@@ -37,9 +37,9 @@ pnpm install
 
 公開の手順：
 1. サーバー：`pnpm --filter @kimi/worker deploy`（`content/problems` を `src/stored.gen.json` にまとめてから公開する）。表示された `https://kimi-no-rule-worker.<アカウント>.workers.dev` を控える。
-2. 画面：`VITE_API_BASE=<サーバーのURL> VITE_REQUIRE_PASSCODE=1 pnpm --filter @kimi/web build:judge` の後、`npx wrangler pages deploy apps/web/dist-judge --project-name kimi-no-rule`。表示された `https://kimi-no-rule.pages.dev` を控える。
+2. 画面：`VITE_API_BASE=<サーバーのURL> VITE_REQUIRE_PASSCODE=1 pnpm --filter @kimi/web build:judge` の後、`apps/web` で `../worker/node_modules/.bin/wrangler deploy`（`apps/web/wrangler.toml` が `dist-judge` を静的なファイルとして公開する）。表示されたURLを控える。`apps/worker` で Pages の命令を実行すると、サーバーの設定が使われて画面にならないので注意。
 3. `apps/worker/wrangler.toml` の `ALLOWED_ORIGINS` に画面のURL、`WORKER_HOSTS` にサーバーのホスト名を書いて、もう一度 `pnpm --filter @kimi/worker deploy`。
-4. 画面のURLを開き、パスコードで入れることを確かめる。
+4. 画面のURLを開き、パスコードで入れることを確かめる。今の公開先：画面 https://kimi-no-rule.kimi-no-rule.workers.dev 、サーバー https://kimi-no-rule-worker.kimi-no-rule.workers.dev
 
 手元での確かめ（ログイン不要）：`npx wrangler dev --port 8790 --var JUDGE_PASSCODE:<仮の値> --var ALLOWED_ORIGINS:http://localhost:5190 --var WORKER_HOSTS:localhost:8790`、画面は `VITE_API_BASE=http://localhost:8790 VITE_REQUIRE_PASSCODE=1` で `build:judge` して `npx vite preview --outDir dist-judge --port 5190`。
 
