@@ -46,7 +46,19 @@ export interface StepsText {
    * in the problem's unit. What one coin is worth is said wherever coins are drawn; a count of coins is said in coins.
    */
   /** The child's own dealing for one part (user request, 2026-11-08): plate labels, the pool, and when all are equal. */
-  deal: { label: string; plate: (whole: string, part: string) => string; pool: (n: string) => string; equal: (parts: number) => string; how: string };
+  deal: {
+    label: string;
+    plate: (whole: string, part: string) => string;
+    pool: (n: string) => string;
+    equal: (parts: number) => string;
+    how: string;
+    /** The big call to move things, until the child has moved one (user request, 2026-11-08 夜). */
+    hint: (noun: string) => string;
+    /** After a move, while the plates are not the same yet: what they are now, in the child's own counts. */
+    notYet: (parts: number, now: string) => string;
+    /** When all the plates are the same: the child is sent on to type one part. */
+    toPad: (counter: string) => string;
+  };
   money: {
     note: (coinNoun: string, coinCounter: string, worth: number, counter: string) => string;
     fact: (holder: string, counter: string) => string;
@@ -93,8 +105,11 @@ const JA: StepsText = {
     label: "おさら",
     plate: (whole, part) => `${whole}のうち ${part}`,
     pool: (n) => `のこり ${n}`,
-    equal: (parts) => `${String(parts)}つの おさらが 同じに なったね！`,
+    equal: (parts) => `やったね！ ${String(parts)}つの おさらが 同じに なったよ！`,
     how: "ドラッグか、タップで えらんで おさらを タップすると、うごかせるよ。",
+    hint: (noun) => `${noun}を ゆびで ほかの おさらへ うごかしてみよう！`,
+    notYet: (parts, now) => `まだ ${String(parts)}つの おさらが 同じに なってないね。いまは ${now} だね。`,
+    toPad: (counter) => `じゃあ、1つぶんは なん${counter}？ こたえに 入れてみよう！`,
   },
   money: {
     note: (coinNoun, coinCounter, worth, counter) => `絵の ${coinNoun} 1${coinCounter}は ${String(worth)}${counter}。`,
@@ -141,8 +156,11 @@ const EN: StepsText = {
     label: "Plates",
     plate: (whole, part) => `${part} of ${whole}`,
     pool: (n) => `Left over: ${n}`,
-    equal: (parts) => `All ${String(parts)} plates are the same now!`,
+    equal: (parts) => `You did it! All ${String(parts)} plates are the same!`,
     how: "Drag one, or tap one and then tap a plate, to move it.",
+    hint: (noun) => `Move the ${noun} to other plates with your finger!`,
+    notYet: (parts, now) => `The ${String(parts)} plates are not the same yet. Now they are ${now}.`,
+    toPad: (counter) => `So how many ${counter} is one part? Type it in the answer!`,
   },
   money: {
     note: (coinNoun, _coinCounter, worth, counter) => `In the picture, one ${coinNoun} is ${String(worth)}${counter}.`,

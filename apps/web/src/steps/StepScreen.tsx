@@ -55,6 +55,10 @@ export function StepScreen({
   // The panel's notes on this screen point to the buttons (there is no card here).
   const voiceText = { ...uiText.problem.voice, ...t.voiceNotes };
   const [readingIndex, setReadingIndex] = useState<number | null>(null);
+  // The child's own dealing came out the same on every plate: the answer pad is lit and the child is sent to it.
+  const [dealEqual, setDealEqual] = useState(false);
+  const dealKey = view.deal?.key ?? null;
+  useEffect(() => setDealEqual(false), [dealKey]);
   const problemReadings = readingsFor(view.problemId);
   const rubyUi = furigana && lang === "ja";
   // The step's own words read with the problem's readings too (the holders' names, the thing's noun).
@@ -91,15 +95,28 @@ export function StepScreen({
                     <RubyText text={view.lead} on={rubyUi} readings={readings} />
                   </p>
                 )}
-                {view.question !== null && (
-                  <p data-testid="steps-question" style={{ ...prose, margin: 0, fontWeight: 700 }}>
-                    <RubyText text={view.question} on={rubyUi} readings={readings} />
+                {/* Once the plates are the same, the question becomes the call to type one part (one screen: no new row). */}
+                {dealEqual ? (
+                  <p data-testid="deal-to-pad" style={{ ...prose, margin: 0, padding: `${String(SPACE.xs)}px ${String(SPACE.sm)}px`, borderRadius: RADIUS.md, background: COLOR.attention, fontWeight: 800, lineHeight: 1.5 }}>
+                    <RubyText text={t.deal.toPad(view.deal.attempt.unitCounter)} on={rubyUi} readings={readings} />
+                    <span aria-hidden="true"> 👇</span>
                   </p>
+                ) : (
+                  view.question !== null && (
+                    <p data-testid="steps-question" style={{ ...prose, margin: 0, fontWeight: 700 }}>
+                      <RubyText text={view.question} on={rubyUi} readings={readings} />
+                    </p>
+                  )
                 )}
               </div>
             </KohaiBeside>
             {view.pad !== null && (
-              <div style={{ marginTop: SPACE.xs }}>
+              <div
+                data-testid="deal-pad"
+                data-lit={dealEqual ? "true" : "false"}
+                className={dealEqual ? "k-deal-glow" : undefined}
+                style={{ marginTop: SPACE.xs, borderRadius: RADIUS.md, ...(dealEqual ? { outline: `4px solid ${COLOR.attention}`, outlineOffset: 2 } : {}) }}
+              >
                 <NumberPad key={`deal-${view.deal.key}`} lang={lang} label={view.pad} labelNode={<RubyText text={view.pad} on={rubyUi} />} onAnswer={(v) => send({ type: "STEP_NUMBER", value: v })} />
               </div>
             )}
@@ -108,7 +125,7 @@ export function StepScreen({
             <div className="k-deal-sentences" style={{ ...card, padding: `0 ${String(SPACE.sm)}px`, marginBottom: SPACE.sm }}>
               <SentenceList statements={view.statements} readings={furigana ? problemReadings : null} readingIndex={lineIndex} holders={holderColors(view.holders)} checks={checks} label={t.label} lang={lang} />
             </div>
-            <DealBoard key={view.deal.key} attempt={view.deal.attempt} lang={lang} holderLabel={view.holders[0]?.label ?? ""} />
+            <DealBoard key={view.deal.key} attempt={view.deal.attempt} lang={lang} holderLabel={view.holders[0]?.label ?? ""} onEqual={setDealEqual} />
           </div>
         </div>
       </section>
