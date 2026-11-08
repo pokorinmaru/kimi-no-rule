@@ -116,6 +116,10 @@ ruby { ruby-align: center; }
 .k-frac-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 :lang(ja) :is(p, li, h1, h2, h3, figcaption, summary, [data-role="bubble"]) { word-break: auto-phrase; line-break: strict; }
 .k-page { max-width: ${String(PAGE.narrow)}px; }
+/* The child's own dealing (one part after a wrong number): the wide page, and the problem smaller beside the board. */
+.k-page:has([data-deal="true"]) { max-width: ${String(PAGE.wide)}px; }
+.k-deal-sentences li { margin: 2px 0 !important; padding: 2px 4px !important; }
+.k-deal-sentences li > span:not([data-role]) { font-size: 17px !important; line-height: 1.5 !important; }
 .k-split { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "text" "world" "act"; }
 .k-text { grid-area: text; min-width: 0; } .k-world { grid-area: world; min-width: 0; } .k-act { grid-area: act; min-width: 0; }
 @media (min-width: ${String(PAGE.splitAt)}px) {

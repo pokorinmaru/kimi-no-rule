@@ -2,7 +2,7 @@
 // step, one question, and the answers it takes. Every number and picture comes from core (stepsOf, stepScene,
 // objectScene); this file only picks the words. A question's numbers are the problem's own (the given count, the
 // parts of p/q), never the answer or one part before the child has said them.
-import { objectScene, stepScene, type Lang, type ObjectScene, type Rational, type Step } from "@kimi/core";
+import { dealAttempt, dealLine, objectScene, stepScene, type DealAttempt, type Lang, type ObjectScene, type Rational, type Step } from "@kimi/core";
 import { MAX_VOICE_TURNS, type ProblemState } from "../flow/machine.ts";
 import { firstReading } from "../flow/problem.ts";
 import { ui } from "../flow/text.ts";
@@ -44,6 +44,8 @@ export interface StepsView {
    * is off for the session, and the fixed line when nothing usable came back. Null on every other screen.
    */
   voice: { lead: string; canTalk: boolean; listening: boolean; off: boolean; missed: string | null } | null;
+  /** One part, after a wrong number: the dealing at the child's number (core), which the child may rearrange; null otherwise. */
+  deal: { attempt: DealAttempt; key: string } | null;
 }
 
 const frac = (r: Rational): string => (r.den === 1 ? String(r.num) : `${String(r.num)}/${String(r.den)}`);
@@ -85,6 +87,7 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
     note: ui(lang).problem.note,
     heard: null,
     voice: null,
+    deal: null,
   };
   if (outcome !== "steps") {
     const last = s.steps.at(-1);
@@ -190,6 +193,22 @@ export function stepsView(p: ProblemState, lang: Lang, outcome: "steps" | "solve
       const amount = relation?.kind === "relation" ? relation.amount : null;
       const whole = relation?.kind === "relation" && relation.referenceHolderId === step.knownHolderId;
       const question = s.help ? t.unitHelp(counter) : whole ? t.unitWhole(label(step.knownHolderId), n, counter, step.parts) : t.unitPart(label(step.knownHolderId), n, counter, step.parts);
+      // The child's wrong number dealt as it is (user request, 2026-11-08): the plates run out or things are left over,
+      // AI-kun says so in fixed words (core's numbers, never one part), and the child may move the things.
+      const attempt = s.tried !== null && fact?.kind === "fact" ? dealAttempt(p.record, step, fact, s.tried) : null;
+      if (attempt !== null && s.tried !== null) {
+        return {
+          ...common,
+          statements: statementsUpTo(all),
+          current: relation?.kind === "relation" ? relation.statementIndex : null,
+          lit: null,
+          lead: dealLine(p.record, attempt, s.tried, lang),
+          question,
+          pad: t.pad,
+          scene: null,
+          deal: { attempt, key: `${String(s.tries)}-${String(s.tried.num)}/${String(s.tried.den)}` },
+        };
+      }
       // The smaller step draws the dealing so the child can count one part (Q62: a smaller step is allowed);
       // its description says the dishes, never what one dish gets (safety review S1).
       const unitScene = stepScene(p.record, step, s.help ? [...s.said, step.value] : s.said);

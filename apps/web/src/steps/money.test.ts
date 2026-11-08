@@ -20,27 +20,27 @@ describe("the sale problem's step words", () => {
     const a = sale();
     expect(v(a).question).toBe("定価は、なん円？");
     expect(v(a).lead).toBe("絵の 100円玉 1枚は 100円。");
-    a.send({ type: "STEP_NUMBER", value: r(500) });
+    a.send({ type: "STEP_NUMBER", value: r(1000) });
     expect(v(a).question).toBe("代金は、どちらと くらべている？");
     expect(v(a).lead).toBe("絵の 100円玉 1枚は 100円。");
   });
 
   it("says the other reading's world in coins, never a coin count read as yen", () => {
     const a = sale();
-    a.send({ type: "STEP_NUMBER", value: r(500) });
+    a.send({ type: "STEP_NUMBER", value: r(1000) });
     a.send({ type: "STEP_CHOOSE", holderId: "h_pay" });
     const lead = v(a).lead ?? "";
-    expect(lead).toContain("代金は 100円玉 6枚と、1枚に たりない 100円玉。");
+    expect(lead).toContain("代金は 100円玉 12枚と、1枚に たりない 100円玉。");
     expect(lead).toContain("AIくんが 代金と くらべて 読むと");
-    expect(lead).not.toMatch(/6円|1円に/);
+    expect(lead).not.toMatch(/12円|1円に/);
   });
 
   it("keeps the questions in 円 with the coin note on the parts", () => {
     const a = sale();
-    a.send({ type: "STEP_NUMBER", value: r(500) });
+    a.send({ type: "STEP_NUMBER", value: r(1000) });
     a.send({ type: "STEP_CHOOSE", holderId: "h_list" });
     expect(v(a).kind).toBe("unit");
-    expect(v(a).question).toBe("定価の 500円を 5つに わけると、1つぶんは なん円？");
+    expect(v(a).question).toBe("定価の 1000円を 5つに わけると、1つぶんは なん円？");
     expect(v(a).lead).toContain("絵の 100円玉 1枚は 100円。");
   });
 

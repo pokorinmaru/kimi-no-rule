@@ -41,6 +41,8 @@ export interface StepsText {
    * Money (Q63): the holders are things (定価, 代金), not people, and the picture draws coins while the questions stay
    * in the problem's unit. What one coin is worth is said wherever coins are drawn; a count of coins is said in coins.
    */
+  /** The child's own dealing for one part (user request, 2026-11-08): plate labels, the pool, and when all are equal. */
+  deal: { label: string; plate: (whole: string, part: string) => string; pool: (n: string) => string; equal: (parts: number) => string; how: string };
   money: {
     note: (coinNoun: string, coinCounter: string, worth: number, counter: string) => string;
     fact: (holder: string, counter: string) => string;
@@ -81,6 +83,13 @@ const JA: StepsText = {
     denied: "マイクが使えないので、ボタンで えらんでね。",
     off: "いまは、声は使えません。ボタンで えらんでね。",
   },
+  deal: {
+    label: "おさら",
+    plate: (whole, part) => `${whole}のうち ${part}`,
+    pool: (n) => `のこり ${n}`,
+    equal: (parts) => `${String(parts)}つの おさらが 同じに なったね！`,
+    how: "ドラッグか、タップで えらんで おさらを タップすると、うごかせるよ。",
+  },
   money: {
     note: (coinNoun, coinCounter, worth, counter) => `絵の ${coinNoun} 1${coinCounter}は ${String(worth)}${counter}。`,
     fact: (holder, counter) => `${holder}は、なん${counter}？`,
@@ -119,6 +128,13 @@ const EN: StepsText = {
     unsupported: "Talking does not work in this browser. Choose with the buttons.",
     denied: "The microphone is not available. Choose with the buttons.",
     off: "Talking does not work right now. Choose with the buttons.",
+  },
+  deal: {
+    label: "Plates",
+    plate: (whole, part) => `${part} of ${whole}`,
+    pool: (n) => `Left over: ${n}`,
+    equal: (parts) => `All ${String(parts)} plates are the same now!`,
+    how: "Drag one, or tap one and then tap a plate, to move it.",
   },
   money: {
     note: (coinNoun, _coinCounter, worth, counter) => `In the picture, one ${coinNoun} is ${String(worth)}${counter}.`,

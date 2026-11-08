@@ -214,3 +214,4 @@ export {
   type SceneView,
 } from "./scenes/index.ts";
 export { MAX_WISH_CHARS, wishGate, type WishGateResult, type WishRefusal } from "./wish/index.ts";
+export { dealAttempt, dealLine, dealStatus, type DealAttempt, type DealStatus } from "./steps/deal.ts";
