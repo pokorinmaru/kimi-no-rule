@@ -1,9 +1,28 @@
 // The records on the device (指示書 第7.5節, reduced to the submission; 第9節: nothing goes to a server).
 // The child's words never reach a table: every op is passed through core's redact before it is stored,
-// and the junior's rejected lines and the safety events keep only their kinds and dates.
+// and the junior's rejected lines and the safety events keep only their kinds and dates. The one exception is a
+// wish to AI-kun (Q61): what the child wrote there is kept on this device so the parent can read it, and goes
+// with deleteAll; only its rephrasing may leave the device, when the parent sends it.
 import { Dexie, type Table } from "dexie";
 import { hasChildText, initialState, readingLine, redactInterpretation, type Interpretation, type Lang, type ResearchState } from "@kimi/core";
 import type { CardLog, ProblemLog } from "../flow/machine.ts";
+
+/** A wish the child told AI-kun (Q61), on this device only. */
+export interface WishRow {
+  id?: number;
+  at: string;
+  /** What the child wrote, at most MAX_WISH_ORIGINAL characters. */
+  original: string;
+  /** Claude's rephrasing that core let through, or null. */
+  request: string | null;
+  /** Whether the parent sent the request to the developer. */
+  sent: boolean;
+  /** The safety check found the words heavy: only this mark and the date are kept (no words), never sendable. */
+  distress?: boolean;
+}
+
+/** The most of a child's wish the device keeps. */
+export const MAX_WISH_ORIGINAL = 200;
 
 export interface Settings {
   consented: boolean;
@@ -97,6 +116,7 @@ class KimiDB extends Dexie {
   checks!: Table<CheckRow, number>;
   cards!: Table<CardRow, number>;
   researchLog!: Table<ResearchLogRow, number>;
+  wishes!: Table<WishRow, number>;
 
   constructor(name: string) {
     super(name);
@@ -110,6 +130,7 @@ class KimiDB extends Dexie {
     this.version(2).stores({ checks: "++id, at" });
     this.version(3).stores({ cards: "++id, at" });
     this.version(4).stores({ researchLog: "++id, at" });
+    this.version(5).stores({ wishes: "++id, at" });
   }
 }
 
@@ -140,6 +161,11 @@ export interface FlowStore {
   /** The junior's rule card the child left: which rule, how many picks, whether every gallery world fit. */
   addCard(card: CardLog): Promise<void>;
   listCards(): Promise<CardRow[]>;
+  /** A wish the child told AI-kun (Q61); listed newest first. */
+  addWish(w: { original: string; request: string | null; distress?: boolean }): Promise<void>;
+  listWishes(): Promise<WishRow[]>;
+  markWishSent(id: number): Promise<void>;
+  deleteWish(id: number): Promise<void>;
   /** Removes every record and setting on this device (the grown-up's screen), except the screen's language and
    * the furigana switch: they are how the screen reads, not a record of the child. */
   deleteAll(): Promise<void>;
@@ -310,8 +336,24 @@ export function openStore(name: string = DEFAULT_DB_NAME): FlowStore {
     async listCards() {
       return db.cards.orderBy("id").toArray();
     },
+    async addWish(w) {
+      const distress = w.distress === true;
+      // A heavy wish keeps only its mark and date, as the safety events do: what a child writes about a hard time
+      // may be about home, so not even the parent reads it here (safety review, 2026-11-08). It is never sendable.
+      const original = distress ? "" : [...w.original].slice(0, MAX_WISH_ORIGINAL).join("");
+      await db.wishes.add({ at: now(), original, request: distress ? null : w.request, sent: false, ...(distress ? { distress } : {}) });
+    },
+    async listWishes() {
+      return (await db.wishes.orderBy("id").toArray()).reverse();
+    },
+    async markWishSent(id) {
+      await db.wishes.update(id, { sent: true });
+    },
+    async deleteWish(id) {
+      await db.wishes.delete(id);
+    },
     async deleteAll() {
-      const tables = [db.settings, db.attempts, db.research, db.gateLog, db.safetyEvents, db.checks, db.cards, db.researchLog];
+      const tables = [db.settings, db.attempts, db.research, db.gateLog, db.safetyEvents, db.checks, db.cards, db.researchLog, db.wishes];
       await db.transaction("rw", tables, async () => {
         const lang = await db.settings.get("lang");
         const furigana = await db.settings.get("furigana");

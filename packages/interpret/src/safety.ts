@@ -49,6 +49,11 @@ function fold(s: string): string {
     .replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
 }
 
+/** The device's floor: true when a word of DISTRESS_WORDS is in the text (any width, case or script). */
+export function hasDistressWord(transcript: string): boolean {
+  return byDictionary(transcript) === "distress";
+}
+
 function byDictionary(transcript: string): SafetyFlag {
   const t = fold(transcript);
   return [...DISTRESS_WORDS.ja, ...DISTRESS_WORDS.en].some((w) => t.includes(fold(w))) ? "distress" : "none";

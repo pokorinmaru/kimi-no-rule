@@ -2,7 +2,7 @@ export const PACKAGE = "@kimi/interpret";
 export { MODELS, anthropicClient, toStructuredSchema, withDeadline, type ClaudeClient, type ClaudeRequest, type ClaudeResponse, type Effort } from "./client.ts";
 export { INTERPRET_SYSTEM, INTERPRET_TIMEOUT_MS, interpret, warmInterpret, type InterpretInput, type InterpretResult } from "./interpret.ts";
 export { EXPLAIN_SYSTEM, explain } from "./explain.ts";
-export { DISTRESS_WORDS, SAFETY_TIMEOUT_MS, checkSafety, type SafetyFlag, type SafetyResult } from "./safety.ts";
+export { DISTRESS_WORDS, SAFETY_TIMEOUT_MS, checkSafety, hasDistressWord, type SafetyFlag, type SafetyResult } from "./safety.ts";
 export { KOHAI_SYSTEM, KOHAI_TIMEOUT_MS, kohai, kohaiGates, type GateRule, type KohaiInput, type KohaiIntent } from "./kohai.ts";
 export { anthropicAgentClient, runAgent, type AgentClient, type AgentStep, type AgentTool } from "./agent.ts";
 export {
@@ -43,3 +43,4 @@ export {
 } from "./transfer.ts";
 export * from "./research.ts";
 export { SCENES_SYSTEM, SCENES_TIMEOUT_MS, WORD_KINDS, proposeScenes, type ScenesInput, type ScenesResult, type WordKind } from "./scenes.ts";
+export { WISH_SYSTEM, WISH_TIMEOUT_MS, rephraseWish, type WishResult } from "./wish.ts";
