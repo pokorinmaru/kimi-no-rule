@@ -782,7 +782,12 @@ function stepNumber(ctx: FlowContext, value: Rational): Partial<FlowContext> {
   if (step.kind === "total") {
     const unit = s.steps.find((x) => x.kind === "unit");
     const attempt = unit?.kind === "unit" ? dealTotal(p.record, step, unit.value, value) : null;
-    if (attempt !== null && s.tries + 1 < MAX_UNIT_TRIES) return { problem: { ...p, ...extra, steps: { ...s, tries: s.tries + 1, tried: value, help: false } } };
+    // A number that cannot be dealt (too many things, a fraction) keeps the tries left too, with the plates to count
+    // (reviewer, 2026-11-08: it once held the problem after two).
+    if (s.tries + 1 < MAX_UNIT_TRIES) {
+      const next: StepState = attempt !== null ? { ...s, tries: s.tries + 1, tried: value, help: false } : { ...s, tries: s.tries + 1, tried: null, help: true };
+      return { problem: { ...p, ...extra, steps: next } };
+    }
   }
   if (s.tries === 0) {
     const next: StepState = step.kind === "fact" ? { ...s, tries: 1, hint: true } : { ...s, tries: 1, help: true, tried: null };

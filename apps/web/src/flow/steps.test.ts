@@ -87,6 +87,20 @@ describe("the step flow", () => {
     expect(a.getSnapshot().context.log.at(-1)?.steps?.at(-1)).toEqual({ kind: "total", tries: 4, outcome: "stopped" });
   });
 
+  it("an answer that cannot be dealt keeps the tries left, with the plates to count (reviewer, 2026-11-08)", () => {
+    const a = run();
+    a.send({ type: "STEP_NUMBER", value: r(8) });
+    a.send({ type: "STEP_CHOOSE", holderId: "h_me" });
+    a.send({ type: "STEP_NUMBER", value: r(2) });
+    a.send({ type: "STEP_NUMBER", value: r(5) });
+    expect(steps(a)?.tried).toEqual(r(5));
+    // 1/2 cannot be dealt as goldfish: still the answer step, now with the help, not held after two.
+    a.send({ type: "STEP_NUMBER", value: { num: 1, den: 2 } });
+    expect(a.getSnapshot().matches({ active: { problem: "held" } })).toBe(false);
+    expect(steps(a)?.tried).toBeNull();
+    expect(steps(a)?.help).toBe(true);
+  });
+
   it("the second problem is the festival story where the child's count is a part, on the same steps", () => {
     const a = run();
     for (const e of [

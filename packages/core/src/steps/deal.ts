@@ -151,12 +151,19 @@ export function dealTotal(record: ProblemRecord, step: Extract<Step, { kind: "to
  * What the plates hold now (the child may have moved things): each plate's count, its value and its share of all the
  * things (count / total, not reduced), whether all are equal, the whole and the pool in the problem's unit. Before the
  * plates are all the same, a value in `hidden` (one part or the answer the child has not said) is not given.
+ * `mode`: "unit" when the child looks for one part (plates the same is the goal, `equal`); "total" when the child's
+ * answer is dealt one part per plate, where the same plates are not the goal and may hold the answer, so `equal` is
+ * never set and a hidden value stays hidden (reviewer and safety review, 2026-11-08). Even in "unit", a hidden value
+ * stays hidden when a thing is worth more than 1 (coins): 3 coins the same on each plate must not say 300円 for the
+ * child (the count of coins is what the child sees).
  */
-export function dealStatus(plates: readonly number[], total: number, worth = 1, pool = 0, hidden: readonly number[] = []): DealStatus {
+export function dealStatus(plates: readonly number[], total: number, worth = 1, pool = 0, hidden: readonly number[] = [], mode: "unit" | "total" = "unit"): DealStatus {
   const placed = plates.reduce((a, b) => a + b, 0);
   const first = plates[0];
-  const equal = placed === total && first !== undefined && first > 0 && plates.every((c) => c === first);
-  const shown = (v: number): number | null => (!equal && hidden.includes(v) ? null : v);
+  const same = placed === total && first !== undefined && first > 0 && plates.every((c) => c === first);
+  const equal = mode === "unit" && same;
+  const reveal = equal && worth === 1;
+  const shown = (v: number): number | null => (!reveal && hidden.includes(v) ? null : v);
   return {
     plates: plates.map((count) => {
       const value = shown(count * worth);

@@ -83,8 +83,8 @@ export function DealBoard({
   const start = useRef<{ x: number; y: number } | null>(null);
   const part = itemPartFor(attempt.noun, holderLabel);
   const svg = itemSvg(part ?? "token");
-  const raw = dealStatus(plates, attempt.total, attempt.worth, pool, attempt.hidden);
-  const status = mode === "unit" ? raw : { ...raw, equal: false };
+  // The mode goes to core: in "total" the same plates are not the goal and keep the answer hidden.
+  const status = dealStatus(plates, attempt.total, attempt.worth, pool, attempt.hidden, mode);
   useEffect(() => {
     onEqual?.(status.equal);
   }, [status.equal, onEqual]);

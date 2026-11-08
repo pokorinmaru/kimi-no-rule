@@ -73,6 +73,24 @@ describe("plate numbers that are one part or the answer (safety review, 2026-11-
   });
 });
 
+describe("the same plates never give a hidden number away (reviewer and safety review, 2026-11-08)", () => {
+  it("at the answer step: the child's wrong answer moved into the same plates keeps the answer hidden", () => {
+    // festival 1: one part 2, the answer 6. A child's 18 dealt and moved into [6,6,6]: each plate holds the answer.
+    const a = { total: 18, worth: 1, hidden: [2, 6] };
+    const s = dealStatus([6, 6, 6], a.total, a.worth, 0, a.hidden, "total");
+    expect(s.equal).toBe(false);
+    expect(s.plates.map((p) => p.value)).toEqual([null, null, null]);
+    expect(s.plates[0]?.fraction).toBeNull();
+  });
+
+  it("at one part with coins: the same plates keep one part's yen hidden (the coins are what the child counts)", () => {
+    const s = dealStatus([2, 2, 2, 2, 2], 10, 100, 0, [200, 800], "unit");
+    expect(s.equal).toBe(true);
+    expect(s.plates.map((p) => p.value)).toEqual([null, null, null, null, null]);
+    expect(s.plates.map((p) => p.count)).toEqual([2, 2, 2, 2, 2]);
+  });
+});
+
 describe("dealAttempt refuses what cannot be dealt as things", () => {
   it("0, a negative number, a fraction, a number that is not whole coins, and one part itself", () => {
     const rec = festivalWholeRecord;
